@@ -1,0 +1,19 @@
+#!/usr/bin/dh-exec
+
+create-release         usr/bin/
+molior-sbuild          usr/bin/
+molior-project-manager usr/bin/
+molior-create          usr/bin/
+molior-archive-sources usr/bin/
+molior-trigger         usr/bin/
+
+molior-deploy          usr/sbin/
+add-molior-repo        usr/sbin/
+
+pkgdata/.              .
+
+molior.sh.inc          usr/lib/molior-tools/
+molior-deploy.sh.inc   usr/lib/molior-deploy/
+initrd-installer       usr/lib/molior-deploy/
+plugins                usr/lib/molior-deploy/
+

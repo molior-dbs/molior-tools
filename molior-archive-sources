@@ -1,0 +1,150 @@
+#!/bin/sh
+
+set -e
+
+. /usr/lib/molior-tools/molior.sh.inc
+
+PROGRAMM_NAME="$0"
+
+usage()
+{
+  ERROR="$1"
+
+  echo "Usage: $PROGRAMM_NAME PROJECT VERSION"
+  if [ -n "$ERROR" ]; then
+    echo
+    echo "$ERROR"
+  fi
+  exit 1
+}
+
+PROJECT=$1
+PROJECT_VERSION=$2
+
+if [ -z "$PROJECT" ]
+then
+  usage "You have to specify a project!"
+fi
+
+if [ -z "$PROJECT_VERSION" ]
+then
+  usage "You have to specify a project version"
+fi
+
+shift 2
+
+aquire_user
+aquire_pass
+
+COOKIE_FILE=`mktemp`
+
+molior_session_call()
+{
+  URL_PATH="$1" && shift
+  curl $MOLIOR_URL$URL_PATH -s \
+    --cookie "$COOKIE_FILE" \
+    --cookie-jar "$COOKIE_FILE" $@
+}
+
+# login to the molior session
+molior_session_call "/plogin" \
+  --data-urlencode "username=$MOLIOR_USER" \
+  --data-urlencode "password=$MOLIOR_PASSWORD" \
+  --location > /dev/null
+
+# get all the repository urls
+PROJECT_ID=$( \
+  molior_session_call "/api/projects?show_all=true" | \
+  jq -r ".results[] | select(.name==\"${PROJECT}\").id" \
+)
+
+if [ -z "$PROJECT_VERSION" ]
+then
+  PROJECT_VERSION=$( \
+    molior_session_call "/api/projects/$PROJECT_ID" | \
+    jq '.versions_map | to_entries[]' | \
+    jq -s -r 'sort_by(.key)[-1].value' \
+  )
+fi
+
+echo "Getting repositories from version: $PROJECT_VERSION"
+PROJECT_VERSION_ID=$( \
+  molior_session_call "/api/projects/$PROJECT_ID" | \
+  jq -r ".versions_map | to_entries[] | select(.value==\"${PROJECT_VERSION}\").key" \
+)
+
+REPOSITORIES=$( \
+  molior_session_call "/api/repositories?project_version_id=$PROJECT_VERSION_ID" | \
+  jq -r '.results[] | .url + "#" + .projectversion.last_gitref' \
+)
+
+REPOSITORIES=$( \
+  echo "$REPOSITORIES" | \
+  sed 's,\s,\n,g'\
+)
+
+# execute a callback on each repository
+for_repo()
+{
+  CALLBACK=$1
+  shift
+  for REPO in $REPOSITORIES
+  do
+    REPO_URL=`echo $REPO | cut -d# -f1`
+    GIT_REF=`echo $REPO | cut -d# -f2`
+    if [ -z "$GIT_REF" ]; then
+      GIT_REF=master
+    fi
+    REPO_DIRECTORY=$(echo "$REPO_URL" | cut -d/ -f5 | rev | cut -d. -f2- | rev)
+    echo
+    echo === $REPO_DIRECTORY ===
+    $CALLBACK $@ || true
+  done
+}
+
+_get()
+{
+  REPO_NAME=`basename $REPO_URL | sed s/\.git$//`
+  mkdir $REPO_NAME
+  cd $REPO_NAME
+  git init .
+  git remote add origin $REPO_URL
+  git fetch --depth 1 -t -n origin $GIT_REF
+  if echo $GIT_REF | grep -q ^v; then
+    git checkout FETCH_HEAD
+  else
+    git checkout $GIT_REF
+  fi
+  cd - >/dev/null
+}
+
+curdir=`pwd`
+workdir=`mktemp -d /tmp/molior-sources-XXXXXX`
+cd $workdir
+for_repo _get
+cd - >/dev/null
+
+echo
+echo === Creating source archives ===
+
+TOP_VERSION=""
+for repo in $workdir/*
+do
+  cd $repo
+  version=`dpkg-parsechangelog -SVersion`
+  cd $workdir
+  mv $repo ${repo}_$version
+  reponame=`basename ${repo}`
+  echo " * $reponame $version"
+  if [ "$reponame" = "$PROJECT" ]; then
+    TOP_VERSION="_$version"
+  fi
+  repodir=${reponame}_$version
+  tar $TAR_PXZ --exclude='.git' -cf $repodir.tar.xz $repodir
+done
+
+cd $workdir
+zip $curdir/${PROJECT}_$PROJECT_VERSION$TOP_VERSION.zip *.xz
+rm -rf $workdir
+
+echo ${PROJECT}_$PROJECT_VERSION$TOP_VERSION.zip created.

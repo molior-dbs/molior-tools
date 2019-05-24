@@ -1,0 +1,125 @@
+# molior-deploy plugin
+# vim: syntax=sh
+
+preinit_deployment_vbox()
+{
+  REQUIRED_HOST_PACKAGES="virtualbox"
+  INSTALL_GRUB="yes"
+  PARTSEP="p"
+  USE_VDI=1
+  QEMU_VERSION=`dpkg-query --showformat='${Version}' --show qemu-utils`
+  if dpkg --compare-versions "$QEMU_VERSION" gt "1:2.8"; then
+      USE_VDI=0
+  fi
+}
+
+init_deployment_vbox()
+{
+  vmname=${PROJECT}_${VERSION}_${REVISION}_${VARIANT}
+  #FIXME check VMSIZE
+  echo " * creating ${VMSIZE}MB"
+  if [ "$USE_VDI" -eq 1 ]; then
+    VMDISK=$WORK_DIR/disk.vdi
+    vboxmanage createhd --filename $VMDISK --size=$VMSIZE >&2
+  else
+    VMDISK=$WORK_DIR/disk.qcow2
+    qemu-img create -f qcow2 $VMDISK ${VMSIZE}M >&2
+  fi
+  if [ $? -ne 0 ]; then
+    log_error "Error creating $VMDISK"
+  fi
+
+  if ! grep -q "^nbd " /proc/modules; then
+    modprobe nbd
+    if [ $? -ne 0 ]; then
+      log_error "Error loading kernel module nbd"
+    fi
+  fi
+  # FIXME: use free device https://stackoverflow.com/questions/22535222/next-free-device-option-for-qemu-nbd
+  nbd=/dev/nbd0
+  qemu-nbd -c $nbd $VMDISK
+  disk=`losetup -P -f --show $nbd`
+
+  create_partitions
+  create_fs
+  mount_fs
+}
+
+deinit_deployment_vbox()
+{
+  if [ -n "$LVM_VG" ]; then
+    vgremove -f ${LVM_VG} >&2
+  fi
+
+  if [ -n "$disk" ]; then
+    losetup -d $disk
+    disk=""
+    qemu-nbd -d $nbd >&2
+  fi
+}
+
+finalize_deployment_vbox()
+{
+  umount_bootstrap
+  umount_fs
+  deinit_deployment_vbox
+
+  ostype=Debian_64
+  # or Debian for i386
+
+  echo " * creating VirtualBox VM"
+  if [ -e "/root/VirtualBox VMs/$vmname" ]; then
+    vboxmanage unregistervm "$vmname" --delete >&2
+  fi
+
+  if [ -z "$VMCPUS" ]; then
+    VMCPUS=2
+  fi
+  vboxmanage createvm --name $vmname --ostype=$ostype --register >&2
+  vboxmanage storagectl $vmname --name "SATA Controller" --add sata --controller IntelAHCI --portcount 2 >&2
+  if [ "$USE_VDI" -eq 0 ]; then
+    qemu-img convert -f qcow2 -O vdi $WORK_DIR/disk.qcow2 $WORK_DIR/disk.vdi
+    rm -f $WORK_DIR/disk.qcow2
+  fi
+  vboxmanage storageattach $vmname --storagectl "SATA Controller" --port 0 --device 0 --type hdd      --medium $WORK_DIR/disk.vdi >&2
+  vboxmanage storageattach $vmname --storagectl "SATA Controller" --port 1 --device 0 --type dvddrive --medium emptydrive >&2
+  vboxmanage modifyvm $vmname --ioapic on >&2
+  vboxmanage modifyvm $vmname --boot1 disk --boot2 none --boot3 none --boot4 none >&2
+  vboxmanage modifyvm $vmname --cpus $VMCPUS >&2
+  vboxmanage modifyvm $vmname --memory $VMRAM --vram $VMVRAM >&2
+  vboxmanage modifyvm $vmname --nic1 nat --nictype1 Am79C973 >&2
+  vboxmanage modifyvm $vmname --accelerate3d on >&2
+  vboxmanage modifyvm $vmname --rtcuseutc on >&2
+  vboxmanage modifyvm $vmname --clipboard bidirectional >&2
+  vboxmanage modifyvm $vmname --description "VirtualBox for ${PROJECT}_${REVISION} `date -R`
+----------------------------------------------------------------
+APT sources
+----------------------------------------------
+$APT_SOURCES
+----------------------------------------------------------------
+Installed Packages (`echo \"$INSTALLED_PACKAGES\" | wc -l`)
+----------------------------------------------
+$INSTALLED_PACKAGES
+" >&2
+
+  if [ -n "$VMMODIFY" ]; then
+    echo "$VMMODIFY" | while read line; do
+      if echo "$line" | grep -q '^[a-zA-Z0-9.,_"\\ -]\+$'; then
+        eval vboxmanage modifyvm $vmname `echo -n "$line"` >&2
+      fi
+    done
+  fi
+
+  echo " * exporting VirtualBox appliance"
+  deployment=$vmname.ova
+  vboxmanage export $vmname -o $WORK_DIR/$deployment >&2
+  if [ $? -ne 0 ]; then
+    log_error "Error exporting VM"
+  fi
+  if [ -n "$SUDO_UID" -a -n "$SUDO_GID" ]; then
+    chown $SUDO_UID:$SUDO_GID $WORK_DIR/$deployment
+  fi
+  mv $WORK_DIR/$deployment ./
+  vboxmanage unregistervm "$vmname" --delete >&2
+}
+

@@ -1,0 +1,13 @@
+debian/debhelper-build-stamp
+debian/files
+debian/molior-tools.debhelper.log
+debian/molior-tools.substvars
+debian/molior-tools/
+
+molior_tools.egg-info/
+
+# python stuff
+.pybuild/
+moliorparseconfig.egg-info/
+debian/molior-tools.postinst.debhelper
+debian/molior-tools.prerm.debhelper

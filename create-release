@@ -1,0 +1,239 @@
+#!/bin/bash
+
+# Increment the given version number
+# on the specified number
+increment_version() {
+    local version="$1"
+    local digit="$2"
+    number_to_increment=$(echo "${version}" | cut -d'.' -f"${digit}")
+    echo "${version}" | awk -v "number=${number_to_increment}" 'BEGIN{FS=OFS="."} {$'"${digit}"' = ++number; print}'
+}
+
+log()
+{
+  echo " * $@"
+}
+
+log_info()
+{
+  /bin/echo -e "\e[36m\e[1mI: $@\e[0m"
+}
+
+log_notice()
+{
+  /bin/echo -e "\e[32m\e[1mN: $@\e[0m"
+}
+
+log_warn()
+{
+  /bin/echo -e "\e[35m\e[1mW: $@\e[0m"
+}
+
+log_error()
+{
+  /bin/echo -e "\e[31m\e[1mE: $@\e[0m"
+  exit 1
+}
+
+AUTO_INCREMENT=""
+VERSION_POSTFIX=""
+SAME_VERSION=false
+DCH_OPTIONS=""
+NOPUSH=0
+SKIP_CONFIRM=0
+SKIP_EDIT=0
+
+while true
+do
+    case "$1" in
+        -np|--no-push)       NOPUSH=1; shift 1;;
+        --skip-edit)         SKIP_EDIT=1; shift 1;;
+        --skip-confirm)      SKIP_CONFIRM=1; shift 1;;
+        --auto-increment)    AUTO_INCREMENT="$2"; shift 2;;
+        --same-version)      SAME_VERSION=true; shift;;
+        --version-postfix)   VERSION_POSTFIX="~$2"; shift 2;;
+        --force-bad-version) DCH_OPTIONS="${DCH_OPTIONS} --force-bad-version"; shift;;
+        *)                   break ;;
+    esac
+done
+
+if ! git rev-parse --is-inside-work-tree > /dev/null 2>&1; then
+  log_error "you have to run this script in a git repository"
+fi
+
+cd "$(git rev-parse --show-toplevel)"
+
+if ! git diff-files --quiet || ! git diff-index --quiet --cached HEAD; then
+  log_error "you have uncommitted changes, please commit or stash them."
+fi
+
+export DEBFULLNAME=`git config user.name`
+export DEBEMAIL=`git config user.email`
+
+if [ -z "$DEBFULLNAME" -o -z "$DEBEMAIL" ]; then
+  log_error "please configure git user.name and user.email"
+fi
+
+if [ -f debian/control ]; then
+   package_name=`grep ^Source: debian/control | cut -d' ' -f2`
+else
+  log_error "debian/control not found"
+fi
+
+create_changelog=1
+previous_version=""
+if [ -f debian/changelog ]; then
+  previous_version=`dpkg-parsechangelog --show-field Version 2>/dev/null`
+  distribution=`dpkg-parsechangelog --show-field Distribution 2>/dev/null`
+  create_changelog=0
+fi
+
+if [ -z "$distribution" ]; then
+  distribution="stable"
+fi
+
+if [ -z "$previous_version" ]; then
+  create_changelog=1
+fi
+
+errlog=`mktemp /tmp/create-release-XXXXX`
+
+finish()
+{
+  if [ -f $errlog ]; then
+    cat $errlog
+    rm -f $errlog
+  fi
+}
+trap finish EXIT
+
+set -e
+
+log_info "Preparing release of $package_name"
+
+next_version=""
+if [ -n "$previous_version" ]; then
+  log "fetching tags ..."
+  git fetch --tags >/dev/null 2>&1
+
+  log_info "Previous version: $previous_version"
+
+  cp debian/changelog debian/changelog.tmp
+  while true
+  do
+    dch -i --vendor molior -c debian/changelog.tmp dummy
+    next_version=`dpkg-parsechangelog -S version -l debian/changelog.tmp`
+
+    git_version=v$(echo "$next_version" | tr '~' '-')
+    if ! git tag | grep -q "^$git_version$"; then
+      break
+    else
+      log "git tag $git_version already exists"
+    fi
+  done
+  rm -f debian/changelog.tmp
+fi
+
+if [ -n "${AUTO_INCREMENT}" ]; then
+    version="$(increment_version "${previous_version}" "${AUTO_INCREMENT}")${VERSION_POSTFIX}"
+    log "Auto incremented ${AUTO_INCREMENT} field of version ${previous_version} to ${version}"
+elif ${SAME_VERSION}; then
+    version="${previous_version}${VERSION_POSTFIX}"
+    log "Used same version as the previous build ('${previous_version}') but appended postfix to it: '${version}'"
+else
+    version=$1
+
+    while [ -z "$version" ]; do
+      echo -n -e "\e[33m\e[1mQ: Please enter version to be released [$next_version]: \e[0m"
+      read version
+      if [ -z "$version" ]; then
+        version=$next_version
+      fi
+      if [ -f debian/source/format ]; then
+        if grep -q native debian/source/format; then
+          if echo "$version" | grep -q -- -; then
+            log_warn "debian/source/format is set to native: version may not contain '-'"
+            version=""
+            continue
+          fi
+        fi
+      fi
+      if ! echo "$version" | grep -q '^[0-9]\+[0-9a-z.]*\([\~-][0-9a-z.\~-]*\)\?$' ; then
+        log_warn "Invalid Debian version specified"
+        echo -n -e "\e[33m\e[1mQ: Press i to ignore and continue, press Enter to change the version ... \e[0m"
+        read resp
+        if [ "$resp" = "i" ]; then
+          break
+        fi
+        version=""
+        continue
+      fi
+      git_version=v$(echo "$version" | tr '~' '-')
+      if ! git tag | grep -q "^$git_version$"; then
+        break
+      else
+        log "git tag $git_version already exists"
+        version=""
+      fi
+    done
+fi
+
+log "Updating debian/changelog "
+
+COMMITS=""
+if [ -n "$previous_version" ]; then
+  COMMITS=`git log v"$(echo "$previous_version" | tr '~' '-')"..HEAD --grep Signed-off-by --oneline 2>/dev/null || true`
+fi
+if [ -z "$COMMITS" ]; then
+  COMMITS="XXXXXXX bump version $version"
+fi
+
+echo "$COMMITS" | (
+  count=1
+  while read x
+  do
+    if [ $count -eq 1 ]; then
+      DCH_CREATE=""
+      if [ "$create_changelog" -eq 1 ]; then
+        DCH_CREATE="--create --package $package_name"
+      fi
+      eval dch $DCH_CREATE --force-distribution ${DCH_OPTIONS} --distribution "$distribution" --urgency=medium --newversion=$version \"$(echo "$x" | cut -d' ' -f 2-)\" >$errlog 2>&1
+    else
+      dch --append "$(echo "$x" | cut -d' ' -f 2-)" >$errlog 2>&1
+    fi
+    count=$((count + 1))
+    if [ $count -eq 20 ]; then
+      dch --append ... >$errlog 2>&1
+      break
+    fi
+  done
+)
+
+test  "$SKIP_EDIT" -eq 1 || dch -e 2>/dev/null
+
+log_info "The resulting packages will be published in the following project versions:"
+echo -n -e "\e[35m\e[1m"
+molior-parseconfig target list | sed 's/^/ * /'
+echo -n -e "\e[0m"
+
+if [ $SKIP_CONFIRM -eq 0 ]
+then
+  log_notice "Ready to release $package_name ($version) ?"
+  echo -n -e "\e[33m\e[1mQ: Press Enter to continue, Ctrl-C to abort ... \e[0m"
+  read x
+fi
+
+log "Committing debian/changelog"
+git add -f debian/changelog >/dev/null 2>&1
+git commit debian/changelog -m "$package_name: release $version" >$errlog 2>&1
+git tag -a v"$(echo "$version" | tr '~' '-')" -m "$package_name: release $version" >$errlog 2>&1
+
+log "Pushing changes to remote"
+if [ "$NOPUSH" -eq 0 ]; then
+  git push origin `git rev-parse --abbrev-ref HEAD` v`echo $version | tr '~' '-'` >$errlog
+  log_info "Release $package_name ($version) tagged and pushed"
+else
+  log_info "Release $package_name ($version) tagged, please git push origin `git rev-parse --abbrev-ref HEAD` v`echo $version | tr '~' '-'`"
+fi
+
+rm -f $errlog

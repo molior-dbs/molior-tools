@@ -1,0 +1,12 @@
+#!/usr/bin/make -f
+# -*- makefile -*-
+
+DEBVERSION := $(shell dpkg-parsechangelog -S Version)
+
+%:
+	dh $@  --with python3 --buildsystem=pybuild
+
+override_dh_auto_install:
+	dh_auto_install
+	mkdir -p debian/molior-tools/usr/lib/molior-tools
+	echo ${DEBVERSION} > debian/molior-tools/usr/lib/molior-tools/version

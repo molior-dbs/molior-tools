@@ -1,0 +1,348 @@
+#!/bin/sh
+
+set -e
+
+. /usr/lib/molior-tools/molior.sh.inc
+
+PROGRAMM_NAME="$0"
+
+aquire_user
+
+usage()
+{
+  ERROR="$1"
+
+  echo "Usage: $PROGRAMM_NAME [OPTIONS] PROJECT VERSION OPERATION"
+  echo "Options:"
+  echo " -m MOLIOR_URL      Alternative molior url (Default: $MOLIOR_URL)"
+  echo " -x PATTERN         Exclude pattern (one ore multiple)"
+  echo " -a                 Add a new version instead of overwriteing the old one"
+  echo
+  echo "Operations:"
+  echo " * get              clone or pull git repositories"
+  echo " * create           create new projectversion in all repositories"
+  echo "    -v NEWVERSION   new version to create"
+  echo " * push             push changes to git server"
+  echo "    -v NEWVERSION   new version branch to push"
+  echo " * run COMMAND      run any command in the git repositories"
+  echo
+  echo
+  echo "Examples:"
+  echo " create-project-release liat 3.3-stretch get"
+  echo " create-project-release liat 3.3-stretch create -v main1808"
+  echo " create-project-release liat 3.3-stretch push -v main1808"
+  echo " create-project-release liat 3.3-stretch release -v main1808"
+  if [ -n "$ERROR" ]
+  then
+    echo
+    echo "$ERROR"
+  fi
+  exit 1
+}
+
+# save all the arguments for the later guidance
+ALL_ARGS="$@"
+APPEND_VERSION=0
+while getopts "m:v:x:a" opt
+do
+  case $opt in
+    m)
+      MOLIOR_URL="$OPTARG"
+      shift 2
+      ;;
+    x)
+      EXCLUDE="$OPTARG|$EXCLUDE"
+      shift 2
+      ;;
+    a)
+      APPEND_VERSION=1
+      shift 1
+      ;;
+    \?)
+      usage "Invalid option $opt"
+      ;;
+    :)
+      usage "Option -$OPTARG requires an argument."
+      ;;
+  esac
+done
+
+PROJECT=$1
+PROJECT_VERSION=$2
+OPERATION=$3
+
+if [ -z "$PROJECT" ]
+then
+  usage "You have to specify a project!"
+fi
+
+if [ -z "$PROJECT_VERSION" ]
+then
+  usage "You have to specify a project version"
+fi
+
+if [ -z "$OPERATION" ]
+then
+  usage "You have to specify a operation"
+fi
+
+shift 3
+
+# execute a callback on each repository
+for_repo()
+{
+  CALLBACK=$1
+  shift
+  for REPO in $REPOSITORIES
+  do
+    REPO_URL=`echo $REPO | cut -d# -f1`
+    GIT_REF=`echo $REPO | cut -d# -f2`
+    if [ -z "$GIT_REF" ]; then
+      GIT_REF=master
+    fi
+    REPO_DIRECTORY=$(echo "$REPO_URL" | cut -d/ -f5 | rev | cut -d. -f2- | rev)
+    echo
+    echo === $REPO_DIRECTORY ===
+    $CALLBACK $@ || true
+  done
+}
+
+_get()
+{
+  if [ -d "$REPO_DIRECTORY" ]
+  then
+    #cd "$REPO_DIRECTORY"
+    #git checkout $GIT_REF
+    #git pull --rebase --all
+    #cd - >/dev/null
+    echo "Already cloned"
+  else
+    REPO_NAME=`basename $REPO_URL | sed s/\.git$//`
+    mkdir $REPO_NAME
+    cd $REPO_NAME
+    git init .
+    git remote add origin $REPO_URL
+    git fetch --depth 1 origin $GIT_REF
+    if echo $GIT_REF | grep -q ^v; then
+      git checkout FETCH_HEAD
+    else
+      git checkout $GIT_REF
+    fi
+    cd - >/dev/null
+  fi
+}
+
+_create_version()
+{
+  if [ ! -d "$REPO_DIRECTORY" ]; then
+    echo "Error: repo $REPO_DIRECTORY not found"
+    return
+  fi
+
+  while getopts "v:" opt
+  do
+    case $opt in
+      v)
+        NEWVERSION="$OPTARG"
+        shift 2
+        ;;
+      \?)
+        usage "Invalid option $opt"
+        ;;
+      :)
+        usage "Option -$OPTARG requires an argument."
+        ;;
+    esac
+  done
+
+  if [ -z "$NEWVERSION" ]; then
+    usage "Error: please specify NEWVERSION (-v)"
+  fi
+
+  if [ ! -f $REPO_DIRECTORY/debian/molior.yml ]; then
+    echo "Error: debian/molior.yml not found"
+    return
+  fi
+
+  cd "$REPO_DIRECTORY"
+  git checkout -b $NEWVERSION
+  if [ "$?" -ne 0 ]; then
+    cd - > /dev/null
+    return
+  fi
+
+  if grep -q target_repo_version debian/molior.yml; then
+    # legacy upgrade for old molior version pre 1.2.0~alpha
+    sed -i "s/target_repo_version:.*$/target_repo_version: '$NEWVERSION'/g" debian/molior.yml
+  else
+    if [ "$APPEND_VERSION" -ne 1 ]; then
+      for target in `molior-parseconfig target list | grep "^$PROJECT/"`
+      do
+        echo "Removing old version: $target"
+        target_version=`echo $target | cut -d/ -f2`
+        molior-parseconfig target remove "$PROJECT" $target_version
+      done
+    fi
+
+    # add the new project version
+    molior-parseconfig target add "$PROJECT" "$NEWVERSION"
+    # FIXME: version has to be a string
+  fi
+
+  # commit the changes
+  git add debian/molior.yml
+  git commit -sm "release for $PROJECT version $NEWVERSION"
+
+  cd - > /dev/null
+}
+
+_push()
+{
+  if [ ! -d "$REPO_DIRECTORY" ]; then
+    echo "Error: repo $REPO_DIRECTORY not found"
+    return
+  fi
+
+  while getopts "v:" opt
+  do
+    case $opt in
+      v)
+        NEWVERSION="$OPTARG"
+        shift 2
+        ;;
+      \?)
+        usage "Invalid option $opt"
+        ;;
+      :)
+        usage "Option -$OPTARG requires an argument."
+        ;;
+    esac
+  done
+
+  if [ -z "$NEWVERSION" ]; then
+    usage "Error: please specify NEWVERSION (-v)"
+  fi
+
+  cd "$REPO_DIRECTORY"
+  git push --set-upstream origin $NEWVERSION
+  cd - > /dev/null
+}
+
+_release()
+{
+  if [ ! -d "$REPO_DIRECTORY" ]; then
+    echo "Error: repo $REPO_DIRECTORY not found"
+    return
+  fi
+
+  cd "$REPO_DIRECTORY"
+  create-release -np --skip-edit
+  cd - > /dev/null
+}
+
+_run()
+{
+  if [ ! -d "$REPO_DIRECTORY" ]; then
+    echo "Error: repo $REPO_DIRECTORY not found"
+    return
+  fi
+  cd "$REPO_DIRECTORY"
+  $@
+  cd - > /dev/null
+}
+
+_cleanup()
+{
+  REPO_URL="$1"
+  REPO_DIRECTORY=$(echo "$REPO_URL" | cut -d/ -f5 | rev | cut -d. -f2- | rev)
+
+  rm -rf "$REPO_DIRECTORY"
+}
+
+COOKIE_FILE="$(mktemp)"
+molior_session_call()
+{
+  URL_PATH="$1" && shift
+  curl $MOLIOR_URL$URL_PATH -s \
+    --cookie "$COOKIE_FILE" \
+    --cookie-jar "$COOKIE_FILE" $@
+}
+
+aquire_pass
+
+# login to the molior session
+molior_session_call "/plogin" \
+  --data-urlencode "username=$MOLIOR_USER" \
+  --data-urlencode "password=$MOLIOR_PASSWORD" \
+  --location > /dev/null
+
+# get all the repository urls
+PROJECT_ID=$( \
+  molior_session_call "/api/projects?show_all=true" | \
+  jq -r ".results[] | select(.name==\"${PROJECT}\").id" \
+)
+
+if [ -z "$PROJECT_VERSION" ]
+then
+  PROJECT_VERSION=$( \
+    molior_session_call "/api/projects/$PROJECT_ID" | \
+    jq '.versions_map | to_entries[]' | \
+    jq -s -r 'sort_by(.key)[-1].value' \
+  )
+fi
+
+echo "Getting repositories from version: $PROJECT_VERSION"
+PROJECT_VERSION_ID=$( \
+  molior_session_call "/api/projects/$PROJECT_ID" | \
+  jq -r ".versions_map | to_entries[] | select(.value==\"${PROJECT_VERSION}\").key" \
+)
+
+REPOSITORIES=$( \
+  molior_session_call "/api/repositories?project_version_id=$PROJECT_VERSION_ID" | \
+  jq -r '.results[] | .url + "#" + .projectversion.last_gitref' \
+)
+
+REPOSITORIES=$( \
+  echo "$REPOSITORIES" | \
+  sed 's,\s,\n,g'\
+)
+
+
+
+if [ ! -z "$EXCLUDE" ]
+then
+  REPOSITORIES=$(echo "$REPOSITORIES" | grep -Ev "$(echo "$EXCLUDE" | sed 's,.$,,')")
+fi
+
+case $OPERATION in
+  get)
+    for_repo _get $@
+    echo
+    echo "Repositories have been cloned or pulled (where available)"
+    echo "You may want to create a new project version:"
+    echo " $0 $PROJECT $PROJECT_VERSION create -v [NEWVERSION]"
+    ;;
+  create)
+    for_repo _create_version $@
+    echo "New project version has been set (where applicable): $NEWVERSION"
+    echo "You may want to review the changes and push them:"
+    echo " $0 $PROJECT $PROJECT_VERSION push"
+    ;;
+  push)
+    for_repo _push $@
+    ;;
+  run)
+    for_repo _run $@
+    ;;
+  *)
+    usage "Unknown operation: $OPERATION"
+    ;;
+esac
+
+exit 0
+
+if [ "$3" = "--cleanup" ]
+then
+  for_repo _cleanup
+fi
+

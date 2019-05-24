@@ -1,0 +1,145 @@
+# molior-deploy plugin
+# vim: syntax=sh
+
+preinit_deployment_upgrade()
+{
+  REQUIRED_HOST_PACKAGES="apt-utils"
+}
+
+init_deployment_upgrade()
+{
+  init_deployment_dir
+  BASE_VERSION=`echo $VARIANT | sed -n 's/^[a-zA-Z0-9-]\+-upgrade-\([a-zA-Z0-9-]\+\)/\1/p'`
+  # changing VERSION to contain the base version to be upgraded from
+  # this will do a debootstrap and deployment install for the old
+  # to be upgraded version
+  UPGRADE_VERSION=$VERSION # remember the version to be upgraded to
+  VERSION=$BASE_VERSION
+  if [ -z "$VERSION" ]; then
+    log_error "Could not extract project version for upgrading. Please name the deployment configuration file \$VARIANT-upgrade-\$PROJECTVERSION.conf"
+  fi
+
+  log " * initializing upgradable deployment for $PROJECT/$VERSION"
+  SOURCESURL=$MOLIOR_SERVER/api/projectsources/$PROJECT/$VERSION
+  APT_SOURCES_ORIG=`wget -q -O- $SOURCESURL`
+  if [ -z "$APT_SOURCES" ]; then
+    log_error "Error downloading $SOURCESURL"
+  fi
+  APT_SOURCES=`echo "$APT_SOURCES_ORIG" | sed '/^#/d'`
+  MIRROR=`echo "$APT_SOURCES" | head -n 1 | cut -d' ' -f 2`
+  SUITE=`dirname $MIRROR`
+  REPOURL=`dirname $SUITE`
+  SUITE=`basename $SUITE`
+  log " * mirror: $MIRROR"
+}
+
+postinst_deployment_upgrade()
+{
+  # restore the version to be upgraded to
+  VERSION=$UPGRADE_VERSION
+
+  log " * downloading APT sources for $PROJECT/$VERSION"
+  SOURCESURL=$MOLIOR_SERVER/api/projectsources/$PROJECT/$VERSION
+  APT_SOURCES_ORIG=`wget -q -O- $SOURCESURL`
+  echo "$APT_SOURCES_ORIG" > $target/etc/apt/sources.list
+  if [ $? -ne 0 ]; then
+    log_error "Error downloading APT sources"
+  fi
+
+  log " * updating APT database"
+  chroot $target apt-get update >&2
+  if [ $? -ne 0 ]; then
+    log_error "Error updating APT database"
+  fi
+
+  log " * downloading upgraded/new debian packages"
+  chroot $target apt-get --download-only -y dist-upgrade > $WORK_DIR/apt.log
+  if [ $? -ne 0 ]; then
+    log_error "Error downloading upgraded/new debian packages"
+  fi
+
+  grep "^Get:" $WORK_DIR/apt.log | cut -d ' ' -f 2,5 | sed 's#.*/\(.\+/.\+\) \(.\+\)#\1 \2#' | sort > $WORK_DIR/dpkgs.list
+  log " * copying `wc -l < $WORK_DIR/dpkgs.list` debian packages to APT repository"
+  while read line
+  do
+    path=`echo $line | cut -d ' ' -f 1`;
+    pkg=`echo $line | cut -d ' ' -f 2`;
+    mkdir -p $WORK_DIR/debian/pool/$path
+    mv $target/var/cache/apt/archives/${pkg}_*.deb $WORK_DIR/debian/pool/$path/
+  done < $WORK_DIR/dpkgs.list
+  rm -f $WORK_DIR/dpkgs.list
+}
+
+finalize_deployment_upgrade()
+{
+  deployment=${PROJECT}_${VERSION}_${REVISION}_$VARIANT.tar.xz
+  log " * creating Packages and Release files"
+  mkdir -p $WORK_DIR/debian/dists/$PROJECT/$VERSION/stable/binary-$ARCH
+  cd $WORK_DIR/debian
+  apt-ftparchive --arch $ARCH packages pool/ > dists/$PROJECT/$VERSION/stable/binary-$ARCH/Packages
+  cd - >/dev/null
+  cd $WORK_DIR
+  apt-ftparchive release debian/dists/$PROJECT/$VERSION/stable/binary-$ARCH/ > debian/dists/$PROJECT/$VERSION/stable/binary-$ARCH/Release
+  apt-ftparchive -o APT::FTPArchive::Release::Origin="$PROJECT/$VERSION" \
+                 -o APT::FTPArchive::Release::Label="$PROJECT/$VERSION" \
+                 -o APT::FTPArchive::Release::Suite="$SUITE" \
+                 -o APT::FTPArchive::Release::Version="$VERSION" \
+                 -o APT::FTPArchive::Release::Codename="$PROJECT/$VERSION" \
+                 -o APT::FTPArchive::Release::Architectures="$ARCH" \
+                 -o APT::FTPArchive::Release::Components="stable" \
+                 release \
+                 debian/dists/$PROJECT/$VERSION/ \
+                 > debian/dists/$PROJECT/$VERSION/Release
+  echo "deb [trusted=yes] file:@REPO_PATH@/debian $PROJECT/$VERSION stable" > debian/apt_sources_${PROJECT}_$VERSION.list
+  cat > debian/README.md <<EOF
+Configure APT sources
+======================
+
+Run the following command to configure the APT sources (from the directory where the archive is extracted):
+
+sed s#@REPO_PATH@#\$PWD# debian/apt_sources_${PROJECT}_$VERSION.list | sudo tee /etc/apt/sources.list.d/${PROJECT}_$VERSION.list
+
+Update APT database
+====================
+
+sudo apt-get update
+
+Upgrade the system
+===================
+
+sudo apt-get -y dist-upgrade
+sudo apt-get -y autoremove --purge
+sudo apt-get clean
+
+Restart the system
+===================
+
+Depending on the upgraded or newly installed packages, a system restart may be required:
+
+sudo reboot
+
+EOF
+  mv $WORK_DIR/apt.log $WORK_DIR/debian/
+  cd - >/dev/null
+
+  log " * creating APT repository archive"
+
+  mkdir $WORK_DIR/offlinerepo
+  mv $WORK_DIR/debian $WORK_DIR/offlinerepo/
+
+  if [ -n "$UPGRADE_EXTRA_DIR" ]; then
+    cp -ar $SOURCE_DIR/$UPGRADE_EXTRA_DIR/* $WORK_DIR/offlinerepo/
+    if [ "$?" -eq 1 ]; then
+      log_error "Error copying $WORK_DIR/$PROJECT/$UPGRADE_EXTRA_DIR/* to offlinerepo"
+    fi
+  fi
+
+  cd $WORK_DIR/offlinerepo
+  tar $TAR_PXZ -cf $WORK_DIR/$deployment *
+  cd - >/dev/null
+
+  mv $WORK_DIR/$deployment .
+  if [ -n "$SUDO_UID" -a -n "$SUDO_GID" ]; then
+    chown $SUDO_UID:$SUDO_GID $deployment
+  fi
+}

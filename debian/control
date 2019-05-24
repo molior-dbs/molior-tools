@@ -1,0 +1,19 @@
+Source: molior-tools
+Section: misc
+Priority: optional
+Maintainer: André Roth <neolynx@gmail.com>
+Build-Depends: debhelper (>= 8), python3-all, python3-setuptools
+Standards-Version: 3.9.3
+
+Package: molior-tools
+Section: misc
+Architecture: all
+Suggests: docker, virtualbox
+Recommends: syslinux-utils, genisoimage, qemu-user-static
+Depends: ${perl:Depends}, ${misc:Depends}, ${python3:Depends},
+  libapt-pkg-perl, libparse-debian-packages-perl, wget, qemu-utils,
+  debootstrap, xz-utils, devscripts, equivs, curl, util-linux, lsb-release,
+  python3-yaml, python3-click, jq, pxz | xz (>= 5.2.4-1)
+Conflicts: debrilis, rlx3-devtools, molior-deploy
+Description: molior development and deployment tools
+ Tag debian releases in git repositories and create deployment images from molior projects.

@@ -1,0 +1,28 @@
+# molior-deploy plugin
+# vim: syntax=sh
+
+init_deployment_dir()
+{
+  do_fstab=0
+  target=$WORK_DIR/root
+  mkdir $target
+  echo " * creating rootfs in $target"
+}
+
+finalize_deployment_dir()
+{
+  deployment=${PROJECT}_${VERSION}_${REVISION}.tar.xz
+  echo " * creating $deployment"
+  umount_bootstrap
+  umount_fs
+
+  cwd=`pwd`
+  cd $target
+  tar $TAR_PXZ -cf $cwd/$deployment .
+  cd - >/dev/null
+
+  if [ -n "$SUDO_UID" -a -n "$SUDO_GID" ]; then
+    chown $SUDO_UID:$SUDO_GID $deployment
+  fi
+}
+

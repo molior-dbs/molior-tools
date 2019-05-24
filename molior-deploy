@@ -1,0 +1,990 @@
+#!/bin/sh
+
+. /usr/lib/molior-tools/molior.sh.inc
+
+DIST=stable
+APTLY_OVERRIDE=0
+LIST_ONLY=0
+ask_cleanup=1
+deploy_all=0
+keep_log=0
+OVERLAY_VERSION=""
+OVERLAY_AUTO=0
+VARIANT="undefined"
+
+MOLIOR_TOOLS_VERSION=`cat /usr/lib/molior-tools/version`
+
+usage()
+{
+  echo "molior-tools $MOLIOR_TOOLS_VERSION"
+  echo
+  echo "Usage: $0 [OPTIONS] PROJECT VERSION"
+  echo "Options:"
+  echo "  -l                List deployment variants"
+  echo "  -n PACKAGE_NAME   Package name (Default: PROJECT)"
+  echo "  -s SOURCE_DIR     Use local source tree (Default: download source package)"
+  echo "  -v VARIANT        Deployment variant to generate (Default: ask)"
+  echo "  -m MOLIOR_SERVER  Molior server to use (Default in ~/.moliorrc)"
+  echo "  -a APTLY_SERVER   Aptly server to use (Default in ~/.moliorrc)"
+  echo "  -A                Override project apt sources with APTLY_SERVER"
+  echo "  -V PKG_VERSION    Pin pkg version to install. Dangerous, use with care!"
+  echo "  -O                Automatically find top level package in the available projectversions"
+  echo "  -o OVERLAY_BASE   Specify overlay base and fetch top level package from there"
+  echo "  -c                Cleanup on error (Default: ask)"
+  echo "  -f                Build all variants (Default: ask)"
+  echo "  -d                Print debug output to stdout instead of file"
+  echo "  -L                Keep log file"
+  echo
+  echo "Example:"
+  echo "  $0 test 1.0"
+  if [ -n "$1" ]; then
+    echo
+    echo $1
+  fi
+  echo
+  exit 1
+}
+
+origopts=$@
+while getopts "n:s:v:m:a:V:o:AlcfdOL" opt; do
+  case $opt in
+    n)
+      PACKAGE_NAME=$OPTARG
+      shift 2
+      ;;
+    s)
+      SOURCE_DIR=$OPTARG
+      shift 2
+      ;;
+    v)
+      VARIANT=$OPTARG
+      shift 2
+      ;;
+    m)
+      MOLIOR_SERVER=$OPTARG
+      shift 2
+      ;;
+    a)
+      APTLY_SERVER=$OPTARG
+      shift 2
+      ;;
+    V)
+      PACKAGE_VERSION=$OPTARG
+      shift 2
+      ;;
+    o)
+      OVERLAY_VERSION=$OPTARG
+      shift 2
+      ;;
+    O)
+      OVERLAY_AUTO=1
+      shift 1
+      ;;
+    A)
+      APTLY_OVERRIDE=1
+      shift 1
+      ;;
+    l)
+      LIST_ONLY=1
+      shift 1
+      ;;
+    c)
+      ask_cleanup=0
+      shift 1
+      ;;
+    f)
+      deploy_all=1
+      shift 1
+      ;;
+    d)
+      print_verbose=1
+      shift 1
+      ;;
+    L)
+      keep_log=1
+      shift 1
+      ;;
+    \?)
+      exit 1
+      ;;
+    :)
+      usage "Option -$OPTARG requires an argument." >&2
+      ;;
+  esac
+done
+
+if [ $LIST_ONLY -eq 0 -a `id -u` -ne 0 ]; then
+  usage "Please run $0 as root" >&2
+fi
+
+PROJECT=$1
+VERSION=$2
+
+if [ -z "$PROJECT" ]; then
+  usage
+fi
+
+if [ -z "$VERSION" ]; then
+  usage
+fi
+
+if [ "$deploy_all" -eq 1 ]; then
+  opts=`echo $origopts | sed -e "s/$PROJECT//" -e "s/$VERSION//" -e 's/-f//'`
+  for variant in `eval molior-deploy $opts -l $PROJECT $VERSION`
+  do
+    echo
+    echo "### running molior-deploy $opts -c -v $variant $PROJECT $VERSION"
+    echo
+    eval molior-deploy $opts -c -v $variant $PROJECT $VERSION
+  done
+  exit 0
+fi
+
+if [ -z "$PACKAGE_NAME" ]; then
+  PACKAGE_NAME=$PROJECT
+fi
+
+if [ -z "$MOLIOR_SERVER" ]; then
+  MOLIOR_SERVER=$MOLIOR_URL
+fi
+
+if [ -z "$APTLY_SERVER" ]; then
+  APTLY_SERVER=$MOLIOR_REPO_URL
+fi
+
+# clean env
+unset LANGUAGE
+unset LC_ALL
+unset LC_PAPER
+unset LC_NUMERIC
+unset LC_IDENTIFICATION
+unset LC_MEASUREMENT
+unset LC_NAME
+unset LC_TELEPHONE
+unset LC_ADDRESS
+unset LC_MONETARY
+unset LC_TIME
+unset LANG
+export HOME=/root
+
+# default settings
+DEPLOYMENT_TYPE=image
+INSTALL_PACKAGE=""
+
+# init
+success=0
+WORK_DIR=`mktemp -d /tmp/molior-XXXXXXXX`
+chmod 755 $WORK_DIR
+errlog=$WORK_DIR/output.log
+
+do_fstab=1
+starttime="0"
+endtime="0"
+target=""
+
+# binftms to be disabled
+BADFMTS="cli jar jarwrapper python2.7 python3.5"
+
+. /usr/lib/molior-deploy/molior-deploy.sh.inc
+
+if [ ! "$print_verbose" = 1 ]; then
+  exec 3>&2
+  exec 2>$errlog
+fi
+set -x
+
+# functions
+finish ()
+{
+  endtime=$(date +"%s")
+  if [ "$ask_cleanup" -eq 1 ]; then
+    if [ "$success" -ne 1 ]; then
+      ask "Cleanup $WORK_DIR ?" Y
+      if [ $? -ne 0 ]; then
+        echo "Please rm -rf $WORK_DIR later ..."
+        return 1
+      fi
+    fi
+  fi
+  log " * cleanup"
+
+  umount_bootstrap
+  umount_fs
+
+  if type deinit_deployment_$DEPLOYMENT_TYPE >/dev/null; then
+    deinit_deployment_$DEPLOYMENT_TYPE
+  fi
+
+  if [ -n "$LVM_VG" ]; then
+    vgremove -f ${LVM_VG} >&2
+    if vgs ${LVM_VG}_molior_renamed >/dev/null 2>&1; then
+      log_warn "Warning: restoring local LVM VG $LVM_VG"
+      vgrename -A y ${LVM_VG}_molior_renamed $LVM_VG >&2
+      if [ $? -ne 0 ]; then
+        # no errors in trap handler
+        log_warn "Error restoring LVM VG $LVM_VG"
+      fi
+    fi
+    LVM_VG=""
+  fi
+
+  if [ -n "$disk" ]; then
+    losetup -d $disk
+    disk=""
+  fi
+
+  set +x
+  exec 2>&3 3>&-
+
+  for b in $BADFMTS
+  do
+    update-binfmts --enable $b >/dev/null 2>&1
+  done
+
+  if [ "$success" -ne 1 -o "$keep_log" -eq 1 ]; then
+    logfile=`date "+${PROJECT}_${VERSION}_${VARIANT}_%Y%m%d%H%M%S.log"`
+    cp $errlog $logfile
+    test "$success" -ne 1 && log_info "see full log: cat `pwd`/$logfile"
+  fi
+
+  rm -rf $WORK_DIR
+
+  diff=$((endtime-starttime))
+  if [ "$success" -ne 1 ]; then
+    log_warn "failed within $((diff / 60)) minutes and $((diff % 60)) seconds"
+    return 1
+  fi
+  if [ -n "$deployment" ]; then
+    log_notice "Deployment is ready: $deployment"
+  fi
+  log_info "finished within $((diff / 60)) minutes and $((diff % 60)) seconds"
+}
+
+abort()
+{
+  ask_cleanup=0
+  echo
+  finish
+}
+
+trap finish EXIT
+trap abort INT
+
+
+log()
+{
+  if [ "$LIST_ONLY" -eq 0 ]; then
+    echo "$@"
+  fi
+}
+
+log_info()
+{
+  if [ "$LIST_ONLY" -eq 0 ]; then
+    /bin/echo -e "\e[36m\e[1mI: $@\e[0m"
+  fi
+}
+
+log_notice()
+{
+  if [ "$LIST_ONLY" -eq 0 ]; then
+    /bin/echo -e "\e[34m\e[1mN: $@\e[0m"
+  fi
+}
+
+log_warn()
+{
+  if [ "$LIST_ONLY" -eq 0 ]; then
+    /bin/echo -e "\e[35m\e[1mW: $@\e[0m"
+  fi
+}
+
+log_error()
+{
+  set +x
+  LIST_ONLY=0
+  /bin/echo -e "\e[31m\e[1mE: $@\e[0m"
+  if [ -e $errlog ]; then
+    tail -n 10 $errlog
+  fi
+  if [ -n "$target" ]; then
+    log_info "examine situation: sudo chroot $target"
+  fi
+  exit 1
+}
+
+ask()
+{
+  y="y"
+  n="n"
+  default=1
+  if [ "$2" = "Y" ]; then
+    default=0
+    y="Y"
+  fi
+  if [ "$2" = "N" ]; then
+    n="N"
+  fi
+  /bin/echo -n -e "\e[33m\e[1mQ: $1 [$y/$n] \e[0m"
+  read x
+  case "$x" in
+    Y|y)
+      return 0
+      ;;
+    "")
+      return $default
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+mountbind()
+{
+  mount -o bind "$1" "$2"
+  if [ -n "$3" ]; then
+    mount -o remount,bind,$3 $2
+  fi
+}
+
+mount_bootstrap()
+{
+  if [ -z "$target" ]; then
+    log_error "Error: \$target not set"
+  fi
+  CHROOTIGNORE=/usr/lib/molior-deploy/chroot-ignore
+  for ignore in $CHROOTIGNORE/*
+  do
+    cp $ignore $target/usr/local/bin
+  done
+
+  if [ $? -ne 0 ]; then
+    log_error "Error mounting $target/usr/local/bin"
+  fi
+  # Disable daemons in chroot:
+  cat >> $target/usr/sbin/policy-rc.d <<EOM
+#!/bin/sh
+while true; do
+    case "\$1" in
+      -*) shift ;;
+      makedev) exit 0;;
+      x11-common) exit 0;;
+      *) exit 101;;
+    esac
+done
+EOM
+  chmod +x $target/usr/sbin/policy-rc.d
+
+  mountbind /dev/pts $target/dev/pts
+  if [ $? -ne 0 ]; then
+    log_error "Error mounting $target/dev/pts"
+  fi
+  mountbind /proc $target/proc ro
+  if [ $? -ne 0 ]; then
+    log_error "Error mounting $target/proc"
+  fi
+
+  mountbind /sys $target/sys ro
+  if [ $? -ne 0 ]; then
+    log_error "Error mounting $target/sys"
+  fi
+
+  mkdir -p $WORK_DIR/chroottmp
+  # set permissions on tmp including the sticky bit
+  chmod 1777 $WORK_DIR/chroottmp
+  mountbind $WORK_DIR/chroottmp $target/tmp
+  if [ $? -ne 0 ]; then
+    log_error "Error mounting $target/tmp"
+  fi
+
+  if [ -d $target/usr/tmp ]; then
+    mkdir -p $WORK_DIR/chrootvartmp
+    mountbind $WORK_DIR/chrootvartmp $target/var/tmp
+    if [ $? -ne 0 ]; then
+      log_error "Error mounting $target/var/tmp"
+    fi
+  fi
+
+  if [ -n "`ls /dev/loop* 2>/dev/null`" ]; then
+    cp -a /dev/loop* $target/dev
+  fi
+}
+
+umount_bootstrap()
+{
+  if [ -z "$target" ]; then
+    return
+  fi
+  sync
+
+  if [ -n "$BIND_MOUNTS" ]; then
+    old_IFS=$IFS
+    IFS=","
+    for m in $BIND_MOUNTS
+    do
+      to=`echo $m | cut -d: -f2`
+      unmount $target/$to
+    done
+    IFS=$old_IFS
+  fi
+
+  if [ -d "$target" ]; then
+    CHROOTIGNORE=/usr/lib/molior-deploy/chroot-ignore
+    for ignore in $CHROOTIGNORE/*
+    do
+      rm $target/usr/local/bin/$(basename "$ignore")
+    done
+    rm -f $target/usr/sbin/policy-rc.d
+
+    for m in `grep $target/proc /proc/mounts | cut -d' ' -f2 | tac`
+    do
+      umount $m
+    done
+    umount $target/sys
+    umount $target/dev/pts
+    umount $target/tmp
+    if [ -e $target/etc/apt/auth.conf ]; then
+      umount $target/etc/apt/auth.conf
+    fi
+    mountpoint -q $target/var/tmp && umount $target/var/tmp
+    rm -f $target/dev/loop*
+  fi
+}
+
+mount_fs_devices()
+{
+  if [ -z "$target" ]; then
+    log_error "Error: \$target not set"
+  fi
+  for l in ${disk}*
+  do
+    touch $target/$l
+    mount --bind $l $target/$l
+  done
+  cp -a /dev/dm-* $target/dev
+  cp -a /dev/mapper $target/dev/
+}
+
+umount_fs_devices()
+{
+  if [ -z "$target" ]; then
+    return
+  fi
+  for l in ${disk}*
+  do
+    umount $target/$l
+    rm -f $target/$l
+  done
+  rm -f $target/dev/dm-*
+  rm -rf $target/dev/mapper
+}
+
+
+setup_deployment()
+{
+  DEPLOYMENT_TIMESTAMP=`date -R`
+  starttime=$(date +"%s")
+  log_info "Creating deployment for $PROJECT/$VERSION"
+  log " * molior-tools $MOLIOR_TOOLS_VERSION"
+  log " * started: `date -R`"
+  log " * logfile: $WORK_DIR/output.log"
+
+  log_info "Getting deployment information ..."
+  SOURCESURL=$MOLIOR_SERVER/api/projectsources/$PROJECT/$VERSION
+  APT_SOURCES_ORIG=`wget -q -O- $SOURCESURL`
+  APT_SOURCES=`echo "$APT_SOURCES_ORIG" | sed '/^#/d'`
+  if [ -z "$APT_SOURCES" ]; then
+    log_error "Error downloading $SOURCESURL"
+  fi
+  if [ "$APTLY_OVERRIDE" -eq 1 ]; then
+    APT_SOURCES=`echo "$APT_SOURCES" | sed "s=deb \([^:]\)\+://\([^/]\)\+=deb $APTLY_SERVER="`
+  fi
+  MIRROR=`echo "$APT_SOURCES" | head -n 1 | cut -d' ' -f 2`
+  if [ -z "$MIRROR" ]; then
+    log_error "No APT repo found"
+  fi
+  SUITE=`echo "$APT_SOURCES" | head -n 1 | cut -d' ' -f 3`
+  if [ -z "$SUITE" ]; then
+    log_error "No SUITE in APT repo found"
+  fi
+  tmp=`dirname $MIRROR`
+  REPOURL=`dirname $tmp`
+  BASEMIRROR=`basename $tmp`
+  BASEVERSION=`basename $MIRROR`
+  log " * mirror: $MIRROR"
+
+  if [ -n "$SOURCE_DIR" ]; then
+    log " * using local package source: $SOURCE_DIR"
+    cd $SOURCE_DIR
+    REVISION=`dpkg-parsechangelog -S Version`+local
+    log " * found revision: $PACKAGE_NAME $REVISION"
+    cd - >/dev/null
+  else
+    log_info "Searching latest $PACKAGE_NAME revision ..."
+    SOURCES_VERSION=$VERSION
+    if [ -n "$OVERLAY_VERSION" ]; then
+      SOURCES_VERSION=$OVERLAY_VERSION
+      log " * Using overlay source: $SOURCES_VERSION"
+    fi
+    if [ "$OVERLAY_AUTO" -eq 1 ]; then
+      baseurls=`echo "$APT_SOURCES" | grep $MIRROR/repos/$PROJECT | awk '{print $2}'`
+      for baseurl in $baseurls
+      do
+        SOURCES_VERSION=`basename $baseurl`
+        log " * Trying to download package source from $SOURCES_VERSION"
+        SOURCES=`wget -q -O- $MIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$DIST/main/source/Sources`
+        if [ -z "$SOURCES" ]; then
+          continue
+        fi
+        FILENAME=`echo "$SOURCES" | /usr/lib/molior-tools/find-latest-version.pl $PACKAGE_NAME $PACKAGE_VERSION`
+        if [ -n "$FILENAME" ]; then
+          break
+        fi
+      done
+      if [ -z "$FILENAME" ]; then
+        log_error "No filename found for $PACKAGE_NAME in $MIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$DIST/main/source/Sources"
+      fi
+      log " * Using package source: $SOURCES_VERSION"
+    else
+      SOURCES=`wget -q -O- $MIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$DIST/main/source/Sources`
+      if [ -z "$SOURCES" ]; then
+        log_error "Could not download $MIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$DIST/main/source/Sources"
+      fi
+      FILENAME=`echo "$SOURCES" | /usr/lib/molior-tools/find-latest-version.pl $PACKAGE_NAME $PACKAGE_VERSION`
+      if [ $? -ne 0 ]; then
+        log_error "Error searching $PACKAGE_NAME revision"
+      fi
+      if [ -z "$FILENAME" ]; then
+        log_error "No filename found for $PACKAGE_NAME in $MIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$DIST/main/source/Sources"
+      fi
+    fi
+
+    # Convert to source package name
+    REVISION=`basename $FILENAME | sed 's/.*_\([0-9\.~a-zA-Z-]\+\).tar.xz/\1/'`
+    log " * found revision: $PACKAGE_NAME $REVISION"
+
+    log " * downloading source: $MIRROR/repos/$PROJECT/$SOURCES_VERSION/$FILENAME"
+    cd $WORK_DIR
+    wget -q $MIRROR/repos/$PROJECT/$SOURCES_VERSION/$FILENAME
+    if [ $? -ne 0 ]; then
+      log_error "Error downloading $MIRROR/repos/$PROJECT/$SOURCES_VERSION/$FILENAME"
+    fi
+    tar xf `basename $FILENAME`
+    rm -f `basename $FILENAME`
+    cd - >/dev/null
+    SOURCE_DIR=$WORK_DIR/$PACKAGE_NAME
+  fi
+
+  if [ ! -d $SOURCE_DIR/deploy ]; then
+    log_error "No deploy/ directory found in $SOURCE_DIR"
+  fi
+
+  variants=""
+  count=0
+  found_variant=0
+  for t in $SOURCE_DIR/deploy/*.conf
+  do
+    if [ ! -z "$variants" ]; then
+      variants="$variants "
+    fi
+    t=`basename $t | sed s/\.conf$//`
+    variants="$variants$t"
+    if [ -n "$VARIANT" ]; then
+      if [ "$t" = "$VARIANT" ]; then
+        found_variant=1
+        break
+      fi
+    fi
+    count=$((count + 1))
+  done
+  if [ "$count" -eq 1 -a "$found_variant" -ne 1 ]; then
+    found_variant=1
+    VARIANT=$variants
+  fi
+
+  if [ "$LIST_ONLY" -eq 1 ]; then
+    for v in `echo $variants`
+    do
+      echo $v
+    done
+    success=1
+    exit 0
+  fi
+
+  if [ "$found_variant" -ne 1 ]; then
+    while true
+    do
+      /bin/echo -n -e "\e[33m\e[1mQ: Please choose a deployment variant:\n`echo $variants | tr ' ' '\n' | sed 's/^/ > /'`\nEnter variant: \e[0m"
+      read VARIANT
+      if [ -z "$VARIANT" ]; then
+        log_warn "No deployment variant choosen, aborting ..."
+        ask_cleanup=0
+        exit 1
+      fi
+      if [ -f $SOURCE_DIR/deploy/$VARIANT.conf ]; then
+        starttime=$(date +"%s")
+        break
+      fi
+    done
+  fi
+  . $SOURCE_DIR/deploy/$VARIANT.conf
+  log_notice "Selected deployment type: $DEPLOYMENT_TYPE"
+
+  if [ "$ROOTPART" ]; then
+    log_warn "Warning: ROOTPART is depreciated, please use PART${ROOTPART}_MNT=/"
+    eval PART${ROOTPART}_MNT=/
+  fi
+
+  if [ -z "$ARCH" ]; then
+    log_warn "The deployment does not specify an architecture, assuming ARCH=amd64"
+    ARCH=amd64
+  fi
+
+  if [ -z "$INSTALL_PACKAGE" ]; then
+    INSTALL_PACKAGE=$PACKAGE_NAME-$VARIANT
+  fi
+
+  # FIXME: should be in bootstrap!?
+  if [ -n "$LVM_VG" ]; then
+    if vgs ${LVM_VG} >/dev/null 2>&1; then
+      log_warn "Warning: renaming locally existing LVM VG $LVM_VG to ${LVM_VG}_molior_renamed"
+      vgrename -A y $LVM_VG ${LVM_VG}_molior_renamed >&2
+      if [ $? -ne 0 ]; then
+        log_error "Error renaming LVM VG $LVM_VG"
+      fi
+    fi
+  fi
+
+  target=$WORK_DIR/root
+  mkdir $target
+}
+
+
+bootstrap_deployment()
+{
+  if echo $ARCH | grep -q arm; then
+    if ! which /usr/bin/qemu-arm-static >/dev/null; then
+      log_error "Please install the qemu-user-static package"
+    fi
+  fi
+
+  KEY_URL=$REPOURL/$PUBKEY_FILE
+  log " * importing gpg key from $KEY_URL"
+
+  include="gnupg"
+  eval t=\$DEBOOTSTRAP_INCLUDE_`echo $SUITE | tr '-' '_'`
+  if [ -n "$t" ]; then
+    include="$include,$t"
+  fi
+
+  i=0
+  for url in $KEY_URL $APT_KEYS_EXTRA
+  do
+    if [ $i -ne 0 ]; then
+      postfix=".$i"
+    else
+      postfix=""
+    fi
+    i=$((i + 1))
+    wget -q $url -O $WORK_DIR/repo.asc$postfix
+    if [ $? -ne 0 ]; then
+      log_error "Error downloading $url"
+    fi
+  done
+  gpg -q --import --no-default-keyring --keyring=trustedkeys.gpg $WORK_DIR/repo.asc
+
+  echo " * downloading debootstrap for $SUITE $BASEMIRROR/$BASEVERSION $ARCH"
+  wget -q $MOLIOR_SERVER/debootstrap/${BASEMIRROR}_${BASEVERSION}_$ARCH.tar.xz -O $WORK_DIR/root.tar.xz
+  if [ $? -eq 0 ]; then
+    echo " * extracting debootstrap"
+    mkdir -p $target
+    cd $target
+    tar $TAR_PXZ -xf $WORK_DIR/root.tar.xz
+    cd - >/dev/null
+    rm -f $WORK_DIR/root.tar.xz
+    cp -f /etc/resolv.conf $target/etc/resolv.conf
+  else
+    echo " * error downloading debootstrap archive..."
+    echo " * running debootstrap for $SUITE $BASEMIRROR/$BASEVERSION $ARCH"
+
+    if echo $ARCH | grep -q arm; then
+      debootstrap --foreign --arch $ARCH --keyring=/root/.gnupg/trustedkeys.gpg --variant=minbase --include=$include $SUITE $target $MIRROR >&2
+      if [ $? -ne 0 ]; then
+        log_error "debootstrap failed"
+      fi
+      if [ "$ARCH" = "armhf" ]; then
+        cp /usr/bin/qemu-arm-static $target/usr/bin/
+      else
+        cp /usr/bin/qemu-aarch64-static $target/usr/bin/
+      fi
+      chroot $target /debootstrap/debootstrap --second-stage --no-check-gpg >&2
+      if [ $? -ne 0 ]; then
+        log_error "debootstrap failed"
+      fi
+    else
+      debootstrap --arch $ARCH --keyring=/root/.gnupg/trustedkeys.gpg --variant=minbase --include=$include $SUITE $target $MIRROR >&2
+      if [ $? -ne 0 ]; then
+        log_error "debootstrap failed"
+      fi
+    fi
+
+    if chroot $target dpkg -s tzdata > /dev/null 2>&1; then
+      # The package tzdata cannot be --excluded in debootstrap, so remove it here
+      # In order to use debconf for configuring the timezone, the tzdata package
+      # needs to be installer later as a dependency, i.e. after the config package
+      # preseeding debconf.
+      chroot $target apt-get purge --yes tzdata >&2
+      rm -f $target/etc/timezone
+    fi
+
+    chroot $target apt-get clean >&2
+  fi
+
+  if [ -n "$MINIMIZE" ]; then
+    if [ "$MINIMIZE" -eq 1 ]; then
+
+      cat >> $target/etc/dpkg/dpkg.cfg.d/excludes <<EOF
+path-exclude=/usr/share/locale/*
+path-include=/usr/share/locale/locale.alias
+path-exclude=/usr/share/man/*
+path-exclude=/usr/share/doc/*
+EOF
+      # Clenup already existing locales and docs
+      if [ -e $target/usr/share/locale/locale.alias ]; then
+        mv $target/usr/share/locale/locale.alias $WORK_DIR
+      fi
+
+      rm -rf $target/usr/share/locale/* $target/usr/share/man/* $target/usr/share/doc/*
+
+      if [ -e $WORK_DIR/locale.alias ]; then
+        mv $WORK_DIR/locale.alias $target/usr/share/locale/
+      fi
+    fi
+  fi
+
+  if [ -z "$TARGET_HOSTNAME" ]; then
+    TARGET_HOSTNAME=$PROJECT-$VARIANT
+  fi
+  echo "$TARGET_HOSTNAME" > $target/etc/hostname
+  cat >$target/etc/hosts <<EOF
+127.0.0.1       localhost
+::1             localhost ip6-localhost ip6-loopback
+ff02::1         ip6-allnodes
+ff02::2         ip6-allrouters
+
+EOF
+  echo "127.0.1.1 $TARGET_HOSTNAME" >> $target/etc/hosts
+
+  echo "$APT_SOURCES_ORIG" > $target/etc/apt/sources.list
+  if [ -n "$APT_SOURCES_EXTRA" ]; then
+    echo "$APT_SOURCES_EXTRA" > $target/etc/apt/sources.list.d/extra.list
+  fi
+
+  if [ $do_fstab -eq 1 ]; then
+    create_fstab
+  fi
+
+  for key in $WORK_DIR/repo.asc*
+  do
+    chroot $target apt-key add - >/dev/null < $key
+  done
+
+  if [ $? -ne 0 ]; then
+    log_error "Error adding apt key"
+  fi
+
+  echo "using nameservers:" >&2
+  cat $target/etc/resolv.conf >&2
+
+  # allow accessing password protected apt repos inside chroot
+  if [ -e "$HOME/.netrc" ]; then
+    # do not leave traces of the credentials on the target
+    cp $HOME/.netrc $WORK_DIR/
+    touch $target/etc/apt/auth.conf
+    # not mounting read-only, debootstrap will run chown
+    mountbind $WORK_DIR/.netrc $target/etc/apt/auth.conf
+  fi
+
+  echo " * updating APT database"
+  chroot $target apt-get -o Acquire::Languages=none update >&2
+  if [ $? -ne 0 ]; then
+    log_error "apt-get update failed"
+  fi
+
+  echo " * upgrading system"
+  chroot $target apt-get --yes dist-upgrade >&2
+  if [ $? -ne 0 ]; then
+    log_error "apt-get dist-upgrade failed"
+  fi
+
+  if [ -n "$BIND_MOUNTS" ]; then
+    old_IFS=$IFS
+    IFS=","
+    for m in $BIND_MOUNTS
+    do
+      from=`echo $m | cut -d: -f1`
+      to=`echo $m | cut -d: -f2`
+      mkdir -p $target/$from $target/$to
+      echo " * bind mount $target/$from $target/$to"
+      mount -o rw,noexec,nosuid,nodev,bind $target/$from $target/$to
+    done
+    IFS=$old_IFS
+  fi
+}
+
+install_deployment()
+{
+  if [ -z "$target" ]; then
+    log_error "Error: \$target not set"
+  fi
+  mount_bootstrap
+  echo " * installing package: $INSTALL_PACKAGE"
+
+  if [ -n "$DPKG_ADD_ARCH" ]; then
+    chroot $target dpkg --add-architecture $DPKG_ADD_ARCH
+    chroot $target apt-get update
+  fi
+
+  DEBIAN_FRONTEND=noninteractive chroot $target apt-get install --no-install-recommends --yes $INSTALL_PACKAGE $APT_INSTALL_EXTRA >&2
+  if [ $? -ne 0 ]; then
+    log_error "Error installing software"
+  fi
+  chroot $target apt-get clean >&2
+  INSTALLED_PACKAGES=`chroot $target dpkg -l | tail -n +6 | awk '{ printf "%-42s %s\n", $2, $3 }'`
+}
+
+cleanup_deployment()
+{
+  if [ -z "$target" ]; then
+    log_error "Error: \$target not set"
+  fi
+  if [ "$ARCH" = "armhf" ]; then
+    rm -f $target/usr/bin/qemu-arm-static
+  elif [ "$ARCH" = "arm64" ]; then
+    rm -f $target/usr/bin/qemu-aarch64-static
+  fi
+  rm -f $target/etc/ssh/ssh_host_*
+  rm -f $target/etc/machine-id
+  rm -f $target/var/lib/dbus/machine-id
+
+  if [ -n "$MINIMIZE" ]; then
+    if [ "$MINIMIZE" -eq 1 ]; then
+      rm -f $target/var/lib/apt/lists/*Packages* $target/var/lib/apt/lists/*Release*
+    fi
+  fi
+}
+
+install_grub_bootloader()
+{
+  if [ -z "$target" ]; then
+    log_error "Error: \$target not set"
+  fi
+  mount_fs_devices
+  echo " * grub-install"
+  chroot $target grub-install --modules part_msdos --recheck --force --no-floppy ${disk} >&2
+  if [ $? -ne 0 ]; then
+    log_error "installing grub failed"
+  fi
+  if [ -z "$rootpart" ]; then
+    log_error "Error updating grub: no rootpart defined"
+  fi
+
+  echo " * update-grub"
+  if [ -n "$LINUX_CMDLINE" ]; then
+    sed -i "s%^GRUB_CMDLINE_LINUX=.*$%GRUB_CMDLINE_LINUX=\"$LINUX_CMDLINE\"%" $target/etc/default/grub
+  fi
+  mkdir -p $target/dev/disk/by-uuid
+  touch $target/dev/disk/by-uuid/`blkid  -o value -s UUID $rootpart`
+  chroot $target update-grub
+  rm -rf $target/dev/disk/by-uuid
+  umount_fs_devices
+}
+
+# disable comflicting binfmts
+for b in $BADFMTS
+do
+  update-binfmts --disable $b >&2
+done
+
+# load plugins
+for plugin in /usr/lib/molior-deploy/plugins/*.plugin
+do
+  . $plugin
+done
+
+# workflow
+setup_deployment
+
+if type precond_deployment_$DEPLOYMENT_TYPE >/dev/null; then
+  if ! precond_deployment_$DEPLOYMENT_TYPE; then
+    log_error "precondition failed"
+  fi
+fi
+
+if type preinit_deployment_$DEPLOYMENT_TYPE >/dev/null; then
+  preinit_deployment_$DEPLOYMENT_TYPE
+fi
+
+if [ -n "$REQUIRED_HOST_PACKAGES" ]; then
+  echo " * checking required packages: $REQUIRED_HOST_PACKAGES"
+  for p in $REQUIRED_HOST_PACKAGES
+  do
+    dpkg --get-selections | grep $p | grep -q install
+    if [ $? -ne 0 ]; then
+      log_error "Missing required package: $p"
+    fi
+  done
+fi
+
+log_info "Initializing deployment ..."
+init_deployment_$DEPLOYMENT_TYPE
+log_info "Installing base OS ..."
+get_fsinfo
+bootstrap_deployment
+if type preinst_deployment_$DEPLOYMENT_TYPE >/dev/null; then
+  preinst_deployment_$DEPLOYMENT_TYPE
+fi
+log_info "Installing software ..."
+install_deployment
+
+# backup and fix resolv.conf
+if [ -e $target/etc/resolv.conf -o -h $target/etc/resolv.conf ]; then
+  mv $target/etc/resolv.conf $target/etc/resolv.conf.molior-deploy.bak
+  cp -f /etc/resolv.conf $target/etc/resolv.conf
+fi
+
+# run postinst_deployment
+if type postinst_deployment_$DEPLOYMENT_TYPE >/dev/null; then
+  postinst_deployment_$DEPLOYMENT_TYPE
+fi
+
+# run postinst_internal_deployment
+if type postinst_internal_deployment_$DEPLOYMENT_TYPE >/dev/null; then
+  postinst_internal_deployment_$DEPLOYMENT_TYPE
+fi
+
+# restore resolv.conf
+rm -f $target/etc/resolv.conf
+if [ -e $target/etc/resolv.conf.molior-deploy.bak -o -h $target/etc/resolv.conf.molior-deploy.bak ]; then
+  mv $target/etc/resolv.conf.molior-deploy.bak $target/etc/resolv.conf
+fi
+
+# install grub if requested
+if [ -n "$INSTALL_GRUB" ]; then
+  if [ "$INSTALL_GRUB" = "yes" ]; then
+    log_info "Installing grub bootloader ..."
+    install_grub_bootloader
+  fi
+fi
+cleanup_deployment
+log_info "Creating deployment ..."
+finalize_deployment_$DEPLOYMENT_TYPE
+#FIXME: check outcome
+if type deinit_deployment_$DEPLOYMENT_TYPE >/dev/null; then
+  deinit_deployment_$DEPLOYMENT_TYPE
+fi
+
+# everything hunky dory :-)
+success=1
+

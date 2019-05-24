@@ -1,0 +1,46 @@
+#!/bin/sh
+
+if [ ! -d .git ]; then
+  echo Please run in empty git directory
+  exit 1
+fi
+
+export DEBFULLNAME="`git config user.name`"
+export DEBEMAIL="`git config user.email`"
+
+if [ -z "$DEBEMAIL" ]; then
+  echo "Please setup git username and email"
+  exit 1
+fi
+
+PROJECT=$1
+PROJECTVERSION=$2
+
+if [ -z "$PROJECT" -o -z "$PROJECTVERSION" ]; then
+  echo Usage: $0 PROJECT PROJECTVERSION
+  exit 1
+fi
+
+if [ -e $PROJECT ]; then
+  echo "Directory or file $project already exists"
+  exit 1
+fi
+
+DATE=`date -R`
+
+cp -ar /usr/lib/molior-tools/templates/base/* .
+
+for f in `find .`
+do
+  if [ "$f" = "." -o "$f" = ".." ]; then
+    continue
+  fi
+  if [ -f "$f" ]; then
+    sed -i $f -e "s/@PROJECT@/$PROJECT/g"  \
+              -e "s/@PROJECTVERSION@/$PROJECTVERSION/g" \
+              -e "s/@NAME@/$DEBFULLNAME/g" \
+              -e "s/@EMAIL@/$DEBEMAIL/g"   \
+              -e "s/@DATE@/$DATE/g"
+  fi
+  rename "s/\@PROJECT\@/$PROJECT/g" $f
+done

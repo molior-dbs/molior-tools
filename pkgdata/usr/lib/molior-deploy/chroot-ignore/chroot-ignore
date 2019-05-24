@@ -1,0 +1,4 @@
+#!/bin/sh
+
+echo CHROOT ENVIRONMENT ingoring: `basename $0` $@
+

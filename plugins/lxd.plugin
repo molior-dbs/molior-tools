@@ -1,0 +1,59 @@
+# molior-deploy plugin
+# vim: syntax=sh
+
+init_deployment_lxd()
+{
+  init_deployment_dir
+}
+
+finalize_deployment_lxd()
+{
+  deployment=${PROJECT}_${VERSION}_${REVISION}_${VARIANT}.tar.xz
+  echo " * creating ${deployment}"
+
+  umount_bootstrap
+  umount_fs
+
+  cat >$WORK_DIR/metadata.yaml <<EOF
+architecture: "$ARCH"
+creation_date: $(date +%s)
+properties:
+ description: "${PROJECT} ${REVISION} ${SUITE}"
+ os: "debian"
+ release: "${DIST}"
+templates:
+  /etc/network/interfaces.d/eth0:
+    when:
+    - create
+    create_only: true
+    template: eth0.tpl
+    properties: {}
+  /etc/hostname:
+    when:
+    - create
+    - copy
+    create_only: false
+    template: hostname.tpl
+    properties: {}
+  /etc/hosts:
+    when:
+    - create
+    - copy
+    create_only: false
+    template: hosts.tpl
+    properties: {}
+$LXD_TEMPLATES
+EOF
+
+  mkdir $WORK_DIR/templates/
+  cp /usr/lib/molior-deploy/lxd-templates/* $WORK_DIR/$PROJECT/$LXD_TEMPLATE_FILES $WORK_DIR/templates/
+
+  mv $WORK_DIR/root $WORK_DIR/rootfs
+
+  tar $TAR_PXZ -cf $WORK_DIR/${deployment} -C $WORK_DIR metadata.yaml templates rootfs
+  mv $WORK_DIR/${deployment} ./
+  if [ -n "$SUDO_UID" -a -n "$SUDO_GID" ]; then
+    chown $SUDO_UID:$SUDO_GID $deployment
+  fi
+}
+

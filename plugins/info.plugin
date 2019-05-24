@@ -1,0 +1,124 @@
+# molior-deploy plugin
+# vim: syntax=sh
+
+preinit_deployment_info()
+{
+  REQUIRED_HOST_PACKAGES="graphviz zip"
+}
+
+init_deployment_info()
+{
+  init_deployment_dir
+  do_compress=0
+}
+
+postinst_internal_deployment_info()
+{
+  echo " * gathering info"
+  packages_file=${PROJECT}_${REVISION}_packages.txt
+  manual_packages_file=${PROJECT}_${REVISION}_packages-manual.txt
+  debsecan_complete_file=${PROJECT}_${REVISION}_debsecan-complete_`date +%d%m%Y-%H%M%S`.txt
+  debsecan_file=${PROJECT}_${REVISION}_debsecan_`date +%d%m%Y-%H%M%S`.txt
+  debsums_file=${PROJECT}_${REVISION}_debsums-modified.txt
+  debtree_file=${PROJECT}_${REVISION}_debtree.dot
+  debtree_complete_file=${PROJECT}_${REVISION}_debtree-complete.dot
+  debtree_svg=${PROJECT}_${REVISION}_debtree.svg
+  debtree_png=${PROJECT}_${REVISION}_debtree.png
+  du_file=${PROJECT}_${REVISION}_disk_usage.txt
+  deploy_file=${PROJECT}_${REVISION}_deploy.conf
+
+  mkdir $WORK_DIR/info
+  kernel_config_file=""
+  if [ -L $target/vmlinuz ]; then
+    KERNEL_CONFIG=`readlink $target/vmlinuz | sed s/vmlinuz/config/`
+    if [ -f $target/$KERNEL_CONFIG ]; then
+      kernel_config_file=`basename $KERNEL_CONFIG`
+    fi
+  fi
+
+  chroot $target dpkg -l > $WORK_DIR/info/$packages_file
+  if [ "$?" -ne 0 ]; then
+    log_error "Error running dpkg -l"
+  fi
+  chroot $target apt-mark showmanual > $WORK_DIR/info/$manual_packages_file
+  if [ "$?" -ne 0 ]; then
+    log_error "Error running apt-mark showmanual"
+  fi
+  test -z "$kernel_config_file" || cp $target/boot/$kernel_config_file $WORK_DIR/info
+# FIXME: fstab is empty with deployment type dir above
+#  test ! -f $target/etc/fstab || cp $target/etc/fstab $WORK_DIR/info
+  cd $target
+  du -hs `find $target -maxdepth 1 -type d -printf '%P\n' | sed -e "/^proc/d" -e "/^sys/d" -e "/^dev/d"` > $WORK_DIR/info/$du_file
+  cd - >/dev/null
+
+  chroot $target apt-get -y install debsecan debsums 1>&2
+  if [ "$?" -ne 0 ]; then
+    log_error "Error installing: debsecan debsums"
+  fi
+  chroot $target debsecan > $WORK_DIR/info/$debsecan_complete_file
+  if [ "$?" -ne 0 ]; then
+    log_error "Error running debsecan"
+  fi
+  chroot $target debsecan --only-fixed --suite $SUITE > $WORK_DIR/info/$debsecan_file
+  if [ "$?" -ne 0 ]; then
+    log_error "Error running debsecan"
+  fi
+  chroot $target debsums -ac > $WORK_DIR/info/$debsums_file
+  # debsums will return error, no checking
+  chroot $target apt-get -y purge debsecan debsums 1>&2
+  if [ "$?" -ne 0 ]; then
+    log_error "Error removing: debsecan debsums"
+  fi
+  chroot $target apt-get -y autoremove --purge 1>&2
+  if [ "$?" -ne 0 ]; then
+    log_error "Error running autoremove"
+  fi
+  chroot $target apt-get -y install debtree 1>&2
+  if [ "$?" -ne 0 ]; then
+    log_error "Error installing: debtree"
+  fi
+  chroot $target debtree -I -R -r --no-recommends --no-skip --show-all --no-versions $INSTALL_PACKAGE > $WORK_DIR/info/$debtree_complete_file
+  if [ "$?" -ne 0 ]; then
+    log_error "Error running debtree"
+  fi
+  chroot $target debtree -I -R -r --no-recommends --no-versions $INSTALL_PACKAGE > $WORK_DIR/info/$debtree_file
+  if [ "$?" -ne 0 ]; then
+    log_error "Error running debtree"
+  fi
+  dot -Tsvg $WORK_DIR/info/$debtree_file > $WORK_DIR/info/$debtree_svg
+  if [ "$?" -ne 0 ]; then
+    log_error "Error running dot"
+  fi
+  dot -Tpng $WORK_DIR/info/$debtree_file > $WORK_DIR/info/$debtree_png
+  if [ "$?" -ne 0 ]; then
+    log_error "Error running dot"
+  fi
+
+  cd $target/usr/share/doc
+  find -name copyright | cpio -p --make-directories $WORK_DIR/info/licenses
+  find -name changelog* | cpio -p --make-directories $WORK_DIR/info/changelogs
+  cd - >/dev/null
+
+  cp $target/etc/apt/sources.list $WORK_DIR/info/apt-sources.list
+}
+
+finalize_deployment_info()
+{
+  deployment=${PROJECT}_${VERSION}_${REVISION}_$VARIANT.zip
+  echo " * creating $deployment"
+  umount_bootstrap
+  umount_fs
+  cd $target
+  chroot $target apt-get clean
+  rm -f $target/var/lib/apt/lists/*Packages* $target/var/lib/apt/lists/*Release*
+  tar $TAR_PXZ -cf $WORK_DIR/info/rootfs.tar.xz .
+  cd - >/dev/null
+  cd $WORK_DIR/info
+  zip -r ../$deployment * 1>&2
+  cd - >/dev/null
+  if [ -n "$SUDO_UID" -a -n "$SUDO_GID" ]; then
+    chown $SUDO_UID:$SUDO_GID $WORK_DIR/$deployment
+  fi
+  mv -f $WORK_DIR/$deployment ./
+}
+

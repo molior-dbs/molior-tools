@@ -1,0 +1,31 @@
+#!/bin/bash
+
+PREREQ=""
+
+prereqs()
+{
+        echo "$PREREQ"
+}
+
+case $1 in
+prereqs)
+        prereqs
+        exit 0
+        ;;
+esac
+
+. /usr/share/initramfs-tools/hook-functions
+
+copy_exec /bin/mountpoint    /bin/
+copy_exec /usr/bin/pv        /bin/
+copy_exec /usr/bin/tr        /bin/
+copy_exec /sbin/sfdisk       /sbin/
+copy_exec /sbin/mkfs         /sbin/
+copy_exec /usr/sbin/chpasswd /sbin/
+
+# overwrite busybox binaries
+copy_exec /bin/cpio          /mbin/
+copy_exec /usr/bin/xz        /mbin/
+copy_exec /bin/umount        /mbin/
+copy_exec /sbin/mke2fs       /mbin/
+

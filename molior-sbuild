@@ -1,0 +1,213 @@
+#!/bin/sh
+
+if [ "`id -u`" -eq 0 ]; then
+  echo "Please do not run $0 as root"
+  exit 1
+fi
+
+usage()
+{
+  echo "Usage: $0 [-a ARCH] [-m MOLIOR_SERVER] [-d DEBIAN_SERVER] [PROJECT] [VERSION]"
+  exit 1
+}
+
+while getopts "a:m:d:" opt; do
+  case $opt in
+    a)
+      ARCH=$OPTARG
+      shift 2
+      ;;
+    m)
+      MOLIOR_SERVER=$OPTARG
+      shift 2
+      ;;
+    d)
+      DEBIAN_SERVER=$OPTARG
+      shift 2
+      ;;
+    \?)
+      usage "Invalid option: -$OPTARG"
+      ;;
+    :)
+      usage "Option -$OPTARG requires an argument."
+      ;;
+  esac
+done
+
+
+PROJECT=$1
+VERSION=$2
+DIST=stable
+
+. /usr/lib/molior-tools/molior.sh.inc
+
+if [ -z "$MOLIOR_SERVER" ]; then
+  MOLIOR_SERVER=$MOLIOR_URL
+fi
+if [ -z "$DEBIAN_SERVER" ]; then
+  DEBIAN_SERVER=$MOLIOR_REPO_URL
+fi
+
+log_info()
+{
+  /bin/echo -e "\e[36m\e[1mI: $@\e[0m"
+}
+
+log_notice()
+{
+  /bin/echo -e "\e[32m\e[1mN: $@\e[0m"
+}
+
+log_warn()
+{
+  /bin/echo -e "\e[33m\e[1mW: $@\e[0m"
+}
+
+log_error()
+{
+  /bin/echo -e "\e[31m\e[1mE: $@\e[0m"
+  exit 1
+}
+
+if ! which sbuild >/dev/null; then
+  log_error "Please install sbuild, schroot and lintian"
+fi
+
+if ! which schroot >/dev/null; then
+  log_error "Please install sbuild, schroot and lintian"
+fi
+
+if ! which lintian >/dev/null; then
+  log_error "Please install sbuild, schroot and lintian"
+fi
+
+CONFIG_FILE=debian/molior.yml
+if [ ! -f $CONFIG_FILE ]; then
+  log_error "Error: no $CONFIG_FILE found"
+fi
+
+pv=`molior-parseconfig target list --quiet | head -n1`
+
+if [ -z "$PROJECT" ]; then
+  PROJECT=`echo $pv | cut -d '/' -f 1`
+fi
+if [ -z "$VERSION" ]; then
+  VERSION=`echo $pv | cut -d '/' -f 2`
+fi
+
+if [ -z "$PROJECT" ]; then
+  log_warn "Warning: PROJECT could not be determined from $CONFIG_FILE. Please upgrade config or specify PROJECT as argument"
+  usage
+fi
+
+if [ -z "$VERSION" ]; then
+  log_warn "Warning: PROJECT could not be determined from $CONFIG_FILE. Please upgrade config or specify VERSION as argument"
+  usage
+fi
+
+HOSTARCH=`uname -m`
+
+debarch()
+{
+  case "$1" in
+    aarch64)
+      echo arm64
+      ;;
+    x86_64)
+      echo amd64
+      ;;
+    *)
+      echo $1
+      ;;
+  esac
+}
+
+platform()
+{
+  case "$1" in
+    aarch64|armhf|arm64)
+      echo arm
+      ;;
+    i386|amd64|x86_64)
+      echo x86
+      ;;
+  esac
+}
+
+if [ -z "$ARCH" ]; then
+  ARCH=$(debarch $HOSTARCH)
+fi
+
+PLATFORM=$(platform $ARCH)
+HOST_PLATFORM=$(platform $HOSTARCH)
+
+SOURCESURL=$MOLIOR_SERVER/api/projectsources/$PROJECT/$VERSION
+APT_SOURCES=`wget -q -O- $SOURCESURL | grep -v '^#' | grep -v '^$'`
+if [ $? -ne 0 ]; then
+  log_error "Error downloading $SOURCESURL"
+fi
+
+EXTRA_APT_SOURCES="--extra-repository='"`echo -n "$APT_SOURCES" | tr '\n' '@' | cut -d '@' -f2- | sed "s/@/' --extra-repository='/g"`"'"
+
+MIRROR=`echo "$APT_SOURCES" | head -n1 | awk '{print $2}'`
+VERSION=`basename $MIRROR`
+SUITE=`dirname $MIRROR | xargs basename`
+log_info "Mirror: $MIRROR"
+log_info "Version: $VERSION"
+log_info "Suite: $SUITE"
+
+SCHROOT=/var/lib/schroot/chroots/$SUITE-$VERSION-$ARCH.tar.xz
+if ! schroot -i -c $SUITE-$ARCH-$VERSION >/dev/null 2>&1; then
+  log_notice "Downloading schroot build environment"
+
+  sudo mkdir -p /var/lib/schroot/chroots
+  sudo wget -q $MOLIOR_SERVER/schroots/$SUITE-$VERSION-$ARCH.tar.xz -O $SCHROOT
+  if [ $? -ne 0 ]; then
+    log_error "Error downloading $MOLIOR_SERVER/schroots/$SUITE-$VERSION-$ARCH.tar.xz"
+  fi
+
+  schroot_version=`dpkg -s schroot | grep Version | cut -d' ' -f2`
+  if dpkg --compare-versions $schroot_version "<=" "1.6.10-1ubuntu3"; then
+    # no tar.xz support
+    echo " * Extracting (schroot $schroot_version does not support tar.xz)"
+    sudo mkdir -p /var/lib/schroot/chroots/$SUITE-$VERSION-$ARCH
+    cd /var/lib/schroot/chroots/$SUITE-$VERSION-$ARCH
+    sudo tar xf /var/lib/schroot/chroots/$SUITE-$VERSION-$ARCH.tar.xz
+    sudo rm -f  /var/lib/schroot/chroots/$SUITE-$VERSION-$ARCH.tar.xz
+    cd - >/dev/null
+    sudo sh -c "cat >/etc/schroot/chroot.d/$SUITE-$VERSION-$ARCH" <<EOF
+[$SUITE-$ARCH-$VERSION]
+description=Debian $SUITE-$VERSION-$ARCH autobuilder
+type=directory
+directory=/var/lib/schroot/chroots/$SUITE-$VERSION-$ARCH
+union-type=overlay
+groups=root,sbuild
+root-groups=root,sbuild
+profile=sbuild
+EOF
+  else
+    sudo sh -c "cat >/etc/schroot/chroot.d/$SUITE-$VERSION-$ARCH" <<EOF
+[$SUITE-$ARCH-$VERSION]
+description=Debian $SUITE-$VERSION-$ARCH autobuilder
+type=file
+file=$SCHROOT
+groups=root,sbuild
+root-groups=root,sbuild
+profile=sbuild
+EOF
+    # remove old schroot dirs and config
+    sudo rm -rf /var/lib/schroot/chroots/$SUITE-$VERSION-$ARCH /etc/schroot/chroot.d/$SUITE-$ARCH-$VERSION-*
+  fi
+
+  if ! id -nG "$USER" | grep -qw sbuild; then
+    sudo adduser `whoami` sbuild
+    log_warn "Please logout and login to become member of the group sbuild, then rerun this command..."
+    exit 1
+  fi
+fi
+
+SBUILD="sbuild --no-source --verbose --run-lintian --no-clean-source --no-apt-clean --no-apt-distupgrade --chroot=$SUITE-$ARCH-$VERSION --arch=$ARCH --dist=$SUITE -A $EXTRA_APT_SOURCES"
+
+log_info "Running sbuild"
+echo "$SBUILD"
+eval $SBUILD

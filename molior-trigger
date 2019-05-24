@@ -1,0 +1,58 @@
+#!/bin/sh
+
+set -e
+
+. /usr/lib/molior-tools/molior.sh.inc
+
+PROGRAMM_NAME="$0"
+
+usage()
+{
+  ERROR="$1"
+
+  echo "Usage: $PROGRAMM_NAME ssh://REPOSIROTY_URL [GIT_REF] [GIT_BRANCH]"
+  if [ -n "$ERROR" ]; then
+    echo
+    echo "$ERROR"
+  fi
+  exit 1
+}
+
+REPO=$1
+if [ -z "$REPO" ]
+then
+  usage "You have to specify a git repo!"
+fi
+GIT_REF=$2
+GIT_BRANCH=$3
+
+aquire_user
+aquire_pass
+
+COOKIE_FILE=`mktemp`
+
+molior_session_call()
+{
+  curl -s --cookie "$COOKIE_FILE" --cookie-jar "$COOKIE_FILE" "$@"
+}
+
+# login to the molior session
+molior_session_call "$MOLIOR_URL/plogin" \
+  --data-urlencode "username=$MOLIOR_USER" \
+  --data-urlencode "password=$MOLIOR_PASSWORD" \
+  --location > /dev/null
+
+response=`molior_session_call --header "Content-Type: application/json" --request POST \
+  --data "{\"repository\": \"$REPO\", \"git_ref\": \"$GIT_REF\", \"git_branch\": \"$GIT_BRANCH\"}" $MOLIOR_URL/api/build`
+
+token=`echo $response | jq -r '.build_token'`
+if [ -z "$token" ]; then
+  echo Error triggering build
+  exit 1
+fi
+
+echo "Build triggered: token=$token"
+echo
+echo "Query build state with: "
+echo "curl -s $MOLIOR_URL/api/build/$token | json_pp"
+echo
