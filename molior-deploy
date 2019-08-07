@@ -369,7 +369,7 @@ while true; do
     case "\$1" in
       -*) shift ;;
       makedev|x11-common) exit 0;;
-      "${CHROOT_DAEMONS_ENABLED}") exit 0;;
+      ${CHROOT_DAEMONS_ENABLED}) exit 0;;
       *) exit 101;;
     esac
 done
