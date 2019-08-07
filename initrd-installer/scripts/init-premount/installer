@@ -308,11 +308,6 @@ mount --bind /dev /mnt/target/dev
 mount --bind /sys /mnt/target/sys
 mount proc -t proc /mnt/target/proc
 
-if [ -x /mnt/target/bin/systemd-machine-id-setup ]; then
-  echo " * creating machine ID"
-  chroot /mnt/target systemd-machine-id-setup
-fi
-
 echo " * installing boot loader"
 if [ -n "$LINUX_CMDLINE" ]; then
   sed -i "s%^GRUB_CMDLINE_LINUX=.*$%GRUB_CMDLINE_LINUX=\"$LINUX_CMDLINE\"%" /mnt/target/etc/default/grub

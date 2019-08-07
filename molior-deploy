@@ -865,7 +865,7 @@ cleanup_deployment()
     rm -f $target/usr/bin/qemu-aarch64-static
   fi
   rm -f $target/etc/ssh/ssh_host_*
-  rm -f $target/etc/machine-id
+  echo -n > $target/etc/machine-id
   rm -f $target/var/lib/dbus/machine-id
 
   if [ -n "$MINIMIZE" ]; then
