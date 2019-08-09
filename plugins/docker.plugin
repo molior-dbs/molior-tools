@@ -35,6 +35,8 @@ finalize_deployment_docker()
     log_error "Error running docker save"
   fi
   docker rmi ${PROJECT}:${CONTAINER_VERSION} >&2
+  $PXZ_CMD -T `nproc --ignore 1` $deployment
+  deployment=$deployment.xz
   if [ -n "$SUDO_UID" -a -n "$SUDO_GID" ]; then
     chown $SUDO_UID:$SUDO_GID $deployment
   fi
