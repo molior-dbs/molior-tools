@@ -127,7 +127,7 @@ if [ -n "$previous_version" ]; then
     next_version=`dpkg-parsechangelog -S version -l debian/changelog.tmp`
 
     git_version=v$(echo "$next_version" | tr '~' '-')
-    if ! git tag | grep -q "^$git_version$"; then
+    if ! git tag | grep -q --fixed-strings "^$git_version$"; then
       break
     else
       log "git tag $git_version already exists"
@@ -171,7 +171,7 @@ else
         continue
       fi
       git_version=v$(echo "$version" | tr '~' '-')
-      if ! git tag | grep -q "^$git_version$"; then
+      if ! git tag | grep -q --fixed-strings "^$git_version$"; then
         break
       else
         log "git tag $git_version already exists"
