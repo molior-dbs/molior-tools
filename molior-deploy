@@ -515,6 +515,7 @@ setup_deployment()
   log " * mirror: $MIRROR"
 
   if [ -n "$SOURCE_DIR" ]; then
+    SOURCE_DIR=`readlink -f $SOURCE_DIR`
     log " * using local package source: $SOURCE_DIR"
     cd $SOURCE_DIR
     REVISION=`dpkg-parsechangelog -S Version`+local
