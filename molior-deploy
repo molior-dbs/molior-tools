@@ -369,7 +369,13 @@ while true; do
     case "\$1" in
       -*) shift ;;
       makedev|x11-common) exit 0;;
-      ${CHROOT_DAEMONS_ENABLED}) exit 0;;
+EOM
+  if [ -n "$CHROOT_DAEMONS_ENABLED" ]; then
+  cat >> $target/usr/sbin/policy-rc.d <<EOM
+      $CHROOT_DAEMONS_ENABLED) exit 0;;
+EOM
+  fi
+  cat >> $target/usr/sbin/policy-rc.d <<EOM
       *) exit 101;;
     esac
 done
