@@ -91,15 +91,11 @@ finalize_deployment_vbox()
   vboxmanage modifyvm $vmname --accelerate3d on >&2
   vboxmanage modifyvm $vmname --rtcuseutc on >&2
   vboxmanage modifyvm $vmname --clipboard bidirectional >&2
-  vboxmanage modifyvm $vmname --description "VirtualBox for ${PROJECT}_${REVISION} `date -R`
-----------------------------------------------------------------
-APT sources
-----------------------------------------------
+  vboxmanage modifyvm $vmname --description "${PROJECT}_${REVISION}
+Generated: `date -R`
+Installed Packages: `echo \"$INSTALLED_PACKAGES\" | wc -l`
+APT sources:
 $APT_SOURCES
-----------------------------------------------------------------
-Installed Packages (`echo \"$INSTALLED_PACKAGES\" | wc -l`)
-----------------------------------------------
-$INSTALLED_PACKAGES
 " >&2
 
   if [ -n "$VMMODIFY" ]; then
