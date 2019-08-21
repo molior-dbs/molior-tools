@@ -228,17 +228,19 @@ while [ $found -ne 1 ]; do
   fi
 done
 
-echo
-echo Are you sure to install to $disk ?
-echo -en "\033[1;31m"
-if [ -n "$LVM_VG" ]; then
-  echo "Warning: this will erase all existing data including any LVM VG !"
-else
-  echo "Warning: this will erase all existing data !"
+if [ "$INSTALLER_ASK_CONFIRM" != "no" ]; then
+  echo
+  echo Are you sure to install to $disk ?
+  echo -en "\033[1;31m"
+  if [ -n "$LVM_VG" ]; then
+    echo "Warning: this will erase all existing data including any LVM VG !"
+  else
+    echo "Warning: this will erase all existing data !"
+  fi
+  echo -e "\033[1;m"
+  echo -n "Press Enter to continue, Ctrl-Alt-Delete to reboot"
+  read x
 fi
-echo -e "\033[1;m"
-echo -n "Press Enter to continue, Ctrl-Alt-Delete to reboot"
-read x
 
 logo
 sleep 1
@@ -329,7 +331,9 @@ echo " * installation time: $(($diff / 60))min $(($diff % 60))sec"
 echo -n -e "\033[1;32m"
 echo -n "Done ! "
 echo -e "\033[1;m"
-echo "=> Please remove install media and press enter to reboot"
-read x
+if [ "$INSTALLER_ASK_REBOOT" != "no" ]; then
+  echo "=> Please remove install media and press enter to reboot"
+  read x
+fi
 
 reboot -f
