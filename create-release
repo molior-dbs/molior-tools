@@ -158,7 +158,7 @@ else
           fi
         fi
       fi
-      if ! echo "$version" | grep -q '^[0-9]\+[0-9a-z.]*\([\~-][0-9a-z.\~-]*\)\?$' ; then
+      if ! echo "$version" | grep -q '^\([0-9]\+:\)\?[0-9]\+[0-9a-z.]*\([\~-][0-9a-z.\~-]*\)\?$' ; then
         log_warn "Invalid Debian version specified"
         echo -n -e "\e[33m\e[1mQ: Press i to ignore and continue, press Enter to change the version ... \e[0m"
         read resp
@@ -223,17 +223,20 @@ then
   read x
 fi
 
+# git tags cannot contain ~, also remove debian epoch versions
+gittag=v$(echo "$version" | tr '~' '-' | sed 's/^[0-9]\+://')
+
 log "Committing debian/changelog"
 git add -f debian/changelog >/dev/null 2>&1
 git commit debian/changelog -m "$package_name: release $version" >$errlog 2>&1
-git tag -a v"$(echo "$version" | tr '~' '-')" -m "$package_name: release $version" >$errlog 2>&1
+git tag -a "$gittag" -m "$package_name: release $version" >$errlog 2>&1
 
 log "Pushing changes to remote"
 if [ "$NOPUSH" -eq 0 ]; then
-  git push origin `git rev-parse --abbrev-ref HEAD` v`echo $version | tr '~' '-'` >$errlog
+  git push origin `git rev-parse --abbrev-ref HEAD` "$gittag" >$errlog
   log_info "Release $package_name ($version) tagged and pushed"
 else
-  log_info "Release $package_name ($version) tagged, please git push origin `git rev-parse --abbrev-ref HEAD` v`echo $version | tr '~' '-'`"
+  log_info "Release $package_name ($version) tagged, please git push origin `git rev-parse --abbrev-ref HEAD` \"$gittag\""
 fi
 
 rm -f $errlog
