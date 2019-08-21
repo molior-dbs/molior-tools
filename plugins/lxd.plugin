@@ -4,6 +4,10 @@
 init_deployment_lxd()
 {
   init_deployment_dir
+  # Minimize per default, if not specified otherwise
+  if [ -z "$MINIMIZE" ]; then
+    MINIMIZE=1
+  fi
 }
 
 finalize_deployment_lxd()
