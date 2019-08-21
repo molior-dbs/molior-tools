@@ -42,11 +42,13 @@ DCH_OPTIONS=""
 NOPUSH=0
 SKIP_CONFIRM=0
 SKIP_EDIT=0
+REMOTE=origin
 
 while true
 do
     case "$1" in
         -np|--no-push)       NOPUSH=1; shift 1;;
+        --remote)            REMOTE=$2; shift 2;;
         --skip-edit)         SKIP_EDIT=1; shift 1;;
         --skip-confirm)      SKIP_CONFIRM=1; shift 1;;
         --auto-increment)    AUTO_INCREMENT="$2"; shift 2;;
@@ -114,7 +116,7 @@ log_info "Preparing release of $package_name"
 next_version=""
 if [ -n "$previous_version" ]; then
   log "fetching tags ..."
-  git fetch --tags >/dev/null 2>&1
+  git fetch $REMOTE --tags >/dev/null 2>&1
 
   log_info "Previous version: $previous_version"
 
@@ -125,7 +127,7 @@ if [ -n "$previous_version" ]; then
     next_version=`dpkg-parsechangelog -S version -l debian/changelog.tmp`
 
     git_version=v$(echo "$next_version" | tr '~' '-')
-    if ! git tag | grep -q "^$git_version$"; then
+    if ! git tag | grep -q --fixed-strings "^$git_version$"; then
       break
     else
       log "git tag $git_version already exists"
@@ -169,7 +171,7 @@ else
         continue
       fi
       git_version=v$(echo "$version" | tr '~' '-')
-      if ! git tag | grep -q "^$git_version$"; then
+      if ! git tag | grep -q --fixed-strings "^$git_version$"; then
         break
       else
         log "git tag $git_version already exists"
@@ -231,12 +233,12 @@ git add -f debian/changelog >/dev/null 2>&1
 git commit debian/changelog -m "$package_name: release $version" >$errlog 2>&1
 git tag -a "$gittag" -m "$package_name: release $version" >$errlog 2>&1
 
-log "Pushing changes to remote"
+log "Pushing changes to remote $REMOTE"
 if [ "$NOPUSH" -eq 0 ]; then
-  git push origin `git rev-parse --abbrev-ref HEAD` "$gittag" >$errlog
+  git push $REMOTE `git rev-parse --abbrev-ref HEAD` "$gittag" >$errlog
   log_info "Release $package_name ($version) tagged and pushed"
 else
-  log_info "Release $package_name ($version) tagged, please git push origin `git rev-parse --abbrev-ref HEAD` \"$gittag\""
+  log_info "Release $package_name ($version) tagged, please git push $REMOTE `git rev-parse --abbrev-ref HEAD` \"$gittag\""
 fi
 
 rm -f $errlog
