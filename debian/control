@@ -16,4 +16,5 @@ Depends: ${perl:Depends}, ${misc:Depends}, ${python3:Depends},
   python3-yaml, python3-click, jq, pxz | xz (>= 5.2.4-1)
 Conflicts: debrilis, rlx3-devtools, molior-deploy
 Description: molior development and deployment tools
- Tag debian releases in git repositories and create deployment images from molior projects.
+ Tools for creating debian package releases in git repositories
+ and for creating deployments of molior projects.
