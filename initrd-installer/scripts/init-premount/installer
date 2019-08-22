@@ -61,7 +61,7 @@ log_error()
   set +x
   exec 2>&3 3>&-
   busybox sh
-  reboot -f
+  exit 1
 }
 
 finish()
@@ -79,38 +79,53 @@ exec 3>&2
 exec 2>$errlog
 set -x
 
-echo -n "Searching install medium ..."
 
-# scan block devices
-for d in `ls /sys/block`; do
-  blkid /dev/$d > /dev/null
-done
 
-FOUND=false
-for i in `seq 10`
-do
-  sleep 1
-  LINE=`blkid | grep MLR:`
-  ret=$?
-  if [ "$ret" -eq "0" ]; then
-    FOUND=true
-    SOURCE=`echo $LINE | cut -f1 -d:`
-    SOURCEDISK=`echo $SOURCE | head -c8`
-    break
+if [ "$INSTALLER_USE_PXE" != "yes" ]; then
+
+  # we are booting from usb, find the disk
+  echo -n "Searching install medium ..."
+
+  # scan block devices
+  for d in `ls /sys/block`; do
+    blkid /dev/$d > /dev/null
+  done
+
+  FOUND=false
+  for i in `seq 10`
+  do
+    sleep 1
+    LINE=`blkid | grep MLR:`
+    ret=$?
+    if [ "$ret" -eq "0" ]; then
+      FOUND=true
+      SOURCE=`echo $LINE | cut -f1 -d:`
+      SOURCEDISK=`echo $SOURCE | head -c8`
+      break
+    fi
+  done
+
+  if [ -z "$SOURCEDISK" ]; then
+    echo -en "\r"
+    log_error "Error: could not find install medium, cannot continue."
   fi
-done
 
-if [ -z "$SOURCEDISK" ]; then
-  echo -en "\r"
-  log_error "Error: could not find install medium, cannot continue."
+  if blkid $SOURCE | grep -q iso9660 ; then
+    modprobe iso9660
+  fi
+  echo -e "\rInstalling from: $SOURCE"
+
+  mount $SOURCE /mnt/source $MOUNTOPTS
+else
+
+  # we are booting from pxe, download the image
+  echo -n "Downloading install medium ..."
+
+  configure_networking
+  tftp -g -l /mnt/source/image.cpio.xz -r image.cpio.xz -b 16384 "$ROOTSERVER"
+
+  SOURCEDISK="NONEXISTENT"
 fi
-
-if blkid $SOURCE | grep -q iso9660 ; then
-  modprobe iso9660
-fi
-echo -e "\rInstalling from: $SOURCE"
-
-mount $SOURCE /mnt/source $MOUNTOPTS
 
 if [ -z "$SFDISK" ]; then
   log_error "Error: partitions not definded, please set \$SFDISK"
@@ -289,7 +304,10 @@ exec 2>&4 4>&- # restore logfile
 set -x
 
 cd /
-umount /mnt/source
+
+if [ "$INSTALLER_USE_PXE" != "yes" ]; then
+  umount /mnt/source
+fi
 
 if [ -n "$hostname" ]; then
   echo "$hostname" > /mnt/target/etc/hostname
@@ -335,5 +353,3 @@ if [ "$INSTALLER_ASK_REBOOT" != "no" ]; then
   echo "=> Please remove install media and press enter to reboot"
   read x
 fi
-
-reboot -f

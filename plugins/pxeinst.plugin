@@ -3,28 +3,24 @@
 
 INITRDINST=/usr/lib/molior-deploy/initrd-installer
 
-preinit_deployment_installer()
-{
-  REQUIRED_HOST_PACKAGES="isolinux syslinux-utils genisoimage"
-}
-
-init_deployment_installer()
+init_deployment_pxeinst()
 {
   do_fstab=0
+  INSTALLER_USE_PXE=yes
   init_deployment_dir
 }
 
-preinst_deployment_installer()
+preinst_deployment_pxeinst()
 {
   APT_INSTALL_EXTRA="$APT_INSTALL_EXTRA cpio"
   cp -ar $target $WORK_DIR/instroot
 }
 
-finalize_deployment_installer()
+finalize_deployment_pxeinst()
 {
   umount_bootstrap
 
-  mkdir -p $WORK_DIR/iso
+  mkdir -p $WORK_DIR/pxe
   echo " * creating installer initrd"
 
   KERNEL_ARCH="$ARCH"
@@ -62,15 +58,11 @@ finalize_deployment_installer()
   if [ $? -ne 0 ]; then
     log_error "Error updating installer initrd"
   fi
-  cp $WORK_DIR/instroot/boot/$initrd $WORK_DIR/iso/initrd.img
-  cp -L $WORK_DIR/instroot/vmlinuz $WORK_DIR/iso/
+  cp $WORK_DIR/instroot/boot/$initrd $WORK_DIR/pxe/initrd.img
+  cp -L $WORK_DIR/instroot/vmlinuz $WORK_DIR/pxe/
 
-  cp $WORK_DIR/instroot/usr/lib/ISOLINUX/isolinux.bin $WORK_DIR/iso/
-  cp $WORK_DIR/instroot/usr/lib/syslinux/modules/bios/menu.c32 $WORK_DIR/iso/
-  cp $WORK_DIR/instroot/usr/lib/syslinux/modules/bios/ldlinux.c32 $WORK_DIR/iso/
-  cp $INITRDINST/syslinux.cfg $WORK_DIR/iso/
-  cat >$WORK_DIR/iso/README.md <<EOF
-=Molior Installer for ${PROJECT}_${REVISION} `date -R`=
+  cat >$WORK_DIR/pxe/README.md <<EOF
+=Molior PXE Installer for ${PROJECT}_${REVISION} `date -R`=
 
 ==APT sources==
 $APT_SOURCES
@@ -80,20 +72,16 @@ $INSTALLED_PACKAGES
 EOF
 
   echo " * creating image.cpio.xz"
-  chroot $target sh -c "find / -xdev -depth -print | cpio --quiet -o -H newc -B" > $WORK_DIR/iso/image.cpio
-  $PXZ_CMD -T `nproc --ignore 1` -6 $WORK_DIR/iso/image.cpio 2>&1
+  chroot $target sh -c "find / -xdev -depth -print | cpio --quiet -o -H newc -B" > $WORK_DIR/pxe/image.cpio
+  $PXZ_CMD -T `nproc --ignore 1` -6 $WORK_DIR/pxe/image.cpio 2>&1
   if [ $? -ne 0 ]; then
-    log_error "Error compressing $WORK_DIR/iso/image.cpio"
+    log_error "Error compressing $WORK_DIR/pxe/image.cpio"
   fi
 
-  deployment=${PROJECT}_${VERSION}_${REVISION}_$VARIANT.iso
+  deployment=${PROJECT}_${VERSION}_${REVISION}_$VARIANT.tar.xz
   echo " * creating $deployment"
-  VOLID=`printf "%.32si" "MLR:${PROJECT}"`
-  genisoimage -quiet -o $deployment -b isolinux.bin -c boot.cat -l -V $VOLID -A "${PROJECT}_${REVISION}" -input-charset utf8 -allow-multidot -no-emul-boot -boot-load-size 4 -boot-info-table $WORK_DIR/iso/
-  if [ $? -ne 0 ]; then
-    log_error "Error running genisoimage"
-  fi
-  isohybrid $deployment
+  tar $TAR_PXZ -cf $WORK_DIR/${deployment} -C $WORK_DIR/pxe vmlinuz initrd.img image.cpio.xz README.md
+  mv $WORK_DIR/${deployment} ./
   if [ -n "$SUDO_UID" -a -n "$SUDO_GID" ]; then
     chown $SUDO_UID:$SUDO_GID $deployment
   fi

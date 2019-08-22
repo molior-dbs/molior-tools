@@ -551,6 +551,60 @@ umount_fs()
   fi
 }
 
+configure_networking()
+{
+  # dhcp is done by network card
+  # assing the IP from /proc/cmdline to the correct interface (BOOTIF)
+
+  # copied from /usr/share/initramfs-tools/scripts/functions:
+
+  # strip off the leading "01-", which isn't part of the mac
+  # address
+  temp_mac=${BOOTIF#*-}
+
+  # convert to typical mac address format by replacing "-" with ":"
+  bootif_mac=""
+  IFS='-'
+  for x in $temp_mac ; do
+    if [ -z "$bootif_mac" ]; then
+      bootif_mac="$x"
+    else
+      bootif_mac="$bootif_mac:$x"
+    fi
+  done
+  unset IFS
+
+  # look for devices with matching mac address, and set DEVICE to
+  # appropriate value if match is found.
+  for device in /sys/class/net/* ; do
+    if [ -f "$device/address" ]; then
+      current_mac=$(cat "$device/address")
+      if [ "$bootif_mac" = "$current_mac" ]; then
+        DEVICE=${device##*/}
+        break
+      fi
+    fi
+  done
+
+  # end of copied
+
+  if [ -z "$DEVICE" ]; then
+    echo No network interface found for $BOOTIF
+    ls /sys/class/net/ -l
+    cat /sys/class/net/*/address
+    busybox sh
+  fi
+
+  CLIENT_IP=$(echo $IP | cut -d: -f1)
+  ROOTSERVER=$(echo $IP | cut -d: -f2)
+  GATEWAY=$(echo $IP | cut -d: -f3)
+  NETMASK=$(echo $IP | cut -d: -f4)
+
+  ip addr add $CLIENT_IP/$NETMASK dev $DEVICE
+  ip link set dev $DEVICE up
+  ip route add default via $GATEWAY dev $DEVICE
+}
+
 get_deploy_config()
 {
   echo "MOLIOR_TOOLS_VERSION=\"$MOLIOR_TOOLS_VERSION\""
@@ -621,4 +675,6 @@ get_deploy_config()
   echo "INSTALLER_ASK_HOSTNAME=\"$INSTALLER_ASK_HOSTNAME\""
   echo "INSTALLER_ASK_CONFIRM=\"$INSTALLER_ASK_CONFIRM\""
   echo "INSTALLER_ASK_REBOOT=\"$INSTALLER_ASK_REBOOT\""
+  echo "INSTALLER_USE_PXE=\"$INSTALLER_USE_PXE\""
+  echo "INSTALLER_EXTRA_INITRD=\"$INSTALLER_EXTRA_INITRD\""
 }
