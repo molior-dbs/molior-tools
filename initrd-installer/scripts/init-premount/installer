@@ -61,7 +61,7 @@ log_error()
   set +x
   exec 2>&3 3>&-
   busybox sh
-  reboot -f
+  exit 1
 }
 
 finish()
@@ -353,5 +353,3 @@ if [ "$INSTALLER_ASK_REBOOT" != "no" ]; then
   echo "=> Please remove install media and press enter to reboot"
   read x
 fi
-
-reboot -f
