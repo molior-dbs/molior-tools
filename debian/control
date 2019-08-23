@@ -12,7 +12,7 @@ Suggests: docker, virtualbox
 Recommends: syslinux-utils, genisoimage, qemu-user-static
 Depends: ${perl:Depends}, ${misc:Depends}, ${python3:Depends},
   libapt-pkg-perl, libparse-debian-packages-perl, wget, qemu-utils,
-  debootstrap, xz-utils, devscripts, equivs, curl, util-linux, lsb-release,
+  debootstrap, xz-utils, devscripts, equivs, curl, lsb-release,
   python3-yaml, python3-click, jq, pxz | xz (>= 5.2.4-1)
 Conflicts: debrilis, rlx3-devtools, molior-deploy
 Description: molior development and deployment tools
