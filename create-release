@@ -115,7 +115,7 @@ log_info "Preparing release of $package_name"
 
 next_version=""
 if [ -n "$previous_version" ]; then
-  log "fetching tags ..."
+  log "fetching tags from $REMOTE ..."
   git fetch $REMOTE --tags >/dev/null 2>&1
 
   log_info "Previous version: $previous_version"
@@ -174,7 +174,7 @@ else
       if ! git tag | grep -q --fixed-strings "^$git_version$"; then
         break
       else
-        log "git tag $git_version already exists"
+        log "git tag $git_version already exists on $REMOTE"
         version=""
       fi
     done
@@ -213,7 +213,7 @@ echo "$COMMITS" | (
 
 test  "$SKIP_EDIT" -eq 1 || dch -e 2>/dev/null
 
-log_info "The resulting packages will be published in the following project versions:"
+log_info "The resulting packages will be pushed to $REMOTE and published in the following project versions:"
 echo -n -e "\e[35m\e[1m"
 molior-parseconfig target list | sed 's/^/ * /'
 echo -n -e "\e[0m"
