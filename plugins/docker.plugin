@@ -3,7 +3,7 @@
 
 preinit_deployment_docker()
 {
-  REQUIRED_HOST_PACKAGES="docker-ce"
+  REQUIRED_HOST_COMMANDS="docker"
 }
 
 init_deployment_docker()

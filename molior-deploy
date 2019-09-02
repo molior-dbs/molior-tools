@@ -933,15 +933,19 @@ if type preinit_deployment_$DEPLOYMENT_TYPE >/dev/null; then
   preinit_deployment_$DEPLOYMENT_TYPE
 fi
 
-if [ -n "$REQUIRED_HOST_PACKAGES" ]; then
-  echo " * checking required packages: $REQUIRED_HOST_PACKAGES"
-  for p in $REQUIRED_HOST_PACKAGES
+if [ -n "$REQUIRED_HOST_COMMANDS" ]; then
+  echo " * checking required commands: $REQUIRED_HOST_COMMANDS"
+  ok=1
+  for cmd in $REQUIRED_HOST_COMMANDS
   do
-    dpkg --get-selections | grep $p | grep -q install
-    if [ $? -ne 0 ]; then
-      log_error "Missing required package: $p"
+    if ! which $cmd >/dev/null 2>&1; then
+      log_warn "Missing required command: $cmd"
+      ok=0
     fi
   done
+  if [ "$ok" -eq 0 ]; then
+    log_error "Please install missing commands"
+  fi
 fi
 
 log_info "Initializing deployment ..."
