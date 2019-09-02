@@ -3,6 +3,7 @@ debian/files
 debian/molior-tools.debhelper.log
 debian/molior-tools.substvars
 debian/molior-tools/
+debian/.debhelper/
 
 molior_tools.egg-info/
 
