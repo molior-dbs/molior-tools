@@ -3,7 +3,7 @@
 
 preinit_deployment_vbox()
 {
-  REQUIRED_HOST_PACKAGES="virtualbox"
+  REQUIRED_HOST_COMMANDS="vboxmanage"
   INSTALL_GRUB="yes"
   PARTSEP="p"
   USE_VDI=1

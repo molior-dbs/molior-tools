@@ -5,7 +5,8 @@ INITRDINST=/usr/lib/molior-deploy/initrd-installer
 
 preinit_deployment_installer()
 {
-  REQUIRED_HOST_PACKAGES="isolinux syslinux-utils genisoimage xorriso mtools"
+  REQUIRED_HOST_COMMANDS="isohybrid genisoimage xorriso mcopy mmd"
+  # FIXME: check /usr/lib/ISOLINUX/isolinux.bin
 }
 
 init_deployment_installer()

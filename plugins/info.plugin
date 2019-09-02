@@ -3,7 +3,7 @@
 
 preinit_deployment_info()
 {
-  REQUIRED_HOST_PACKAGES="graphviz zip"
+  REQUIRED_HOST_COMMANDS="dot zip"
 }
 
 init_deployment_info()

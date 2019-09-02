@@ -3,7 +3,7 @@
 
 preinit_deployment_upgrade()
 {
-  REQUIRED_HOST_PACKAGES="apt-utils"
+  REQUIRED_HOST_COMMANDS="apt-ftparchive"
 }
 
 init_deployment_upgrade()
