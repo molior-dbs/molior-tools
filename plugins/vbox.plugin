@@ -3,13 +3,13 @@
 
 preinit_deployment_vbox()
 {
-  REQUIRED_HOST_COMMANDS="vboxmanage"
+  REQUIRED_HOST_COMMANDS="vboxmanage kpartx qemu-img qemu-nbd"
   INSTALL_GRUB="yes"
   PARTSEP="p"
-  USE_VDI=1
-  QEMU_VERSION=`dpkg-query --showformat='${Version}' --show qemu-utils`
-  if dpkg --compare-versions "$QEMU_VERSION" gt "1:2.8"; then
-      USE_VDI=0
+  OLD_KERNEL=1
+  ver=`uname -r`
+  if dpkg --compare-versions "$ver" gt "4.14.0"; then
+      OLD_KERNEL=0
   fi
 }
 
@@ -18,7 +18,7 @@ init_deployment_vbox()
   vmname=${PROJECT}_${VERSION}_${REVISION}_${VARIANT}
   #FIXME check VMSIZE
   echo " * creating ${VMSIZE}MB"
-  if [ "$USE_VDI" -eq 1 ]; then
+  if [ "$OLD_KERNEL" -eq 1 ]; then
     VMDISK=$WORK_DIR/disk.vdi
     vboxmanage createhd --filename $VMDISK --size=$VMSIZE >&2
   else
@@ -35,12 +35,37 @@ init_deployment_vbox()
       log_error "Error loading kernel module nbd"
     fi
   fi
-  # FIXME: use free device https://stackoverflow.com/questions/22535222/next-free-device-option-for-qemu-nbd
-  nbd=/dev/nbd0
-  qemu-nbd -c $nbd $VMDISK
-  disk=`losetup -P -f --show $nbd`
+
+  # find free nbd device
+  nb=""
+  for nbdev in `ls -d /sys/class/block/nbd* | grep "nbd[0-9]\+$"`
+  do
+    S=`cat $nbdev/size`
+    if [ "$S" -eq "0" ] ; then
+      nb=`basename $nbdev`
+      break
+    fi
+  done
+  if [ -z "$nb" ]; then
+    log_error "Could not find free nbd device"
+  fi
+
+  nbd=/dev/$nb
+  qemu-nbd -c $nbd $VMDISK >&2
+  if [ $? -ne 0 ]; then
+    log_error "Error running qemu-nbd"
+  fi
+  if [ "$OLD_KERNEL" -eq 1 ]; then
+    ln -s $nbd /dev/mapper/$nb
+    disk=/dev/mapper/$nb
+  else
+    disk=$nbd
+  fi
 
   create_partitions
+
+  test "$OLD_KERNEL" -eq 1 && kpartx -avs $nbd >&2
+
   create_fs
   mount_fs
 }
@@ -48,13 +73,17 @@ init_deployment_vbox()
 deinit_deployment_vbox()
 {
   if [ -n "$LVM_VG" ]; then
-    vgremove -f ${LVM_VG} >&2
+    vgchange -an molior ${LVM_VG} >&2
+    LVM_VG=""
   fi
 
-  if [ -n "$disk" ]; then
-    losetup -d $disk
-    disk=""
+  if [ -n "$nbd" ]; then
+    test "$OLD_KERNEL" -eq 1 && kpartx -dv $nbd >&2
+    rm -f /dev/mapper/$nb
     qemu-nbd -d $nbd >&2
+    disk=""
+    nbd=""
+    vgscan --cache >&2
   fi
 }
 
@@ -77,7 +106,7 @@ finalize_deployment_vbox()
   fi
   vboxmanage createvm --name $vmname --ostype=$ostype --register >&2
   vboxmanage storagectl $vmname --name "SATA Controller" --add sata --controller IntelAHCI --portcount 2 >&2
-  if [ "$USE_VDI" -eq 0 ]; then
+  if [ "$OLD_KERNEL" -eq 0 ]; then
     qemu-img convert -f qcow2 -O vdi $WORK_DIR/disk.qcow2 $WORK_DIR/disk.vdi
     rm -f $WORK_DIR/disk.qcow2
   fi

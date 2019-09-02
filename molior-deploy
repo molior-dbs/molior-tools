@@ -229,6 +229,7 @@ finish ()
   fi
 
   if [ -n "$disk" ]; then
+    # FIXME: only for loop disks, not /dev/nbd0
     losetup -d $disk
     disk=""
   fi
@@ -411,10 +412,6 @@ EOM
       log_error "Error mounting $target/var/tmp"
     fi
   fi
-
-  if [ -n "`ls /dev/loop* 2>/dev/null`" ]; then
-    cp -a /dev/loop* $target/dev
-  fi
 }
 
 umount_bootstrap()
@@ -454,7 +451,6 @@ umount_bootstrap()
       umount $target/etc/apt/auth.conf
     fi
     mountpoint -q $target/var/tmp && umount $target/var/tmp
-    rm -f $target/dev/loop*
   fi
 }
 
@@ -470,12 +466,20 @@ mount_fs_devices()
   done
   cp -a /dev/dm-* $target/dev
   cp -a /dev/mapper $target/dev/
+  if [ -d "/run/udev/" ]; then
+    mkdir -p $target/run/udev
+    mount --bind /run/udev/ $target/run/udev
+  fi
 }
 
 umount_fs_devices()
 {
   if [ -z "$target" ]; then
     return
+  fi
+  if [ -d "/run/udev" ]; then
+    umount $target/run/udev/
+    rmdir $target/run/udev/
   fi
   for l in ${disk}*
   do
@@ -902,8 +906,9 @@ install_grub_bootloader()
     sed -i "s%^GRUB_CMDLINE_LINUX=.*$%GRUB_CMDLINE_LINUX=\"$LINUX_CMDLINE\"%" $target/etc/default/grub
   fi
   mkdir -p $target/dev/disk/by-uuid
-  touch $target/dev/disk/by-uuid/`blkid  -o value -s UUID $rootpart`
+  cp -a /dev/disk/by-uuid/`blkid  -o value -s UUID $rootpart` $target/dev/disk/by-uuid/
   chroot $target update-grub
+
   rm -rf $target/dev/disk/by-uuid
   umount_fs_devices
 }
