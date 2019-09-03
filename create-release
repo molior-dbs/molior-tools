@@ -213,7 +213,11 @@ echo "$COMMITS" | (
 
 test  "$SKIP_EDIT" -eq 1 || dch -e 2>/dev/null
 
-log_info "The resulting packages will be pushed to $REMOTE and published in the following project versions:"
+# git tags cannot contain ~, also remove debian epoch versions
+gittag=v$(echo "$version" | tr '~' '-' | sed 's/^[0-9]\+://')
+
+log_info "A new git tag $gittag will be created and pushed to $REMOTE"
+log_info "The resulting packages will be published in the following project versions:"
 echo -n -e "\e[35m\e[1m"
 molior-parseconfig target list | sed 's/^/ * /'
 echo -n -e "\e[0m"
@@ -224,9 +228,6 @@ then
   echo -n -e "\e[33m\e[1mQ: Press Enter to continue, Ctrl-C to abort ... \e[0m"
   read x
 fi
-
-# git tags cannot contain ~, also remove debian epoch versions
-gittag=v$(echo "$version" | tr '~' '-' | sed 's/^[0-9]\+://')
 
 log "Committing debian/changelog"
 git add -f debian/changelog >/dev/null 2>&1
