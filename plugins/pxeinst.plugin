@@ -73,7 +73,7 @@ EOF
 
   echo " * creating image.cpio.xz"
   chroot $target sh -c "find / -xdev -depth -print | cpio --quiet -o -H newc -B" > $WORK_DIR/pxe/image.cpio
-  $PXZ_CMD -T `nproc --ignore 1` -6 $WORK_DIR/pxe/image.cpio 2>&1
+  $PXZ_CMD -T `nproc --ignore 1` $WORK_DIR/pxe/image.cpio 2>&1
   if [ $? -ne 0 ]; then
     log_error "Error compressing $WORK_DIR/pxe/image.cpio"
   fi
