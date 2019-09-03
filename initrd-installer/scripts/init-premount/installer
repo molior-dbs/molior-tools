@@ -296,6 +296,7 @@ echo Copying system ...
 echo -n -e "\033[1;m"
 cd /mnt/target
 bytes=`xz --robot --list /mnt/source/image.cpio.xz 2>/dev/null | grep totals | awk '{ print $5 }'`
+# allow progress bar to be displayed
 set +x
 exec 4>&2 # backup logfile
 exec 2>&3
@@ -332,8 +333,13 @@ echo " * installing boot loader"
 if [ -n "$LINUX_CMDLINE" ]; then
   sed -i "s%^GRUB_CMDLINE_LINUX=.*$%GRUB_CMDLINE_LINUX=\"$LINUX_CMDLINE\"%" /mnt/target/etc/default/grub
 fi
-chroot /mnt/target grub-install --modules part_msdos --recheck --force --no-floppy $disk >/dev/null 2>&1
-chroot /mnt/target update-grub >/dev/null 2>&1
+if [ "$INSTALLER_BOOTTYPE" = "efi" ]; then
+  modprobe efivars
+  chroot /mnt/target grub-install --recheck --force
+else
+  chroot /mnt/target grub-install --modules part_msdos --recheck --force --no-floppy $disk >/dev/null 2>&1
+fi
+chroot /mnt/target update-grub
 umount /mnt/target/dev
 umount /mnt/target/sys
 umount /mnt/target/proc
