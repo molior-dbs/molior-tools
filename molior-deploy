@@ -466,6 +466,7 @@ mount_fs_devices()
   done
   cp -a /dev/dm-* $target/dev
   cp -a /dev/mapper $target/dev/
+  # on Debian/buster /run/udev seems to be needed for installing grub
   if [ -d "/run/udev/" ]; then
     mkdir -p $target/run/udev
     mount --bind /run/udev/ $target/run/udev
