@@ -192,7 +192,6 @@ create_lvm()
   fi
   if vgs ${LVM_VG} >/dev/null 2>&1; then
     log_error "Error: LVM volume group $LVM_VG already exists. Please remove manually if it's not needed or choose different name"
-    LVM_VG=""
   fi
   # 8MByte is good for SSDs and SD cards, and the current max
   pvcreate -f -y --dataalignment 8m $part >&2
