@@ -6,6 +6,11 @@ preinit_deployment_vbox()
   REQUIRED_HOST_COMMANDS="vboxmanage kpartx qemu-img qemu-nbd"
   INSTALL_GRUB="yes"
   PARTSEP="p"
+
+  # On newer systems nbd partitions are automatically populated in /dev,
+  # i.e. /dev/nbd0p1. On older systems this does not happen, but mappings
+  # can be added with kpartx which will show up in /dev/mapper, i.e.
+  # /dev/mapper/nbd0p1. Try to distinguish between those cases:
   OLD_KERNEL=1
   ver=`uname -r`
   if dpkg --compare-versions "$ver" gt "4.14.0"; then
