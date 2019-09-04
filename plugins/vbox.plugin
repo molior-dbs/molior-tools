@@ -79,7 +79,6 @@ deinit_deployment_vbox()
 {
   if [ -n "$LVM_VG" ]; then
     vgchange -an molior ${LVM_VG} >&2
-    LVM_VG=""
   fi
 
   if [ -n "$nbd" ]; then

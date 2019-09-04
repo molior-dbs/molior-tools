@@ -25,7 +25,6 @@ deinit_deployment_image()
 {
   if [ -n "$LVM_VG" ]; then
     vgremove -f $LVM_VG >&2
-    LVM_VG=""
   fi
 
   if [ -n "$disk" ]; then
