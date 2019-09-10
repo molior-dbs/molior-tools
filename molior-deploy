@@ -907,7 +907,7 @@ install_grub_bootloader()
     sed -i "s%^GRUB_CMDLINE_LINUX=.*$%GRUB_CMDLINE_LINUX=\"$LINUX_CMDLINE\"%" $target/etc/default/grub
   fi
   mkdir -p $target/dev/disk/by-uuid
-  cp -a /dev/disk/by-uuid/`blkid  -o value -s UUID $rootpart` $target/dev/disk/by-uuid/
+  ln -s $rootpart $target/dev/disk/by-uuid/`blkid  -o value -s UUID $rootpart`
   chroot $target update-grub
 
   rm -rf $target/dev/disk/by-uuid
