@@ -305,10 +305,7 @@ log_error()
   set +x
   LIST_ONLY=0
   /bin/echo -e "\e[31m\e[1mE: $@\e[0m"
-  if [ -e $errlog ]; then
-    tail -n 10 $errlog
-  fi
-  if [ -n "$target" ]; then
+  if [ -n "$target" -a "$ask_cleanup" -eq 1 ]; then
     log_info "examine situation: sudo chroot $target"
   fi
   exit 1
@@ -950,6 +947,7 @@ if [ -n "$REQUIRED_HOST_COMMANDS" ]; then
     fi
   done
   if [ "$ok" -eq 0 ]; then
+    ask_cleanup=0
     log_error "Please install missing commands"
   fi
 fi
