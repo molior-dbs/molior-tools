@@ -24,6 +24,7 @@ usage()
   echo "  -n PACKAGE_NAME   Package name (Default: PROJECT)"
   echo "  -s SOURCE_DIR     Use local source tree (Default: download source package)"
   echo "  -v VARIANT        Deployment variant to generate (Default: ask)"
+  echo "  -p PRJSRC_FILE    Do not download project source from molior sever, use file contents"
   echo "  -m MOLIOR_SERVER  Molior server to use (Default in ~/.moliorrc)"
   echo "  -a APTLY_SERVER   Aptly server to use (Default in ~/.moliorrc)"
   echo "  -A                Override project apt sources with APTLY_SERVER"
@@ -46,7 +47,7 @@ usage()
 }
 
 origopts=$@
-while getopts "n:s:v:m:a:V:o:AlcfdOL" opt; do
+while getopts "n:s:v:p:m:a:V:o:AlcfdOL" opt; do
   case $opt in
     n)
       PACKAGE_NAME=$OPTARG
@@ -58,6 +59,10 @@ while getopts "n:s:v:m:a:V:o:AlcfdOL" opt; do
       ;;
     v)
       VARIANT=$OPTARG
+      shift 2
+      ;;
+    p)
+      MOLIOR_PROJECTSOURCES_FILE=$OPTARG
       shift 2
       ;;
     m)
@@ -498,13 +503,21 @@ setup_deployment()
   log " * started: `date -R`"
   log " * logfile: $WORK_DIR/output.log"
 
-  log_info "Getting deployment information ..."
-  SOURCESURL=$MOLIOR_SERVER/api/projectsources/$PROJECT/$VERSION
-  APT_SOURCES_ORIG=`wget -q -O- $SOURCESURL`
-  APT_SOURCES=`echo "$APT_SOURCES_ORIG" | sed '/^#/d'`
-  if [ -z "$APT_SOURCES" ]; then
-    log_error "Error downloading $SOURCESURL"
+  if [ -z "$MOLIOR_PROJECTSOURCES_FILE" ]; then
+    log_info "Getting deployment information ..."
+    SOURCESURL=$MOLIOR_SERVER/api/projectsources/$PROJECT/$VERSION
+    APT_SOURCES_ORIG=`wget -q -O- $SOURCESURL`
+    if [ -z "$APT_SOURCES_ORIG" ]; then
+      log_error "Error downloading $SOURCESURL"
+    fi
+  else
+    log_info "Reading deployment information from $MOLIOR_PROJECTSOURCES_FILE ..."
+    APT_SOURCES_ORIG=`cat $MOLIOR_PROJECTSOURCES_FILE`
+    if [ -z "$APT_SOURCES_ORIG" ]; then
+      log_error "Error reading $MOLIOR_PROJECTSOURCES_FILE"
+    fi
   fi
+  APT_SOURCES=`echo "$APT_SOURCES_ORIG" | sed '/^#/d'`
   if [ "$APTLY_OVERRIDE" -eq 1 ]; then
     APT_SOURCES=`echo "$APT_SOURCES" | sed "s=deb \([^:]\)\+://\([^/]\)\+=deb $APTLY_SERVER="`
   fi
