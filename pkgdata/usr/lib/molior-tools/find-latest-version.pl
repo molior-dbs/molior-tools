@@ -33,8 +33,7 @@ if (not defined $name) {
 
 my $version = "";
 my $directory = "";
-my $format = "";
-my $suffix = ".tar.gz";
+my $filename = "";
 
 sub nextpkg
 {
@@ -63,7 +62,10 @@ while (my %package = nextpkg()) {
       if($version eq "" or $vs->compare($version, $package{Version}) < 0) {
         $version = $package{Version};
         $directory = $package{Directory};
-        $format = $package{Format};
+        my $files = $package{Files};
+        $files =~ s/.+\.dsc\n//;
+        my @files = split(/ /, $files);
+        $filename = $files[2];
       }
     }
     else {
@@ -71,17 +73,18 @@ while (my %package = nextpkg()) {
 
         $version = $package{Version};
         $directory = $package{Directory};
-        $format = $package{Format};
+        my $files = $package{Files};
+        $files =~ s/.+\.dsc\n//;
+        my @files = split(/ /, $files);
+        $filename = $files[2];
       }
     }
   }
 }
 
-if ($format =~ /^3\.0/) {
-    $suffix = ".tar.xz"
-}
-
 if ($directory ne "") {
-  print $directory, "/", $name, "_", $version, $suffix, "\n";
+  print $directory, " ", $filename, " ", $version, "\n";
+  exit;
 }
 
+exit 1;
