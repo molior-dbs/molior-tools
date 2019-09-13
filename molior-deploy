@@ -6,6 +6,7 @@ DIST=stable
 APTLY_OVERRIDE=0
 LIST_ONLY=0
 ask_cleanup=1
+user_abort=0
 deploy_all=0
 keep_log=0
 OVERLAY_VERSION=""
@@ -247,28 +248,32 @@ finish ()
     update-binfmts --enable $b >/dev/null 2>&1
   done
 
-  if [ "$success" -ne 1 -o "$keep_log" -eq 1 ]; then
-    logfile=`date "+${PROJECT}_${VERSION}_${VARIANT}_%Y%m%d%H%M%S.log"`
-    cp $errlog $logfile
-    test "$success" -ne 1 && log_info "see full log: cat `pwd`/$logfile"
+  if [ "$user_abort" -eq 0 ]; then
+    if [ "$success" -ne 1 -o "$keep_log" -eq 1 ]; then
+      logfile=`date "+${PROJECT}_${VERSION}_${VARIANT}_%Y%m%d%H%M%S.log"`
+      cp $errlog $logfile
+      test "$success" -ne 1 && log_info "full log: $logfile"
+    fi
   fi
 
   rm -rf $WORK_DIR
 
   diff=$((endtime-starttime))
   if [ "$success" -ne 1 ]; then
-    log_warn "failed within $((diff / 60)) minutes and $((diff % 60)) seconds"
+    if [ "$user_abort" -eq 0 ]; then
+      log_warn "failed within $((diff / 60)) minutes and $((diff % 60)) seconds"
+    fi
     return 1
   fi
   if [ -n "$deployment" ]; then
-    log_notice "Deployment is ready: $deployment"
+    log_notice "Deployment created in $((diff / 60))m$((diff % 60))s: $deployment"
   fi
-  log_info "finished within $((diff / 60)) minutes and $((diff % 60)) seconds"
 }
 
 abort()
 {
   ask_cleanup=0
+  user_abort=1
   echo
   finish
 }
@@ -310,7 +315,7 @@ log_error()
   set +x
   LIST_ONLY=0
   /bin/echo -e "\e[31m\e[1mE: $@\e[0m"
-  if [ -n "$target" -a "$ask_cleanup" -eq 1 ]; then
+  if [ -n "$target" -a "$user_abort" -eq 0 ]; then
     log_info "examine situation: sudo chroot $target"
   fi
   exit 1
@@ -646,6 +651,8 @@ setup_deployment()
       if [ -z "$VARIANT" ]; then
         log_warn "No deployment variant choosen, aborting ..."
         ask_cleanup=0
+        user_abort=1
+        VARIANT="undefined"
         exit 1
       fi
       if [ -f $SOURCE_DIR/deploy/$VARIANT.conf ]; then
@@ -965,6 +972,7 @@ if [ -n "$REQUIRED_HOST_COMMANDS" ]; then
   done
   if [ "$ok" -eq 0 ]; then
     ask_cleanup=0
+    user_abort=1
     log_error "Please install missing commands"
   fi
 fi
