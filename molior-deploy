@@ -6,6 +6,7 @@ DIST=stable
 APTLY_OVERRIDE=0
 LIST_ONLY=0
 ask_cleanup=1
+user_abort=0
 deploy_all=0
 keep_log=0
 OVERLAY_VERSION=""
@@ -24,6 +25,7 @@ usage()
   echo "  -n PACKAGE_NAME   Package name (Default: PROJECT)"
   echo "  -s SOURCE_DIR     Use local source tree (Default: download source package)"
   echo "  -v VARIANT        Deployment variant to generate (Default: ask)"
+  echo "  -p PRJSRC_FILE    Do not download project source from molior sever, use file contents"
   echo "  -m MOLIOR_SERVER  Molior server to use (Default in ~/.moliorrc)"
   echo "  -a APTLY_SERVER   Aptly server to use (Default in ~/.moliorrc)"
   echo "  -A                Override project apt sources with APTLY_SERVER"
@@ -46,7 +48,7 @@ usage()
 }
 
 origopts=$@
-while getopts "n:s:v:m:a:V:o:AlcfdOL" opt; do
+while getopts "n:s:v:p:m:a:V:o:AlcfdOL" opt; do
   case $opt in
     n)
       PACKAGE_NAME=$OPTARG
@@ -58,6 +60,10 @@ while getopts "n:s:v:m:a:V:o:AlcfdOL" opt; do
       ;;
     v)
       VARIANT=$OPTARG
+      shift 2
+      ;;
+    p)
+      MOLIOR_PROJECTSOURCES_FILE=$OPTARG
       shift 2
       ;;
     m)
@@ -242,28 +248,32 @@ finish ()
     update-binfmts --enable $b >/dev/null 2>&1
   done
 
-  if [ "$success" -ne 1 -o "$keep_log" -eq 1 ]; then
-    logfile=`date "+${PROJECT}_${VERSION}_${VARIANT}_%Y%m%d%H%M%S.log"`
-    cp $errlog $logfile
-    test "$success" -ne 1 && log_info "see full log: cat `pwd`/$logfile"
+  if [ "$user_abort" -eq 0 ]; then
+    if [ "$success" -ne 1 -o "$keep_log" -eq 1 ]; then
+      logfile=`date "+${PROJECT}_${VERSION}_${VARIANT}_%Y%m%d%H%M%S.log"`
+      cp $errlog $logfile
+      test "$success" -ne 1 && log_info "full log: $logfile"
+    fi
   fi
 
   rm -rf $WORK_DIR
 
   diff=$((endtime-starttime))
   if [ "$success" -ne 1 ]; then
-    log_warn "failed within $((diff / 60)) minutes and $((diff % 60)) seconds"
+    if [ "$user_abort" -eq 0 ]; then
+      log_warn "failed within $((diff / 60)) minutes and $((diff % 60)) seconds"
+    fi
     return 1
   fi
   if [ -n "$deployment" ]; then
-    log_notice "Deployment is ready: $deployment"
+    log_notice "Deployment created in $((diff / 60))m$((diff % 60))s: $deployment"
   fi
-  log_info "finished within $((diff / 60)) minutes and $((diff % 60)) seconds"
 }
 
 abort()
 {
   ask_cleanup=0
+  user_abort=1
   echo
   finish
 }
@@ -305,10 +315,7 @@ log_error()
   set +x
   LIST_ONLY=0
   /bin/echo -e "\e[31m\e[1mE: $@\e[0m"
-  if [ -e $errlog ]; then
-    tail -n 10 $errlog
-  fi
-  if [ -n "$target" ]; then
+  if [ -n "$target" -a "$user_abort" -eq 0 ]; then
     log_info "examine situation: sudo chroot $target"
   fi
   exit 1
@@ -501,13 +508,21 @@ setup_deployment()
   log " * started: `date -R`"
   log " * logfile: $WORK_DIR/output.log"
 
-  log_info "Getting deployment information ..."
-  SOURCESURL=$MOLIOR_SERVER/api/projectsources/$PROJECT/$VERSION
-  APT_SOURCES_ORIG=`wget -q -O- $SOURCESURL`
-  APT_SOURCES=`echo "$APT_SOURCES_ORIG" | sed '/^#/d'`
-  if [ -z "$APT_SOURCES" ]; then
-    log_error "Error downloading $SOURCESURL"
+  if [ -z "$MOLIOR_PROJECTSOURCES_FILE" ]; then
+    log_info "Getting deployment information ..."
+    SOURCESURL=$MOLIOR_SERVER/api/projectsources/$PROJECT/$VERSION
+    APT_SOURCES_ORIG=`wget -q -O- $SOURCESURL`
+    if [ -z "$APT_SOURCES_ORIG" ]; then
+      log_error "Error downloading $SOURCESURL"
+    fi
+  else
+    log_info "Reading deployment information from $MOLIOR_PROJECTSOURCES_FILE ..."
+    APT_SOURCES_ORIG=`cat $MOLIOR_PROJECTSOURCES_FILE`
+    if [ -z "$APT_SOURCES_ORIG" ]; then
+      log_error "Error reading $MOLIOR_PROJECTSOURCES_FILE"
+    fi
   fi
+  APT_SOURCES=`echo "$APT_SOURCES_ORIG" | sed '/^#/d'`
   if [ "$APTLY_OVERRIDE" -eq 1 ]; then
     APT_SOURCES=`echo "$APT_SOURCES" | sed "s=deb \([^:]\)\+://\([^/]\)\+=deb $APTLY_SERVER="`
   fi
@@ -525,56 +540,62 @@ setup_deployment()
   BASEVERSION=`basename $MIRROR`
   log " * mirror: $MIRROR"
 
+  log_info "Getting source package ..."
   if [ -n "$SOURCE_DIR" ]; then
     SOURCE_DIR=`readlink -f $SOURCE_DIR`
     log " * using local package source: $SOURCE_DIR"
     cd $SOURCE_DIR
     REVISION=`dpkg-parsechangelog -S Version`+local
-    log " * found revision: $PACKAGE_NAME $REVISION"
+    log " * found source package: $PACKAGE_NAME $REVISION"
     cd - >/dev/null
   else
-    log_info "Searching latest $PACKAGE_NAME revision ..."
     SOURCES_VERSION=$VERSION
     if [ -n "$OVERLAY_VERSION" ]; then
       SOURCES_VERSION=$OVERLAY_VERSION
-      log " * Using overlay source: $SOURCES_VERSION"
+      log " * using overlay source: $SOURCES_VERSION"
     fi
     if [ "$OVERLAY_AUTO" -eq 1 ]; then
       baseurls=`echo "$APT_SOURCES" | grep $MIRROR/repos/$PROJECT | awk '{print $2}'`
       for baseurl in $baseurls
       do
         SOURCES_VERSION=`basename $baseurl`
-        log " * Trying to download package source from $SOURCES_VERSION"
+        log " * trying to download package source from $SOURCES_VERSION"
         SOURCES=`wget -q -O- $MIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$DIST/main/source/Sources`
         if [ -z "$SOURCES" ]; then
+          # try next baseurl
           continue
         fi
-        FILENAME=`echo "$SOURCES" | /usr/lib/molior-tools/find-latest-version.pl $PACKAGE_NAME $PACKAGE_VERSION`
+        srcinfo=`echo "$SOURCES" | /usr/lib/molior-tools/find-latest-version.pl $PACKAGE_NAME $PACKAGE_VERSION`
+        if [ $? -ne 0 ]; then
+          # try next baseurl
+          continue
+        fi
+        FILENAME=`echo $srcinfo | cut -d ' ' -f 1`/`echo $srcinfo | cut -d ' ' -f 2`
+        REVISION=`echo $srcinfo | cut -d ' ' -f 3`
         if [ -n "$FILENAME" ]; then
+          # found package
           break
         fi
       done
       if [ -z "$FILENAME" ]; then
         log_error "No filename found for $PACKAGE_NAME in $MIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$DIST/main/source/Sources"
       fi
-      log " * Using package source: $SOURCES_VERSION"
+      log " * using package source: $SOURCES_VERSION"
     else
       SOURCES=`wget -q -O- $MIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$DIST/main/source/Sources`
       if [ -z "$SOURCES" ]; then
         log_error "Could not download $MIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$DIST/main/source/Sources"
       fi
-      FILENAME=`echo "$SOURCES" | /usr/lib/molior-tools/find-latest-version.pl $PACKAGE_NAME $PACKAGE_VERSION`
+      srcinfo=`echo "$SOURCES" | /usr/lib/molior-tools/find-latest-version.pl $PACKAGE_NAME $PACKAGE_VERSION`
       if [ $? -ne 0 ]; then
         log_error "Error searching $PACKAGE_NAME revision"
       fi
+      FILENAME=`echo $srcinfo | cut -d ' ' -f 1`/`echo $srcinfo | cut -d ' ' -f 2`
+      REVISION=`echo $srcinfo | cut -d ' ' -f 3`
       if [ -z "$FILENAME" ]; then
         log_error "No filename found for $PACKAGE_NAME in $MIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$DIST/main/source/Sources"
       fi
     fi
-
-    # Convert to source package name
-    REVISION=`basename $FILENAME | sed 's/.*_\([0-9\.~a-zA-Z-]\+\).tar.xz/\1/'`
-    log " * found revision: $PACKAGE_NAME $REVISION"
 
     log " * downloading source: $MIRROR/repos/$PROJECT/$SOURCES_VERSION/$FILENAME"
     cd $WORK_DIR
@@ -632,6 +653,8 @@ setup_deployment()
       if [ -z "$VARIANT" ]; then
         log_warn "No deployment variant choosen, aborting ..."
         ask_cleanup=0
+        user_abort=1
+        VARIANT="undefined"
         exit 1
       fi
       if [ -f $SOURCE_DIR/deploy/$VARIANT.conf ]; then
@@ -950,6 +973,8 @@ if [ -n "$REQUIRED_HOST_COMMANDS" ]; then
     fi
   done
   if [ "$ok" -eq 0 ]; then
+    ask_cleanup=0
+    user_abort=1
     log_error "Please install missing commands"
   fi
 fi
