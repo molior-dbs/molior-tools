@@ -1,3 +1,24 @@
+molior-tools (1.3.3) stretch; urgency=medium
+
+  * molior-deploy: fix LVM vg rename
+  * molior-deploy: improve vbox nbd device mounting
+  * molior-deploy: check for required commands instead of packages
+  * molior-deploy: support EFI ISO installers
+  * installer: move reboot script to local-top
+  * Signed-off-by: André Roth <neolynx@gmail.com>
+  * create-release: improve version check
+  * create-release: support remote argument
+  * molior-deploy: fix extendable policy-rc.d
+  * create-release: support epoch versions
+  * molior-deploy: make SOURCE_DIR relocatable
+  * molior-deploy: minimize lxd deployments per default
+  * Fix typo while generating /usr/sbin/profile-rc.d
+  * Make /usr/sbin/policy-rc.d configurable
+  * molior-deploy: create empty machine-id file
+  * molior-deploy: compress docker deployments
+
+ -- André Roth <neolynx@gmail.com>  Sun, 22 Sep 2019 14:05:34 +0200
+
 molior-tools (1.3.2) stretch; urgency=medium
 
   * public release
