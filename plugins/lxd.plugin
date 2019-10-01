@@ -26,12 +26,6 @@ properties:
  os: "debian"
  release: "${DIST}"
 templates:
-  /etc/network/interfaces.d/eth0:
-    when:
-    - create
-    create_only: true
-    template: eth0.tpl
-    properties: {}
   /etc/hostname:
     when:
     - create
