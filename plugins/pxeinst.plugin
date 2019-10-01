@@ -78,7 +78,7 @@ EOF
     log_error "Error compressing $WORK_DIR/pxe/image.cpio"
   fi
 
-  deployment=${PROJECT}_${VERSION}_${REVISION}_$VARIANT.tar.xz
+  deployment=$(get_deployment_filename "tar.xz")
   echo " * creating $deployment"
   tar $TAR_PXZ -cf $WORK_DIR/${deployment} -C $WORK_DIR/pxe vmlinuz initrd.img image.cpio.xz README.md
   mv $WORK_DIR/${deployment} ./

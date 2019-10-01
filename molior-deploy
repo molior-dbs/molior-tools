@@ -34,6 +34,7 @@ usage()
   echo "  -o OVERLAY_BASE   Specify overlay base and fetch top level package from there"
   echo "  -c                Cleanup on error (Default: ask)"
   echo "  -f                Build all variants (Default: ask)"
+  echo "  -F OUTPUT_FILE    Custom deployment output's filename"
   echo "  -d                Print debug output to stdout instead of file"
   echo "  -L                Keep log file"
   echo
@@ -48,7 +49,7 @@ usage()
 }
 
 origopts=$@
-while getopts "n:s:v:p:m:a:V:o:AlcfdOL" opt; do
+while getopts "n:s:v:p:m:a:V:o:F:AlcfdOL" opt; do
   case $opt in
     n)
       PACKAGE_NAME=$OPTARG
@@ -80,6 +81,10 @@ while getopts "n:s:v:p:m:a:V:o:AlcfdOL" opt; do
       ;;
     o)
       OVERLAY_VERSION=$OPTARG
+      shift 2
+      ;;
+    F)
+      DEPLOYMENT_OUTPUT_FILE=$OPTARG
       shift 2
       ;;
     O)
@@ -935,6 +940,19 @@ install_grub_bootloader()
 
   rm -rf $target/dev/disk/by-uuid
   umount_fs_devices
+}
+
+get_deployment_filename()
+{
+  EXTENSION="$1" 
+
+  if [ -z "$DEPLOYMENT_OUTPUT_FILE" ]
+  then
+    deployment="${PROJECT}_${VERSION}_${REVISION}_${VARIANT}.${EXTENSION}"
+  else
+    deployment="${DEPLOYMENT_OUTPUT_FILE}.${EXTENSION}"
+  fi
+  echo "$deployment"
 }
 
 # disable comflicting binfmts

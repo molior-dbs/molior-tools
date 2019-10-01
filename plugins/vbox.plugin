@@ -20,7 +20,7 @@ preinit_deployment_vbox()
 
 init_deployment_vbox()
 {
-  vmname=${PROJECT}_${VERSION}_${REVISION}_${VARIANT}
+  vmname=$(get_deployment_filename "")
   #FIXME check VMSIZE
   echo " * creating ${VMSIZE}MB"
   if [ "$OLD_KERNEL" -eq 1 ]; then

@@ -29,7 +29,7 @@ finalize_deployment_docker()
   if [ $? -ne 0 ]; then
     log_error "Error running docker import"
   fi
-  deployment=${PROJECT}_${VERSION}_${REVISION}.docker
+  deployment=$(get_deployment_filename "docker")
   docker save  -o $deployment ${PROJECT}:${CONTAINER_VERSION} >&2
   if [ $? -ne 0 ]; then
     log_error "Error running docker save"

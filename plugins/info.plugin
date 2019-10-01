@@ -104,7 +104,7 @@ postinst_internal_deployment_info()
 
 finalize_deployment_info()
 {
-  deployment=${PROJECT}_${VERSION}_${REVISION}_$VARIANT.zip
+  deployment=$(get_deployment_filename "zip")
   echo " * creating $deployment"
   umount_bootstrap
   umount_fs
