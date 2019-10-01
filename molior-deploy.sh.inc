@@ -678,3 +678,12 @@ get_deploy_config()
   echo "INSTALLER_EXTRA_INITRD=\"$INSTALLER_EXTRA_INITRD\""
   echo "INSTALLER_BOOTTYPE=\"$INSTALLER_BOOTTYPE\""
 }
+
+exit_on_error()
+{
+  RET=$?
+  ERR_MSG=$1
+  if [ "$RET" -ne 0 ]; then
+    log_error "$ERR_MSG"
+  fi
+}
