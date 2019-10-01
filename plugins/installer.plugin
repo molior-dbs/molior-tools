@@ -194,7 +194,7 @@ EOF
   echo " * creating $deployment"
   rm -f $deployment
   VOLID=`printf "%.32s" "MLR:${PROJECT}"`
-  if [ "$ARCH" = "amd64" ]; then
+  if [ "$ARCH" = "amd64" -o "$ARCH" = "i386" ]; then
     eval genisoimage -quiet -o $deployment \
       -b isolinux.bin \
       -c boot.cat \
