@@ -11,7 +11,7 @@ init_deployment_dir()
 
 finalize_deployment_dir()
 {
-  deployment=${PROJECT}_${VERSION}_${REVISION}.tar.xz
+  deployment=$(get_deployment_filename "tar.xz")
   echo " * creating $deployment"
   umount_bootstrap
   umount_fs

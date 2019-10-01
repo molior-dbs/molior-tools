@@ -190,7 +190,7 @@ EOF
     log_error "Error compressing $WORK_DIR/iso/image.cpio"
   fi
 
-  deployment=${PROJECT}_${VERSION}_${REVISION}_$VARIANT.iso
+  deployment=$(get_deployment_filename "iso")
   echo " * creating $deployment"
   rm -f $deployment
   VOLID=`printf "%.32s" "MLR:${PROJECT}"`

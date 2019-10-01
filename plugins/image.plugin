@@ -9,7 +9,7 @@ preinit_deployment_image()
 init_deployment_image()
 {
   # FIXME: escape vars
-  imagename=${PROJECT}_${VERSION}_${REVISION}_$VARIANT.img
+  imagename==$(get_deployment_filename "img")
   echo " * creating $IMAGESIZE $WORK_DIR/$imagename"
   fallocate -l $IMAGESIZE $WORK_DIR/$imagename
 
