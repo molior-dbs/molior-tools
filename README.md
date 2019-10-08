@@ -12,8 +12,6 @@ This repository provides the following molior-tools:
 - molior-sbuild
 - molior-trigger
 
-
-
 ## add-molior-repo
 
 Adds the corresponding `source.list` entry of a molior project to your `/etc/apt/source.list.d` directory.
@@ -21,24 +19,31 @@ Adds the corresponding `source.list` entry of a molior project to your `/etc/apt
 ## create-release
 
 Release a debian package including modifying the debian/changelog.
+This is done by creating an anotated tag in the git
+repository and adding to the debian changelog.
 
 ## molior-archive-sources
+
+Archive all the source code of a given molior project/version
 
 ## molior-create
 
 ## molior-deploy
 
 Create deployments of a project
-
 ## molior-parseconfig
 
-Simple tool to parse the molior.yml config file
+Simple tool to read/edit the molior.yml config file.
 
 ## molior-project-manager
+
+Do an operation (for example moving to another project version)
+for multiple source repositories.
 
 ## molior-sbuild
 
 Reproduce molior builds in the same environment as the molior server localy.
+The correct environment will be fetched from the `molior.yml` file.
 
 ## molior-trigger
 
