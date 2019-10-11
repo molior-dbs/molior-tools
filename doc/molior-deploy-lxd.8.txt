@@ -1,0 +1,28 @@
+NAME
+ molior-deploy - LXD deployment type
+
+DESCRIPTION
+ The lxd plugin allows to create a LXD container image.
+
+OPTIONS
+ The deployment configuration (deploy/*.conf file) recognized the following variables:
+
+ DEPLOYMENT_TYPE    Specify 'lxd' to use the lxd plugin
+
+EXAMPLE
+
+ deploy/directory.conf:
+
+   DEPLOYMENT_TYPE=lxd
+   ARCH=amd64
+   TARGET_HOSTNAME=roofs1
+   INSTALL_PACKAGE=toplevel-package
+
+AUTHORS
+ Please see the AUTHORS file in the source repositories.
+
+ The project homepage is <https://github.com/molior-dbs>
+
+SEE ALSO
+ create-release(1), molior-archive-sources(1), molior-deploy(8), molior-sbuild(1), molior-trigger(1), add-molior-repo(8)
+

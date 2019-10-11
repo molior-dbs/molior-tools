@@ -1,0 +1,28 @@
+NAME
+ molior-deploy - directory deployment type
+
+DESCRIPTION
+ The directory plugin allows to create a deployment into a directory in the form of a tar archive.
+
+OPTIONS
+ The deployment configuration (deploy/*.conf file) recognized the following variables:
+
+ DEPLOYMENT_TYPE    Specify 'dir' to use the directory plugin
+
+EXAMPLE
+
+ deploy/rootfs.conf:
+
+   DEPLOYMENT_TYPE=dir
+   ARCH=amd64
+   TARGET_HOSTNAME=roofs1
+   INSTALL_PACKAGE=toplevel-package
+
+AUTHORS
+ Please see the AUTHORS file in the source repositories.
+
+ The project homepage is <https://github.com/molior-dbs>
+
+SEE ALSO
+ create-release(1), molior-archive-sources(1), molior-deploy(8), molior-sbuild(1), molior-trigger(1), add-molior-repo(8)
+

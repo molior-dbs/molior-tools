@@ -2,11 +2,34 @@
 # -*- makefile -*-
 
 DEBVERSION := $(shell dpkg-parsechangelog -S Version)
+DOCS=$(wildcard doc/*.txt)
+MANPAGES=$(addprefix .manpages/,$(notdir $(DOCS:.txt=)))
 
 %:
-	dh $@  --with python3 --buildsystem=pybuild
+	dh $@ --with python3 --buildsystem=pybuild
+
+.manpages/%.1: doc/%.1.txt
+	$(eval name := $(shell echo ${@} | sed -e 's#.\+/##' -e 's/\.[18]$$//'))
+	txt2man -P molior -s 1 -v "Molior Tools" -t ${name} $^ > $@
+	echo $@ >> debian/manpages
+
+.manpages/%.8: doc/%.8.txt
+	$(eval name := $(shell echo ${@} | sed -e 's#.\+/##' -e 's/\.[18]$$//'))
+	txt2man -P molior -s 8 -v "Molior Tools" -t ${name} $^ > $@
+	echo $@ >> debian/manpages
+
+override_dh_auto_clean:
+	dh_auto_clean
+	rm -rf .manpages debian/manpages
+
+.manpages:
+	mkdir -p .manpages
+
+override_dh_auto_build: .manpages ${MANPAGES}
+	dh_auto_build
 
 override_dh_auto_install:
 	dh_auto_install
 	mkdir -p debian/molior-tools/usr/lib/molior-tools
 	echo ${DEBVERSION} > debian/molior-tools/usr/lib/molior-tools/version
+

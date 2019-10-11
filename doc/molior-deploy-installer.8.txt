@@ -1,0 +1,36 @@
+NAME
+ molior-deploy - installer deployment type
+
+DESCRIPTION
+ The installer plugin allows to create ISO installers.
+
+OPTIONS
+ The deployment configuration (deploy/*.conf file) recognized the following variables:
+
+ DEPLOYMENT_TYPE                Specify 'installer' to use the installer plugin
+ INSTALLER_EXTRA_PACKAGES       Add additional packages to the installer (may need hooks in initrd)
+ INSTALLER_BOOTTYPE             For EFI bootable ISOs, specify 'efi' (default: standard)
+ INSTALLER_EXTRA_INITRD         Add the contents of the specified directory (in source package) to the /etc/initramfs-tools/ in the installer
+ INSTALLER_USE_PXE              Specify 'yes' to use PXE/TFTP for downloading the deployment for installation
+ INSTALLER_PASSWD_USERS         List of users separated by space to ask for setting a password during installation
+ INSTALLER_ASK_CONFIRM          Specify 'no' to disable asking for confirmation to install
+ INSTALLER_ASK_HOSTNAME         Specify 'no' to disable asking for the hostname
+ INSTALLER_ASK_REBOOT           Specify 'no' to disable asking for confirmation to reboot the system
+
+EXAMPLE
+
+ deploy/iso.conf:
+
+   DEPLOYMENT_TYPE=installer
+   ARCH=amd64
+   TARGET_HOSTNAME=roofs1
+   INSTALL_PACKAGE=toplevel-package
+
+AUTHORS
+ Please see the AUTHORS file in the source repositories.
+
+ The project homepage is <https://github.com/molior-dbs>
+
+SEE ALSO
+ create-release(1), molior-archive-sources(1), molior-deploy(8), molior-sbuild(1), molior-trigger(1), add-molior-repo(8)
+

@@ -1,0 +1,31 @@
+NAME
+ molior-trigger - trigger a build on a molior server
+
+SYNOPSIS
+ molior-trigger REPOSITORY_URL [GIT_REF] [GIT_BRANCH]
+
+DESCRIPTION
+ molior-trigger initiates a build on the molior build system by sending the corresponding git repository URL
+ and optionally a git reference. A git branch can also be specified, which is displayed in the build entry
+ (and not used otherwise).
+
+OPTIONS
+  REPOSIROTY_URL    Git repository URL (must match entry in molior projectversion)
+  GIT_REF           Git reverence to build (hash, tag or branch)
+  GIT_BRANCH        Git branch to be associated with the build (for display purpose only)
+
+EXIT STATUS
+ The program returns 0 when the deployment creation was successful, 1 if something went wrong.
+
+EXAMPLE
+
+    $ molior-trigger ssh://git@server.org:repo/project.git v1.0
+
+AUTHORS
+ Please see the AUTHORS file in the source repositories.
+
+ The project homepage is <https://github.com/molior-dbs>
+
+SEE ALSO
+ create-release(1), molior-archive-sources(1), molior-deploy(8), molior-sbuild(1), add-molior-repo(8)
+

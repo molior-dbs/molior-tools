@@ -1,0 +1,38 @@
+NAME
+ molior-parseconfig - parse molior configuration
+
+SYNOPSIS
+ molior-parseconfig [OPTIONS] COMMAND [ARGS]...
+
+DESCRIPTION
+ molior-parseconfig outputs molior configuration of a given git repo.
+
+OPTIONS
+
+ --help      Show help message
+
+COMMANDS
+
+  target                Parses the targets configuration
+  target_repo_version   Returns the target repo version from old config
+  upgrade               Upgrade config version to the latest one
+  version               Returns the configuration version
+
+EXIT STATUS
+ The program returns 0 when the deployment creation was successful, 1 if something went wrong.
+
+FILES
+ debian/molior.yml    Molior configuration file in git repo
+
+EXAMPLE
+
+    $ molior-parseconfig target
+
+AUTHORS
+ Please see the AUTHORS file in the source repositories.
+
+ The project homepage is <https://github.com/molior-dbs>
+
+SEE ALSO
+ create-release(1), molior-archive-sources(1), molior-deploy(8), molior-sbuild(1), molior-trigger(1), add-molior-repo(8)
+

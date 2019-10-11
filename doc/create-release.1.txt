@@ -1,0 +1,39 @@
+NAME
+ create-release - create debian package release git tags
+
+SYNOPSIS
+ create-release [OPTIONS] [VERSION]
+
+DESCRIPTION
+ create-release updates debian/changelog with sign-off commit messages and creates a release git tag.
+
+OPTIONS
+
+  -np|--no-push                Do not push to git remote, only create tag
+  --remote REMOTE              Specify git remote (default: origin)
+  --skip-edit                  Do not open editor for debian/changelog
+  --skip-confirm               Do not ask for confirmation
+  --auto-increment             Auto increment version (default)
+  --same-version               Allow releasing the same version again
+  --version-postfix POSTFIX    Add postfix to the version
+  --force-bad-version          Add --force-bad-version to dch
+
+
+EXIT STATUS
+ The program returns 0 when the deployment creation was successful, 1 if something went wrong.
+
+FILES
+  ~/.moliorrc  User configuration file
+
+EXAMPLE
+
+    $ create-release
+
+AUTHORS
+ Please see the AUTHORS file in the source repositories.
+
+ The project homepage is <https://github.com/molior-dbs>
+
+SEE ALSO
+ molior-archive-sources(1), molior-deploy(8), molior-sbuild(1), molior-trigger(1), add-molior-repo(8)
+

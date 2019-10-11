@@ -8,13 +8,13 @@ usage()
 {
     ERROR_MESSAGE="$1"
 
-    echo "Usage: $PROGRAM_NAME [OPTIONS] PROJECT [PROJECT_VERSION]"
+    echo "Usage: $PROGRAM_NAME [OPTIONS] PROJECT PROJECT_VERSION"
     echo "Options:"
     echo "  -f              Force add entry to the source.list even if compatibility checks (distribution, version, ...) fail"
     echo "  -m MOLIOR_URL   Alternative molior url (Default in ~/.moliorrc)"
     echo
     echo "Example:"
-    echo "  $PROGRAM_NAME rtcosmo3 1.12"
+    echo "  $PROGRAM_NAME myproject 1.2"
     if [ ! -z "$ERROR_MESSAGE" ]
     then
         echo
@@ -87,7 +87,7 @@ add_molior_project()
 
 if [ "$(id -u)" != "0" ]
 then
-  usage "Please run $0 as sudo"
+  usage "Please run $0 as root"
 fi
 
 

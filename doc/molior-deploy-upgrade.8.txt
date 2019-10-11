@@ -1,0 +1,30 @@
+NAME
+ molior-deploy - upgrade deployment type
+
+DESCRIPTION
+ The upgrade plugin allows to create tar archive containing a APT repository for upgrading a molior project to a newer version.
+
+OPTIONS
+ The deployment configuration (deploy/*.conf file) recognized the following variables:
+
+ DEPLOYMENT_TYPE    Specify 'upgrade' to use the upgrade plugin
+
+EXAMPLE
+
+ deploy/upgrade-0.9.conf:
+
+   DEPLOYMENT_TYPE=upgrade
+   ARCH=amd64
+   TARGET_HOSTNAME=roofs1
+   INSTALL_PACKAGE=toplevel-package
+
+
+
+AUTHORS
+ Please see the AUTHORS file in the source repositories.
+
+ The project homepage is <https://github.com/molior-dbs>
+
+SEE ALSO
+ create-release(1), molior-archive-sources(1), molior-deploy(8), molior-sbuild(1), molior-trigger(1), add-molior-repo(8)
+

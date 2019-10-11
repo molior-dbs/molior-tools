@@ -1,0 +1,41 @@
+NAME
+ molior-deploy - directory deployment type
+
+DESCRIPTION
+ The directory plugin allows to create a deployment in the form of a disk image.
+
+PARAMETERS
+ The deployment configuration (deploy/*.conf file) recognized the following variables:
+
+ DEPLOYMENT_TYPE    Specify 'image' to use the image plugin
+ IMAGESIZE          Size of the disk image
+
+EXAMPLE
+
+ deploy/sdcard.conf:
+
+   DEPLOYMENT_TYPE=image
+   ARCH=amd64
+   TARGET_HOSTNAME=box
+   INSTALL_PACKAGE=toplevel-package
+
+   IMAGESIZE=2G
+
+   SFDISK="label: dos
+   unit: sectors
+   firmware: type=c, size=96M, start=2048
+   root:     type=83"
+
+   PART1_FS=vfat
+   PART1_MNT=/boot/firmware
+   PART2_FS=ext4
+   PART2_MNT=/
+
+AUTHORS
+ Please see the AUTHORS file in the source repositories.
+
+ The project homepage is <https://github.com/molior-dbs>
+
+SEE ALSO
+ create-release(1), molior-archive-sources(1), molior-deploy(8), molior-sbuild(1), molior-trigger(1), add-molior-repo(8)
+
