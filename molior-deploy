@@ -944,13 +944,15 @@ install_grub_bootloader()
 
 get_deployment_filename()
 {
-  EXTENSION="$1" 
+  EXTENSION="$1"
 
-  if [ -z "$DEPLOYMENT_OUTPUT_FILE" ]
-  then
-    deployment="${PROJECT}_${VERSION}_${REVISION}_${VARIANT}.${EXTENSION}"
+  if [ -z "$DEPLOYMENT_OUTPUT_FILE" ]; then
+    deployment="${PROJECT}_${VERSION}_${REVISION}_$VARIANT"
   else
-    deployment="${DEPLOYMENT_OUTPUT_FILE}.${EXTENSION}"
+    deployment="$DEPLOYMENT_OUTPUT_FILE"
+  fi
+  if [ -n "$EXTENSION" ]; then
+    deployment="$deployment.$EXTENSION"
   fi
   echo "$deployment"
 }
