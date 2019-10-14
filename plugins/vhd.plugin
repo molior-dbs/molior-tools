@@ -1,0 +1,88 @@
+# molior-deploy plugin
+# vim: syntax=sh
+
+preinit_deployment_vhd()
+{
+  REQUIRED_HOST_COMMANDS="kpartx qemu-img qemu-nbd"
+  INSTALL_GRUB="yes"
+  PARTSEP="p"
+}
+
+init_deployment_vhd()
+{
+  vmname=$(get_deployment_filename "vhd")
+  deployment=$vmname
+
+  # FIXME check VMSIZE
+  echo " * creating VHD disk of ${VMSIZE}M"
+  VMDISK=$WORK_DIR/$deployment
+  qemu-img create -f vpc -o subformat=fixed,force_size $VMDISK ${VMSIZE}M >&2
+  if [ $? -ne 0 ]; then
+    log_error "Error creating $VMDISK"
+  fi
+
+  if ! grep -q "^nbd " /proc/modules; then
+    modprobe nbd
+    if [ $? -ne 0 ]; then
+      log_error "Error loading kernel module nbd"
+    fi
+  fi
+
+  # find free nbd device
+  nb=""
+  for nbdev in `ls -d /sys/class/block/nbd* | grep "nbd[0-9]\+$"`
+  do
+    S=`cat $nbdev/size`
+    if [ "$S" -eq "0" ] ; then
+      nb=`basename $nbdev`
+      break
+    fi
+  done
+  if [ -z "$nb" ]; then
+    log_error "Could not find free nbd device"
+  fi
+
+  nbd=/dev/$nb
+  qemu-nbd -c $nbd -f vpc $VMDISK >&2
+  if [ $? -ne 0 ]; then
+    log_error "Error running qemu-nbd"
+  fi
+  disk=$nbd
+
+  create_partitions
+
+  create_fs
+  mount_fs
+}
+
+deinit_deployment_vhd()
+{
+  if [ -n "$LVM_VG" ]; then
+    vgchange -an molior ${LVM_VG} >&2
+  fi
+
+  if [ -n "$nbd" ]; then
+    rm -f /dev/mapper/$nb
+    qemu-nbd -d $nbd >&2
+    disk=""
+    nbd=""
+    vgscan --cache >&2
+  fi
+}
+
+finalize_deployment_vhd()
+{
+  umount_bootstrap
+  umount_fs
+  deinit_deployment_vbox
+
+  echo " * creating VHD disk '$deployment.xz'"
+  $PXZ_CMD -T `nproc --ignore 1` $WORK_DIR/$deployment
+  deployment=$deployment.xz
+
+  if [ -n "$SUDO_UID" -a -n "$SUDO_GID" ]; then
+    chown $SUDO_UID:$SUDO_GID $WORK_DIR/$deployment
+  fi
+  mv $WORK_DIR/$deployment ./
+}
+
