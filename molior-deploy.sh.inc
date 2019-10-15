@@ -7,6 +7,15 @@ fs_has_partitions=0
 fs_has_lvm=0
 fs_has_luks=0
 
+exit_on_error()
+{
+  RET=$?
+  ERR_MSG=$@
+  if [ "$RET" -ne 0 ]; then
+    log_error "$ERR_MSG"
+  fi
+}
+
 create_fstab()
 {
   if [ -z "$target" ]; then
@@ -195,14 +204,10 @@ create_lvm()
   fi
   # 8MByte is good for SSDs and SD cards, and the current max
   pvcreate -f -y --dataalignment 8m $part >&2
-  if [ $? -ne 0 ]; then
-    log_error "Error creating LVM PV on $part"
-  fi
-  vgcreate -f -y ${LVM_VG} $part >&2 # FIXME: add PV if VG exists
+  exit_on_error "Error creating LVM PV on $part"
 
-  if [ $? -ne 0 ]; then
-    log_error "Error creating LVM VG $LVM_VG on $part"
-  fi
+  vgcreate -f -y ${LVM_VG} $part >&2 # FIXME: add PV if VG exists
+  exit_on_error "Error creating LVM VG $LVM_VG on $part"
 
   for p in `seq 1 $MAXPART`
   do
@@ -218,9 +223,7 @@ create_lvm()
       lvdisplay $LVM_VG/lv_thin >/dev/null 2>&1
       if [ $? -ne 0 ]; then
         lvcreate -y --extents "100%FREE" --thinpool lv_thin $LVM_VG
-        if [ $? -ne 0 ]; then
-          log_error "LVM thin pool create"
-        fi
+        exit_on_error "LVM thin pool create"
       fi
     fi
     echo " * creating LVM volume ${LVM_VG}-$t ($s)"
@@ -229,9 +232,7 @@ create_lvm()
     else
       lvcreate -y --name $t --size $s $LVM_VG >&2
     fi
-    if [ $? -ne 0 ]; then
-      log_error "Error creating LVM LV $t ($s) on $LVM_VG"
-    fi
+    exit_on_error "Error creating LVM LV $t ($s) on $LVM_VG"
   done
 }
 
@@ -258,13 +259,10 @@ create_luks()
 
   dd if=/dev/zero of=$part bs=4K count=1
   echo -n $passphrase | cryptsetup --cipher $cipher --key-size $keysize luksFormat $part -
-  if [ $? -ne 0 ]; then
-    log_error "Error formatting LUKS partition $part"
-  fi
+  exit_on_error "Error formatting LUKS partition $part"
+
   echo -n $passphrase | cryptsetup luksOpen $part $name-decrypted
-  if [ $? -ne 0 ]; then
-    log_error "Error opening LUKS partition $part"
-  fi
+  exit_on_error "Error opening LUKS partition $part"
 }
 
 make_fs()
@@ -279,9 +277,7 @@ make_fs()
   elif [ "$s" = "swap" ]; then
     echo " * mkswap $part"
     mkswap $part >/dev/null
-    if [ $? -ne 0 ]; then
-      log_error "Error formatting partition $part as $s"
-    fi
+    exit_on_error "Error formatting partition $part as $s"
 
   elif [ "$s" = "lvm" ]; then
     create_lvm $part
@@ -292,9 +288,7 @@ make_fs()
   else # normal filesystems
     echo " * mkfs $part"
     eval mkfs $opts -t $s $part >/dev/null
-    if [ $? -ne 0 ]; then
-      log_error "Error formatting partition $part as $s"
-    fi
+    exit_on_error "Error formatting partition $part as $s"
   fi
 }
 
@@ -392,9 +386,7 @@ mount_fs()
     part=$rootpart
     echo " * mount /"
     mount $part $target
-    if [ $? -ne 0 ]; then
-      log_error "Error mounting filesystem $part to $target"
-    fi
+    exit_on_error "Error mounting filesystem $part to $target"
   fi
 
   if [ -n "$SFDISK" ]; then
@@ -411,9 +403,7 @@ mount_fs()
       echo " * mount $t"
       mkdir -p $target/$t
       mount $part $target/$t
-      if [ $? -ne 0 ]; then
-        log_error "Error mounting filesystem $part to $target$t"
-      fi
+      exit_on_error "Error mounting filesystem $part to $target$t"
       # FIXME: mount luks
     done
   fi
@@ -459,9 +449,7 @@ unmount()
   if mountpoint -q "$1"; then
     echo " * umount $1"
     umount "$1"
-    if [ $? -ne 0 ]; then
-      log_error "Error umounting $1"
-    fi
+    exit_on_error "Error umounting $1"
   fi
 }
 
@@ -679,11 +667,3 @@ get_deploy_config()
   echo "INSTALLER_BOOTTYPE=\"$INSTALLER_BOOTTYPE\""
 }
 
-exit_on_error()
-{
-  RET=$?
-  ERR_MSG=$1
-  if [ "$RET" -ne 0 ]; then
-    log_error "$ERR_MSG"
-  fi
-}

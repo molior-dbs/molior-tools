@@ -17,15 +17,11 @@ init_deployment_vhd()
   echo " * creating VHD disk of ${VMSIZE}M"
   VMDISK=$WORK_DIR/$deployment
   qemu-img create -f vpc -o subformat=fixed,force_size $VMDISK ${VMSIZE}M >&2
-  if [ $? -ne 0 ]; then
-    log_error "Error creating $VMDISK"
-  fi
+  exit_on_error "Error creating $VMDISK"
 
   if ! grep -q "^nbd " /proc/modules; then
     modprobe nbd
-    if [ $? -ne 0 ]; then
-      log_error "Error loading kernel module nbd"
-    fi
+    exit_on_error "Error loading kernel module nbd"
   fi
 
   # find free nbd device
@@ -44,9 +40,8 @@ init_deployment_vhd()
 
   nbd=/dev/$nb
   qemu-nbd -c $nbd -f vpc $VMDISK >&2
-  if [ $? -ne 0 ]; then
-    log_error "Error running qemu-nbd"
-  fi
+  exit_on_error "Error running qemu-nbd"
+
   disk=$nbd
 
   create_partitions

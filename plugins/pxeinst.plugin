@@ -55,9 +55,8 @@ finalize_deployment_pxeinst()
 
   initrd=`readlink $WORK_DIR/instroot/initrd.img | xargs basename`
   chroot $WORK_DIR/instroot update-initramfs -u >/dev/null
-  if [ $? -ne 0 ]; then
-    log_error "Error updating installer initrd"
-  fi
+  exit_on_error "Error updating installer initrd"
+
   cp $WORK_DIR/instroot/boot/$initrd $WORK_DIR/pxe/initrd.img
   cp -L $WORK_DIR/instroot/vmlinuz $WORK_DIR/pxe/
 
@@ -74,9 +73,7 @@ EOF
   echo " * creating image.cpio.xz"
   chroot $target sh -c "find / -xdev -depth -print | cpio --quiet -o -H newc -B" > $WORK_DIR/pxe/image.cpio
   $PXZ_CMD -T `nproc --ignore 1` $WORK_DIR/pxe/image.cpio 2>&1
-  if [ $? -ne 0 ]; then
-    log_error "Error compressing $WORK_DIR/pxe/image.cpio"
-  fi
+  exit_on_error "Error compressing $WORK_DIR/pxe/image.cpio"
 
   deployment=$(get_deployment_filename "tar.xz")
   echo " * creating $deployment"
