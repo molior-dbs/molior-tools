@@ -37,13 +37,11 @@ postinst_internal_deployment_info()
   fi
 
   chroot $target dpkg -l > $WORK_DIR/info/$packages_file
-  if [ "$?" -ne 0 ]; then
-    log_error "Error running dpkg -l"
-  fi
+  exit_on_error "Error running dpkg -l"
+
   chroot $target apt-mark showmanual > $WORK_DIR/info/$manual_packages_file
-  if [ "$?" -ne 0 ]; then
-    log_error "Error running apt-mark showmanual"
-  fi
+  exit_on_error "Error running apt-mark showmanual"
+
   test -z "$kernel_config_file" || cp $target/boot/$kernel_config_file $WORK_DIR/info
 # FIXME: fstab is empty with deployment type dir above
 #  test ! -f $target/etc/fstab || cp $target/etc/fstab $WORK_DIR/info
@@ -52,47 +50,36 @@ postinst_internal_deployment_info()
   cd - >/dev/null
 
   chroot $target apt-get -y install debsecan debsums 1>&2
-  if [ "$?" -ne 0 ]; then
-    log_error "Error installing: debsecan debsums"
-  fi
+  exit_on_error "Error installing: debsecan debsums"
+
   chroot $target debsecan > $WORK_DIR/info/$debsecan_complete_file
-  if [ "$?" -ne 0 ]; then
-    log_error "Error running debsecan"
-  fi
+  exit_on_error "Error running debsecan"
+
   chroot $target debsecan --only-fixed --suite $SUITE > $WORK_DIR/info/$debsecan_file
-  if [ "$?" -ne 0 ]; then
-    log_error "Error running debsecan"
-  fi
+  exit_on_error "Error running debsecan"
+
   chroot $target debsums -ac > $WORK_DIR/info/$debsums_file
   # debsums will return error, no checking
   chroot $target apt-get -y purge debsecan debsums 1>&2
-  if [ "$?" -ne 0 ]; then
-    log_error "Error removing: debsecan debsums"
-  fi
+  exit_on_error "Error removing: debsecan debsums"
+
   chroot $target apt-get -y autoremove --purge 1>&2
-  if [ "$?" -ne 0 ]; then
-    log_error "Error running autoremove"
-  fi
+  exit_on_error "Error running autoremove"
+
   chroot $target apt-get -y install debtree 1>&2
-  if [ "$?" -ne 0 ]; then
-    log_error "Error installing: debtree"
-  fi
+  exit_on_error "Error installing: debtree"
+
   chroot $target debtree -I -R -r --no-recommends --no-skip --show-all --no-versions $INSTALL_PACKAGE > $WORK_DIR/info/$debtree_complete_file
-  if [ "$?" -ne 0 ]; then
-    log_error "Error running debtree"
-  fi
+  exit_on_error "Error running debtree"
+
   chroot $target debtree -I -R -r --no-recommends --no-versions $INSTALL_PACKAGE > $WORK_DIR/info/$debtree_file
-  if [ "$?" -ne 0 ]; then
-    log_error "Error running debtree"
-  fi
+  exit_on_error "Error running debtree"
+
   dot -Tsvg $WORK_DIR/info/$debtree_file > $WORK_DIR/info/$debtree_svg
-  if [ "$?" -ne 0 ]; then
-    log_error "Error running dot"
-  fi
+  exit_on_error "Error running dot"
+
   dot -Tpng $WORK_DIR/info/$debtree_file > $WORK_DIR/info/$debtree_png
-  if [ "$?" -ne 0 ]; then
-    log_error "Error running dot"
-  fi
+  exit_on_error "Error running dot"
 
   cd $target/usr/share/doc
   find -name copyright | cpio -p --make-directories $WORK_DIR/info/licenses

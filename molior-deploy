@@ -372,9 +372,8 @@ mount_bootstrap()
     cp $ignore $target/usr/local/bin
   done
 
-  if [ $? -ne 0 ]; then
-    log_error "Error mounting $target/usr/local/bin"
-  fi
+  exit_on_error "Error mounting $target/usr/local/bin"
+
   # Disable daemons in chroot:
   cat >> $target/usr/sbin/policy-rc.d <<EOM
 #!/bin/sh
@@ -396,33 +395,23 @@ EOM
   chmod +x $target/usr/sbin/policy-rc.d
 
   mountbind /dev/pts $target/dev/pts
-  if [ $? -ne 0 ]; then
-    log_error "Error mounting $target/dev/pts"
-  fi
+  exit_on_error "Error mounting $target/dev/pts"
   mountbind /proc $target/proc ro
-  if [ $? -ne 0 ]; then
-    log_error "Error mounting $target/proc"
-  fi
+  exit_on_error "Error mounting $target/proc"
 
   mountbind /sys $target/sys ro
-  if [ $? -ne 0 ]; then
-    log_error "Error mounting $target/sys"
-  fi
+  exit_on_error "Error mounting $target/sys"
 
   mkdir -p $WORK_DIR/chroottmp
   # set permissions on tmp including the sticky bit
   chmod 1777 $WORK_DIR/chroottmp
   mountbind $WORK_DIR/chroottmp $target/tmp
-  if [ $? -ne 0 ]; then
-    log_error "Error mounting $target/tmp"
-  fi
+  exit_on_error "Error mounting $target/tmp"
 
   if [ -d $target/usr/tmp ]; then
     mkdir -p $WORK_DIR/chrootvartmp
     mountbind $WORK_DIR/chrootvartmp $target/var/tmp
-    if [ $? -ne 0 ]; then
-      log_error "Error mounting $target/var/tmp"
-    fi
+    exit_on_error "Error mounting $target/var/tmp"
   fi
 }
 
@@ -592,9 +581,8 @@ setup_deployment()
         log_error "Could not download $MIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$DIST/main/source/Sources"
       fi
       srcinfo=`echo "$SOURCES" | /usr/lib/molior-tools/find-latest-version.pl $PACKAGE_NAME $PACKAGE_VERSION`
-      if [ $? -ne 0 ]; then
-        log_error "Error searching $PACKAGE_NAME revision"
-      fi
+      exit_on_error "Error searching $PACKAGE_NAME revision"
+
       FILENAME=`echo $srcinfo | cut -d ' ' -f 1`/`echo $srcinfo | cut -d ' ' -f 2`
       REVISION=`echo $srcinfo | cut -d ' ' -f 3`
       if [ -z "$FILENAME" ]; then
@@ -605,9 +593,8 @@ setup_deployment()
     log " * downloading source: $MIRROR/repos/$PROJECT/$SOURCES_VERSION/$FILENAME"
     cd $WORK_DIR
     wget -q $MIRROR/repos/$PROJECT/$SOURCES_VERSION/$FILENAME
-    if [ $? -ne 0 ]; then
-      log_error "Error downloading $MIRROR/repos/$PROJECT/$SOURCES_VERSION/$FILENAME"
-    fi
+    exit_on_error "Error downloading $MIRROR/repos/$PROJECT/$SOURCES_VERSION/$FILENAME"
+
     tar xf `basename $FILENAME`
     rm -f `basename $FILENAME`
     cd - >/dev/null
@@ -690,9 +677,7 @@ setup_deployment()
     if vgs ${LVM_VG} >/dev/null 2>&1; then
       log_warn "Warning: renaming locally existing LVM VG $LVM_VG to ${LVM_VG}_molior_renamed"
       vgrename -A y $LVM_VG ${LVM_VG}_molior_renamed >&2
-      if [ $? -ne 0 ]; then
-        log_error "Error renaming LVM VG $LVM_VG"
-      fi
+      exit_on_error "Error renaming LVM VG $LVM_VG"
     fi
   fi
 
@@ -728,9 +713,7 @@ bootstrap_deployment()
     fi
     i=$((i + 1))
     wget -q $url -O $WORK_DIR/repo.asc$postfix
-    if [ $? -ne 0 ]; then
-      log_error "Error downloading $url"
-    fi
+    exit_on_error "Error downloading $url"
   done
   gpg -q --import --no-default-keyring --keyring=trustedkeys.gpg $WORK_DIR/repo.asc
 
@@ -750,23 +733,17 @@ bootstrap_deployment()
 
     if echo $ARCH | grep -q arm; then
       debootstrap --foreign --arch $ARCH --keyring=/root/.gnupg/trustedkeys.gpg --variant=minbase --include=$include $SUITE $target $MIRROR >&2
-      if [ $? -ne 0 ]; then
-        log_error "debootstrap failed"
-      fi
+      exit_on_error "debootstrap failed"
       if [ "$ARCH" = "armhf" ]; then
         cp /usr/bin/qemu-arm-static $target/usr/bin/
       else
         cp /usr/bin/qemu-aarch64-static $target/usr/bin/
       fi
       chroot $target /debootstrap/debootstrap --second-stage --no-check-gpg >&2
-      if [ $? -ne 0 ]; then
-        log_error "debootstrap failed"
-      fi
+      exit_on_error "debootstrap failed"
     else
       debootstrap --arch $ARCH --keyring=/root/.gnupg/trustedkeys.gpg --variant=minbase --include=$include $SUITE $target $MIRROR >&2
-      if [ $? -ne 0 ]; then
-        log_error "debootstrap failed"
-      fi
+      exit_on_error "debootstrap failed"
     fi
 
     if chroot $target dpkg -s tzdata > /dev/null 2>&1; then
@@ -828,11 +805,8 @@ EOF
   for key in $WORK_DIR/repo.asc*
   do
     chroot $target apt-key add - >/dev/null < $key
+    exit_on_error "Error adding apt key"
   done
-
-  if [ $? -ne 0 ]; then
-    log_error "Error adding apt key"
-  fi
 
   echo "using nameservers:" >&2
   cat $target/etc/resolv.conf >&2
@@ -848,15 +822,11 @@ EOF
 
   echo " * updating APT database"
   chroot $target apt-get -o Acquire::Languages=none update >&2
-  if [ $? -ne 0 ]; then
-    log_error "apt-get update failed"
-  fi
+  exit_on_error "apt-get update failed"
 
   echo " * upgrading system"
   chroot $target apt-get --yes dist-upgrade >&2
-  if [ $? -ne 0 ]; then
-    log_error "apt-get dist-upgrade failed"
-  fi
+  exit_on_error "apt-get dist-upgrade failed"
 
   if [ -n "$BIND_MOUNTS" ]; then
     old_IFS=$IFS
@@ -887,9 +857,8 @@ install_deployment()
   fi
 
   DEBIAN_FRONTEND=noninteractive chroot $target apt-get install --no-install-recommends --yes $INSTALL_PACKAGE $APT_INSTALL_EXTRA >&2
-  if [ $? -ne 0 ]; then
-    log_error "Error installing software"
-  fi
+  exit_on_error "Error installing software"
+
   chroot $target apt-get clean >&2
   INSTALLED_PACKAGES=`chroot $target dpkg -l | tail -n +6 | awk '{ printf "%-42s %s\n", $2, $3 }'`
 }
@@ -923,9 +892,8 @@ install_grub_bootloader()
   mount_fs_devices
   echo " * grub-install"
   chroot $target grub-install --modules part_msdos --recheck --force --no-floppy ${disk} >&2
-  if [ $? -ne 0 ]; then
-    log_error "installing grub failed"
-  fi
+  exit_on_error "installing grub failed"
+
   if [ -z "$rootpart" ]; then
     log_error "Error updating grub: no rootpart defined"
   fi

@@ -30,15 +30,11 @@ init_deployment_vbox()
     VMDISK=$WORK_DIR/disk.qcow2
     qemu-img create -f qcow2 $VMDISK ${VMSIZE}M >&2
   fi
-  if [ $? -ne 0 ]; then
-    log_error "Error creating $VMDISK"
-  fi
+  exit_on_error "Error creating $VMDISK"
 
   if ! grep -q "^nbd " /proc/modules; then
     modprobe nbd
-    if [ $? -ne 0 ]; then
-      log_error "Error loading kernel module nbd"
-    fi
+    exit_on_error "Error loading kernel module nbd"
   fi
 
   # find free nbd device
@@ -57,9 +53,8 @@ init_deployment_vbox()
 
   nbd=/dev/$nb
   qemu-nbd -c $nbd $VMDISK >&2
-  if [ $? -ne 0 ]; then
-    log_error "Error running qemu-nbd"
-  fi
+  exit_on_error "Error running qemu-nbd"
+
   if [ "$OLD_KERNEL" -eq 1 ]; then
     ln -s $nbd /dev/mapper/$nb
     disk=/dev/mapper/$nb
@@ -142,9 +137,8 @@ $APT_SOURCES
   echo " * exporting VirtualBox appliance"
   deployment=$vmname.ova
   vboxmanage export $vmname -o $WORK_DIR/$deployment >&2
-  if [ $? -ne 0 ]; then
-    log_error "Error exporting VM"
-  fi
+  exit_on_error "Error exporting VM"
+
   if [ -n "$SUDO_UID" -a -n "$SUDO_GID" ]; then
     chown $SUDO_UID:$SUDO_GID $WORK_DIR/$deployment
   fi

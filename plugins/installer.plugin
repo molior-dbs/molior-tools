@@ -104,9 +104,7 @@ EOF
 
   initrd=`readlink $WORK_DIR/instroot/initrd.img | xargs basename`
   chroot $WORK_DIR/instroot update-initramfs -u >/dev/null
-  if [ $? -ne 0 ]; then
-    log_error "Error updating installer initrd"
-  fi
+  exit_on_error "Error updating installer initrd"
 
   if [ "$INSTALLER_BOOTTYPE" = "efi" ]; then
     mkdir -p $WORK_DIR/iso/boot/grub/$GRUBEFITYPE/
@@ -120,9 +118,8 @@ boot
 EOF
     chroot $WORK_DIR/instroot grub-mkimage -O $GRUBEFITYPE -p /boot/grub -o /boot/$EFIFILE \
                                            part_msdos part_gpt fat iso9660 search
-    if [ $? -ne 0 ]; then
-      log_error "Error creating grub image"
-    fi
+    exit_on_error "Error creating grub image"
+
     mkdir -p $WORK_DIR/iso/efi/boot/
     cp $WORK_DIR/instroot/boot/$EFIFILE $WORK_DIR/iso/efi/boot/
 
@@ -130,17 +127,14 @@ EOF
       mkdir $WORK_DIR/debian-installer
       cd $WORK_DIR/debian-installer
       wget -q $MIRROR/dists/$SUITE/main/installer-arm64/current/images/cdrom/debian-cd_info.tar.gz
-      if [ $? -ne 0 ]; then
-        log_error "Error downloading $MIRROR/dists/$SUITE/main/installer-arm64/current/images/cdrom/debian-cd_info.tar.gz"
-      fi
+      exit_on_error "Error downloading $MIRROR/dists/$SUITE/main/installer-arm64/current/images/cdrom/debian-cd_info.tar.gz"
+
       tar xf debian-cd_info.tar.gz ./grub/efi.img
-      if [ $? -ne 0 ]; then
-        log_error "Error grub/efi.img not found in debian-cd_info.tar.gz"
-      fi
+      exit_on_error "Error grub/efi.img not found in debian-cd_info.tar.gz"
+
       mcopy -i grub/efi.img ::efi/boot/bootaa64.efi $WORK_DIR/iso/efi/boot/bootaa64.efi
-      if [ $? -ne 0 ]; then
-        log_error "Error copying bootaa64.efi"
-      fi
+      exit_on_error "Error copying bootaa64.efi"
+
       cd - >/dev/null
 
       # copyed from debian-cd installer
@@ -150,9 +144,8 @@ EOF
       mmd -i "$WORK_DIR/iso/boot/grub/efi.img" ::efi
       mmd -i "$WORK_DIR/iso/boot/grub/efi.img" ::efi/boot
       mcopy -o -i "$WORK_DIR/iso/boot/grub/efi.img" $WORK_DIR/iso/efi/boot/*.efi "::efi/boot"
-      if [ $? -ne 0 ]; then
-        log_error "Error copying efi/boot/*.efi"
-      fi
+      exit_on_error "Error copying efi/boot/*.efi"
+
       # for stretch
       cp $WORK_DIR/iso/boot/grub/grub.cfg $WORK_DIR/iso/boot/grub/arm64-efi/
       mkdir $WORK_DIR/iso/.disk
@@ -181,14 +174,11 @@ EOF
   echo " * creating image.cpio.xz"
   cd $target
   find . -xdev -depth -print | cpio --quiet -o -H newc -B > $WORK_DIR/iso/image.cpio
-  if [ $? -ne 0 ]; then
-    log_error "Error creating $WORK_DIR/iso/image.cpio"
-  fi
+  exit_on_error "Error creating $WORK_DIR/iso/image.cpio"
+
   cd - >/dev/null
   $PXZ_CMD -T `nproc --ignore 1` $WORK_DIR/iso/image.cpio 2>&1
-  if [ $? -ne 0 ]; then
-    log_error "Error compressing $WORK_DIR/iso/image.cpio"
-  fi
+  exit_on_error "Error compressing $WORK_DIR/iso/image.cpio"
 
   deployment=$(get_deployment_filename "iso")
   echo " * creating $deployment"
@@ -208,9 +198,7 @@ EOF
       -boot-info-table \
       $INSTALLER_EXTRA_GENISOIMAGE_OPTIONS \
       $WORK_DIR/iso/
-    if [ $? -ne 0 ]; then
-      log_error "Error running genisoimage"
-    fi
+    exit_on_error "Error running genisoimage"
     isohybrid $deployment
 
   elif [ "$ARCH" = "arm64" ]; then
@@ -222,9 +210,7 @@ EOF
       -V $VOLID \
       -A "${PROJECT}_${REVISION}" \
       -r $WORK_DIR/iso/
-    if [ $? -ne 0 ]; then
-      log_error "Error running xorriso"
-    fi
+    exit_on_error "Error running xorriso"
   fi
   if [ -n "$SUDO_UID" -a -n "$SUDO_GID" ]; then
     chown $SUDO_UID:$SUDO_GID $deployment

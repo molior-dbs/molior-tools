@@ -42,21 +42,15 @@ postinst_deployment_upgrade()
   SOURCESURL=$MOLIOR_SERVER/api/projectsources/$PROJECT/$VERSION
   APT_SOURCES_ORIG=`wget -q -O- $SOURCESURL`
   echo "$APT_SOURCES_ORIG" > $target/etc/apt/sources.list
-  if [ $? -ne 0 ]; then
-    log_error "Error downloading APT sources"
-  fi
+  exit_on_error "Error downloading APT sources"
 
   log " * updating APT database"
   chroot $target apt-get update >&2
-  if [ $? -ne 0 ]; then
-    log_error "Error updating APT database"
-  fi
+  exit_on_error "Error updating APT database"
 
   log " * downloading upgraded/new debian packages"
   chroot $target apt-get --download-only -y dist-upgrade > $WORK_DIR/apt.log
-  if [ $? -ne 0 ]; then
-    log_error "Error downloading upgraded/new debian packages"
-  fi
+  exit_on_error "Error downloading upgraded/new debian packages"
 
   grep "^Get:" $WORK_DIR/apt.log | cut -d ' ' -f 2,5 | sed 's#.*/\(.\+/.\+\) \(.\+\)#\1 \2#' | sort > $WORK_DIR/dpkgs.list
   log " * copying `wc -l < $WORK_DIR/dpkgs.list` debian packages to APT repository"
@@ -129,9 +123,7 @@ EOF
 
   if [ -n "$UPGRADE_EXTRA_DIR" ]; then
     cp -ar $SOURCE_DIR/$UPGRADE_EXTRA_DIR/* $WORK_DIR/offlinerepo/
-    if [ "$?" -eq 1 ]; then
-      log_error "Error copying $WORK_DIR/$PROJECT/$UPGRADE_EXTRA_DIR/* to offlinerepo"
-    fi
+    exit_on_error "Error copying $WORK_DIR/$PROJECT/$UPGRADE_EXTRA_DIR/* to offlinerepo"
   fi
 
   cd $WORK_DIR/offlinerepo
