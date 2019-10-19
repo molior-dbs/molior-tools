@@ -12,8 +12,10 @@ init_deployment_image()
   imagename==$(get_deployment_filename "img")
   echo " * creating $IMAGESIZE $WORK_DIR/$imagename"
   fallocate -l $IMAGESIZE $WORK_DIR/$imagename
+  exit_on_error "Error creating $WORK_DIR/$imagename"
 
   disk=`losetup -P -f --show $WORK_DIR/$imagename`
+  exit_on_error "Error running losetup on $WORK_DIR/$imagename"
 
   create_partitions
   create_fs
