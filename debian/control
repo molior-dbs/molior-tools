@@ -2,7 +2,7 @@ Source: molior-tools
 Section: misc
 Priority: optional
 Maintainer: André Roth <neolynx@gmail.com>
-Build-Depends: debhelper (>= 8), python3-all, python3-setuptools, txt2man
+Build-Depends: debhelper (>= 8), python3-all, python3-setuptools, txt2man, man2html-base
 Standards-Version: 3.9.3
 
 Package: molior-tools
@@ -18,3 +18,10 @@ Conflicts: debrilis, rlx3-devtools, molior-deploy
 Description: molior development and deployment tools
  Tools for creating debian package releases in git repositories
  and for creating deployments of molior projects.
+
+Package: molior-tools-doc
+Section: misc
+Architecture: all
+Recommends: molior-tools
+Description: molior tools documentation
+ HTML manpages of the molior tools.

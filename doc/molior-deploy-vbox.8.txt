@@ -27,7 +27,7 @@ EXAMPLE
    VMVRAM=128
 
    # Configure port forwarding
-   VMMODIFY="--natpf1 \"SSH,tcp,,8222,,22\""
+   VMMODIFY="--natpf1 \\"SSH,tcp,,8222,,22\\""
 
 
 AUTHORS
