@@ -5,7 +5,7 @@ SYNOPSIS
  molior-create PROJECT VERSION
 
 DESCRIPTION
- molior-create updates debian/changelog with sign-off commit messages and creates a release git tag.
+ molior-create creates a top level git repository based on a template.
 
 OPTIONS
 

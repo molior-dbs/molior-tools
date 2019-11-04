@@ -1,0 +1,6 @@
+molior-tools: uses-dpkg-database-directly usr/lib/molior-tools/templates/base/pkgdata/common/usr/sbin/ssh-create-keys
+molior-tools: script-not-executable usr/lib/molior-tools/templates/base/debian/@PROJECT@-config.preinst
+molior-tools: unusual-interpreter usr/lib/molior-tools/templates/base/debian/@PROJECT@-vbox.install #!/usr/bin/dh-exec
+molior-tools: script-not-executable usr/lib/molior-tools/templates/base/debian/@PROJECT@-vbox.postinst
+molior-tools: script-not-executable usr/lib/molior-tools/templates/base/debian/@PROJECT@.postinst
+molior-tools: missing-dep-for-interpreter make => make | build-essential | dpkg-dev (usr/lib/molior-tools/templates/base/debian/rules) #!/usr/bin/make
