@@ -5,7 +5,7 @@ DESCRIPTION
  The docker plugin allows to create a deployment into a docker image.
 
 OPTIONS
- The deployment configuration (deploy/*.conf file) recognized the following variables:
+ The deployment configuration (deploy/*.conf file) recognizes the following variables:
 
  DEPLOYMENT_TYPE    Specify 'docker' to use the docker plugin
 

@@ -5,7 +5,7 @@ DESCRIPTION
  The directory plugin allows to create a deployment into a directory in the form of a tar archive.
 
 OPTIONS
- The deployment configuration (deploy/*.conf file) recognized the following variables:
+ The deployment configuration (deploy/*.conf file) recognizes the following variables:
 
  DEPLOYMENT_TYPE    Specify 'dir' to use the directory plugin
 

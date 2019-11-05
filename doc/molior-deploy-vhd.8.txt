@@ -5,7 +5,7 @@ DESCRIPTION
  The vhd plugin allows to create deployment in the form of a virtual disk (*.vhd).
 
 OPTIONS
- The deployment configuration (deploy/*.conf file) recognized the following variables:
+ The deployment configuration (deploy/*.conf file) recognizes the following variables:
 
  DEPLOYMENT_TYPE    Specify 'vhd' to use the VHD plugin
 

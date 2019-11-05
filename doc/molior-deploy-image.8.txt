@@ -5,7 +5,7 @@ DESCRIPTION
  The directory plugin allows to create a deployment in the form of a disk image.
 
 PARAMETERS
- The deployment configuration (deploy/*.conf file) recognized the following variables:
+ The deployment configuration (deploy/*.conf file) recognizes the following variables:
 
  DEPLOYMENT_TYPE    Specify 'image' to use the image plugin
  IMAGESIZE          Size of the disk image

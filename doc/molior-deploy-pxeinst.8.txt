@@ -5,7 +5,7 @@ DESCRIPTION
  The pxeinst plugin allows to create a deployment for PXE installation.
 
 OPTIONS
- The deployment configuration (deploy/*.conf file) recognized the following variables:
+ The deployment configuration (deploy/*.conf file) recognizes the following variables:
 
  DEPLOYMENT_TYPE    Specify 'pxeinst' to use the pxeinst plugin
 

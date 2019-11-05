@@ -5,7 +5,7 @@ DESCRIPTION
  The upgrade plugin allows to create tar archive containing a APT repository for upgrading a molior project to a newer version.
 
 OPTIONS
- The deployment configuration (deploy/*.conf file) recognized the following variables:
+ The deployment configuration (deploy/*.conf file) recognizes the following variables:
 
  DEPLOYMENT_TYPE    Specify 'upgrade' to use the upgrade plugin
 

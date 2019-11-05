@@ -5,7 +5,7 @@ DESCRIPTION
  The installer plugin allows to create ISO installers.
 
 OPTIONS
- The deployment configuration (deploy/*.conf file) recognized the following variables:
+ The deployment configuration (deploy/*.conf file) recognizes the following variables:
 
  DEPLOYMENT_TYPE                Specify 'installer' to use the installer plugin
  INSTALLER_EXTRA_PACKAGES       Add additional packages to the installer (may need hooks in initrd)

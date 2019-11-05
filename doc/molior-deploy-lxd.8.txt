@@ -5,7 +5,7 @@ DESCRIPTION
  The lxd plugin allows to create a LXD container image.
 
 OPTIONS
- The deployment configuration (deploy/*.conf file) recognized the following variables:
+ The deployment configuration (deploy/*.conf file) recognizes the following variables:
 
  DEPLOYMENT_TYPE    Specify 'lxd' to use the lxd plugin
 

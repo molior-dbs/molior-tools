@@ -5,7 +5,7 @@ DESCRIPTION
  The vbox plugin allows to create a VirtualBox Appliance (*.ova).
 
 OPTIONS
- The deployment configuration (deploy/*.conf file) recognized the following variables:
+ The deployment configuration (deploy/*.conf file) recognizes the following variables:
 
  DEPLOYMENT_TYPE    Specify 'vbox' to use the vbox plugin
  VMSIZE             Specify disk size in MB
