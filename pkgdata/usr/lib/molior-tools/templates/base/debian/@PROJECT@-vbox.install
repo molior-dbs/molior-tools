@@ -1,0 +1,5 @@
+#!/usr/bin/dh-exec
+
+pkgdata/common/* .
+debian/ssh-create-keys.service lib/systemd/system
+

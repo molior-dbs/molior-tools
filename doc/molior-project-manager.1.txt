@@ -1,0 +1,60 @@
+NAME
+ molior-project-manager - run operations on all git repos of a molior project
+
+SYNOPSIS
+ molior-project-manager [OPTIONS] PROJECT VERSION OPERATION [ARGS]...
+
+DESCRIPTION
+ molior-project-manager clones the git repos of a molior project and is able to modify all of them with
+ simple operations.
+
+OPTIONS
+ -m MOLIOR_URL      Alternative molior URL (Default in ~/.moliorrc)
+ -x PATTERN         Exclude pattern (one ore multiple)
+ -a                 Add a new version instead of overwriting the old one
+
+OPERATIONS
+ get              clone or pull git repositories
+ create           create new projectversion in all repositories
+  -v NEWVERSION   new version to create
+ push             push changes to git server
+  -v NEWVERSION   new version branch to push
+ run COMMAND      run any command in the git repositories
+
+EXIT STATUS
+ The program returns 0 when the deployment creation was successful, 1 if something went wrong.
+
+FILES
+
+ ~/.moliorrc                                User configuration file
+
+EXAMPLE
+
+ Clone all git repos in myproject 0.1:
+
+    $ molior-project-manager myproject 0.1 get
+
+ Update debian/molior.yml with new projectversion "release1.0" on a new branch with the same name:
+
+    $ molior-project-manager myproject 0.1 create -v release1.0
+
+ Push new branches to the git remote (origin):
+
+    $ molior-project-manager myproject 0.1 push -v release1.0
+
+ Run create-release in all git repos:
+
+    $ molior-project-manager myproject 0.1 release -v release1.0
+
+ Run a command in all git repos:
+
+    $ molior-project-manager myproject 0.1 run git status
+
+AUTHORS
+ Please see the AUTHORS file in the source repositories.
+
+ The project homepage is <https://github.com/molior-dbs>
+
+SEE ALSO
+ create-release(1), molior-archive-sources(1), molior-deploy(8), molior-sbuild(1), molior-trigger(1), add-molior-repo(8)
+

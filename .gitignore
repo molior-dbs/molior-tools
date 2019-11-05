@@ -2,6 +2,8 @@ debian/debhelper-build-stamp
 debian/files
 debian/molior-tools.debhelper.log
 debian/molior-tools.substvars
+debian/molior-tools-doc.debhelper.log
+debian/molior-tools-doc.substvars
 debian/molior-tools/
 debian/.debhelper/
 
@@ -12,3 +14,10 @@ molior_tools.egg-info/
 moliorparseconfig.egg-info/
 debian/molior-tools.postinst.debhelper
 debian/molior-tools.prerm.debhelper
+debian/molior-tools-doc/
+debian/tmp/
+
+build/
+
+debian/manpages
+.manpages/

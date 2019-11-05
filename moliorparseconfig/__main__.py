@@ -67,7 +67,6 @@ class MoliorConfig:
         self.__cfg["config_version"] = config_version
         self.write()
 
-
     def upgrade(self, project, version):
         """
         Upgrades the config to the latest version.

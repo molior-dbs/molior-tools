@@ -14,7 +14,7 @@ usage()
 
   echo "Usage: $PROGRAMM_NAME [OPTIONS] PROJECT VERSION OPERATION"
   echo "Options:"
-  echo " -m MOLIOR_URL      Alternative molior url (Default: $MOLIOR_URL)"
+  echo " -m MOLIOR_URL      Alternative molior url Default in ~/.moliorrc()"
   echo " -x PATTERN         Exclude pattern (one ore multiple)"
   echo " -a                 Add a new version instead of overwriteing the old one"
   echo
@@ -28,12 +28,11 @@ usage()
   echo
   echo
   echo "Examples:"
-  echo " create-project-release liat 3.3-stretch get"
-  echo " create-project-release liat 3.3-stretch create -v main1808"
-  echo " create-project-release liat 3.3-stretch push -v main1808"
-  echo " create-project-release liat 3.3-stretch release -v main1808"
-  if [ -n "$ERROR" ]
-  then
+  echo " molior-project-manager myproject 0.1 get"
+  echo " molior-project-manager myproject 0.1 create -v release1.0"
+  echo " molior-project-manager myproject 0.1 push -v release1.0"
+  echo " molior-project-manager myproject 0.1 release -v release1.0"
+  if [ -n "$ERROR" ]; then
     echo
     echo "$ERROR"
   fi

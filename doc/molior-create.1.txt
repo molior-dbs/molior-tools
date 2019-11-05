@@ -1,0 +1,35 @@
+NAME
+ molior-create - create molior top level git repo from templates
+
+SYNOPSIS
+ molior-create PROJECT VERSION
+
+DESCRIPTION
+ molior-create creates a top level git repository based on a template.
+
+OPTIONS
+
+  PROJECT   Molior project name
+  VERSION   Molior project version
+
+NOTE
+ Currently only the template "base" is supported.
+
+EXIT STATUS
+ The program returns 0 when the deployment creation was successful, 1 if something went wrong.
+
+FILES
+  /usr/lib/molior-tools/templates Template Directory
+
+EXAMPLE
+
+    $ molior-create pyproject 1.2
+
+AUTHORS
+ Please see the AUTHORS file in the source repositories.
+
+ The project homepage is <https://github.com/molior-dbs>
+
+SEE ALSO
+ create-release(1), molior-archive-sources(1), molior-deploy(8), molior-sbuild(1), molior-trigger(1), add-molior-repo(8)
+

@@ -1,0 +1,40 @@
+NAME
+ molior-deploy - vbox deployment type
+
+DESCRIPTION
+ The vbox plugin allows to create a VirtualBox Appliance (*.ova).
+
+OPTIONS
+ The deployment configuration (deploy/*.conf file) recognized the following variables:
+
+ DEPLOYMENT_TYPE    Specify 'vbox' to use the vbox plugin
+ VMSIZE             Specify disk size in MB
+ VMRAM              Specify RAM size in MB
+ VMVRAM             Specify video RAM in MB
+ VMMODIFY           Execute vboxmanage modifyvm commands (separated by \\n)
+
+EXAMPLE
+
+ deploy/vbox-dev.conf:
+
+   DEPLOYMENT_TYPE=vbox
+   ARCH=amd64
+   TARGET_HOSTNAME=roofs1
+   INSTALL_PACKAGE=toplevel-package
+
+   VMSIZE=24576 # 24MB
+   VMRAM=2048
+   VMVRAM=128
+
+   # Configure port forwarding
+   VMMODIFY="--natpf1 \\"SSH,tcp,,8222,,22\\""
+
+
+AUTHORS
+ Please see the AUTHORS file in the source repositories.
+
+ The project homepage is <https://github.com/molior-dbs>
+
+SEE ALSO
+ create-release(1), molior-archive-sources(1), molior-deploy(8), molior-sbuild(1), molior-trigger(1), add-molior-repo(8)
+

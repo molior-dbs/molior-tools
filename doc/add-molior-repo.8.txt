@@ -1,0 +1,34 @@
+NAME
+ add-molior-repo - add molior APT sources
+
+SYNOPSIS
+ add-molior-repo [OPTIONS] PROJECT PROJECT_VERSION
+
+DESCRIPTION
+ add-molior-repo adds molior project APT entries to /etc/apt/sources.list.d/molior-*.list
+
+OPTIONS
+
+  -h                Display usage
+  -f                Force add entry to the source.list even if compatibility checks fail (distribution, version, ...)
+  -m MOLIOR_URL     Alternative molior URL (Default in ~/.moliorrc)
+  PROJECT           Molior project name
+  PROJECT_VERSION   Molior project version
+
+EXIT STATUS
+ The program returns 0 when the deployment creation was successful, 1 if something went wrong.
+
+FILES
+  ~/.moliorrc  User configuration file
+
+EXAMPLE
+
+    $ sudo add-molior-repo myproject 1.2
+
+AUTHORS
+ Please see the AUTHORS file in the source repositories.
+
+ The project homepage is <https://github.com/molior-dbs>
+
+SEE ALSO
+ create-release(1), molior-archive-sources(1), molior-deploy(8), molior-sbuild(1), molior-trigger(1)

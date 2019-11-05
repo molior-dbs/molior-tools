@@ -1,0 +1,63 @@
+Source: @PROJECT@
+Section: misc
+Priority: optional
+Maintainer: @NAME@ <@EMAIL@>
+Build-Depends: debhelper (>= 8), dh-systemd, dh-exec
+Standards-Version: 3.9.3
+
+Package: @PROJECT@
+Section: misc
+Architecture: all
+Depends: ${misc:Depends}, openssh-server
+Description: @PROJECT@ software
+ This is the @PROJECT@ Software
+
+Package: @PROJECT@-config
+Section: misc
+Architecture: all
+Depends: ${misc:Depends}
+Description: @PROJECT@
+ @PROJECT@ OS Configuration
+
+Package: @PROJECT@-vbox
+Section: misc
+Architecture: all
+Pre-Depends: @PROJECT@-config
+Depends: ${misc:Depends}, systemd-sysv, net-tools, htop,
+  iputils-ping, bash-completion, linux-image-amd64,
+  grub-pc, acpi-support-base, acpid, sudo, locales,
+  dialog, bsdmainutils, less, gawk, busybox,
+# editors
+  vim-nox, libpython3.5-dev, exuberant-ctags, fonts-hack-ttf, python3-flake8,
+  flake8, emacs25,
+# Virtualbox requirements:
+  linux-headers-amd64, build-essential,
+# add some tools:
+  tree, bzip2, wget, telnet, man, psmisc,
+  dh-systemd, cmake, git, devscripts,
+  fakeroot, tig,
+# @PROJECT@ dependencies
+  @PROJECT@
+Description: @PROJECT@
+ @PROJECT@ VirtualBox
+
+Package: @PROJECT@-installer
+Section: misc
+Architecture: all
+Pre-Depends: @PROJECT@-config
+Depends: ${misc:Depends}, systemd-sysv, net-tools, htop,
+  iputils-ping, bash-completion, linux-image-amd64,
+  grub-pc, acpi-support-base, acpid, sudo, locales,
+  dialog, bsdmainutils, less, gawk, busybox,
+# editors
+  vim-nox, libpython3.5-dev, exuberant-ctags, fonts-hack-ttf, python3-flake8,
+  flake8,
+# add some tools:
+  tree, bzip2, wget, telnet, man, psmisc,
+  dh-systemd, cmake, git, devscripts,
+  fakeroot, tig,
+# @PROJECT@ dependencies
+  @PROJECT@
+Description: @PROJECT@
+ @PROJECT@ ISO Installer
+

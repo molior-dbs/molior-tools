@@ -1,0 +1,28 @@
+NAME
+ molior-deploy - docker deployment type
+
+DESCRIPTION
+ The docker plugin allows to create a deployment into a docker image.
+
+OPTIONS
+ The deployment configuration (deploy/*.conf file) recognized the following variables:
+
+ DEPLOYMENT_TYPE    Specify 'docker' to use the docker plugin
+
+EXAMPLE
+
+ deploy/docker.conf:
+
+   DEPLOYMENT_TYPE=docker
+   ARCH=amd64
+   TARGET_HOSTNAME=container
+   INSTALL_PACKAGE=toplevel-package
+
+AUTHORS
+ Please see the AUTHORS file in the source repositories.
+
+ The project homepage is <https://github.com/molior-dbs>
+
+SEE ALSO
+ create-release(1), molior-archive-sources(1), molior-deploy(8), molior-sbuild(1), molior-trigger(1), add-molior-repo(8)
+

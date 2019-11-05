@@ -1,0 +1,32 @@
+NAME
+ molior-archive-sources - create archive with all molior project source packages
+
+SYNOPSIS
+ molior-archive-sources PROJECT VERSION
+
+DESCRIPTION
+ molior-archive-sources downloads all latest source packages of a molior project and creates a tar archive.
+
+OPTIONS
+
+  PROJECT   Molior project name
+  VERSION   Molior project version
+
+EXIT STATUS
+ The program returns 0 when the deployment creation was successful, 1 if something went wrong.
+
+FILES
+  ~/.moliorrc  User configuration file
+
+EXAMPLE
+
+    $ molior-archive-sources myproject 1.2
+
+AUTHORS
+ Please see the AUTHORS file in the source repositories.
+
+ The project homepage is <https://github.com/molior-dbs>
+
+SEE ALSO
+ create-release(1), molior-deploy(8), molior-sbuild(1), molior-trigger(1), add-molior-repo(8)
+

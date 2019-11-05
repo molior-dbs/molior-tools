@@ -1,0 +1,36 @@
+NAME
+ molior-deploy - info deployment type
+
+DESCRIPTION
+ The info plugin allows to create a zip file containing deployment information such as:
+ - installed packages
+ - debian security scan
+ - modified files detected by debsums
+ - package dependency graph
+ - disk usage
+ - changelogs and licenses
+ - the rootfs itself
+
+
+PARAMETERS
+ The deployment configuration (deploy/*.conf file) recognized the following variables:
+
+ DEPLOYMENT_TYPE    Specify 'info' to use the info plugin
+
+EXAMPLE
+
+ deploy/info.conf:
+
+   DEPLOYMENT_TYPE=info
+   ARCH=armhf
+   TARGET_HOSTNAME=roofs1
+   INSTALL_PACKAGE=toplevel-package
+
+AUTHORS
+ Please see the AUTHORS file in the source repositories.
+
+ The project homepage is <https://github.com/molior-dbs>
+
+SEE ALSO
+ create-release(1), molior-archive-sources(1), molior-deploy(8), molior-sbuild(1), molior-trigger(1), add-molior-repo(8)
+

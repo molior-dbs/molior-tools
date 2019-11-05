@@ -2,11 +2,43 @@
 # -*- makefile -*-
 
 DEBVERSION := $(shell dpkg-parsechangelog -S Version)
+DOCS_UNSORTED=$(wildcard doc/*.txt)
+DOCS=$(sort $(DOCS_UNSORTED))
+MANPAGES=$(addprefix .manpages/,$(notdir $(DOCS:.txt=)))
 
 %:
-	dh $@  --with python3 --buildsystem=pybuild
+	dh $@ --with python3 --buildsystem=pybuild
+
+.manpages/%.1: doc/%.1.txt
+	$(eval name := $(shell echo ${@} | sed -e 's#.\+/##' -e 's/\.[18]$$//'))
+	txt2man -P molior -s 1 -v "Molior Tools ${DEBVERSION}" -t ${name} $^ > $@
+	echo $@ >> debian/manpages
+	man2html -r $@ | grep -v "^Content-type: text/html;" > .manpages/html/man1/${name}.1.html
+	echo "<LI><B><A HREF=\"man1/${name}.1.html\">${name}</A></B>(1)</LI>" >> .manpages/html/index.html
+
+.manpages/%.8: doc/%.8.txt
+	$(eval name := $(shell echo ${@} | sed -e 's#.\+/##' -e 's/\.[18]$$//'))
+	txt2man -P molior -s 8 -v "Molior Tools ${DEBVERSION}" -t ${name} $^ > $@
+	echo $@ >> debian/manpages
+	man2html -r $@ | grep -v "^Content-type: text/html;" > .manpages/html/man8/${name}.8.html
+	echo "<LI><B><A HREF=\"man8/${name}.8.html\">${name}</A></B>(8)</LI>" >> .manpages/html/index.html
+
+override_dh_auto_clean:
+	dh_auto_clean
+	rm -rf .manpages debian/manpages
+
+.manpages:
+	mkdir -p .manpages/html/man1 .manpages/html/man8
+	echo "<HTML><HEAD><TITLE>Molior Tools ${DEBVERSION}</TITLE></HEAD><BODY><H1>Molior Tools ${DEBVERSION}</H1><UL>" > .manpages/html/index.html
+
+closehtml:
+	echo "</UL></BODY></HTML>" >> .manpages/html/index.html
+
+override_dh_auto_build: .manpages ${MANPAGES} closehtml
+	dh_auto_build
 
 override_dh_auto_install:
 	dh_auto_install
 	mkdir -p debian/molior-tools/usr/lib/molior-tools
 	echo ${DEBVERSION} > debian/molior-tools/usr/lib/molior-tools/version
+
