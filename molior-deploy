@@ -683,8 +683,10 @@ setup_deployment()
     ARCH=amd64
   fi
 
-  if [ -z "$INSTALL_PACKAGE" ]; then
-    INSTALL_PACKAGE=$PACKAGE_NAME-$VARIANT
+  if [ -z "$BASE_LAYER"]; then
+    if [ -z "$INSTALL_PACKAGE" ]; then
+      INSTALL_PACKAGE=$PACKAGE_NAME-$VARIANT
+    fi
   fi
 
   # FIXME: should be in bootstrap!?
