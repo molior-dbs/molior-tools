@@ -152,7 +152,7 @@ if [ "$deploy_all" -eq 1 ]; then
 fi
 
 if [ -z "$PACKAGE_NAME" ]; then
-  PACKAGE_NAME=$PROJECT
+  PACKAGE_NAME=`echo $PROJECT | tr '[:upper:]' '[:lower:]'`
 fi
 
 if [ -z "$MOLIOR_SERVER" ]; then
