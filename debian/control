@@ -20,7 +20,7 @@ Description: molior development and deployment tools
  and for creating deployments of molior projects.
 
 Package: molior-tools-doc
-Section: misc
+Section: doc
 Architecture: all
 Recommends: molior-tools
 Description: molior tools documentation
