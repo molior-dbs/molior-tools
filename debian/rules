@@ -6,6 +6,8 @@ DOCS_UNSORTED=$(wildcard doc/*.txt)
 DOCS=$(sort $(DOCS_UNSORTED))
 MANPAGES=$(addprefix .manpages/,$(notdir $(DOCS:.txt=)))
 
+export PYBUILD_NAME=molior-tools
+
 %:
 	dh $@ --with python3 --buildsystem=pybuild
 
