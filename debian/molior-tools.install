@@ -17,3 +17,4 @@ molior-deploy.sh.inc   usr/lib/molior-deploy/
 initrd-installer       usr/lib/molior-deploy/
 plugins                usr/lib/molior-deploy/
 
+debian/python3-molior-tools/* .
