@@ -681,6 +681,24 @@ setup_deployment()
     fi
   fi
 
+  if [ -z "$DEPLOYMENT_COMPRESSION" ]; then
+      DEPLOYMENT_COMPRESSION=xz
+  fi
+  case $DEPLOYMENT_COMPRESSION in
+      none)
+          DEPLOYMENT_COMPRESSION_EXT=""
+      ;;
+      xz)
+          DEPLOYMENT_COMPRESSION_EXT=".xz"
+      ;;
+      gzip)
+          DEPLOYMENT_COMPRESSION_EXT=".gz"
+      ;;
+      *)
+          log_error "Unsupported deployment compressions: '$DEPLOYMENT_COMPRESSION'"
+      ;;
+  esac
+
   target=$WORK_DIR/root
   mkdir $target
 }
