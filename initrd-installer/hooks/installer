@@ -26,6 +26,7 @@ copy_exec /usr/sbin/chpasswd /sbin/
 # overwrite busybox binaries
 copy_exec /bin/cpio          /mbin/
 copy_exec /usr/bin/xz        /mbin/
+copy_exec /bin/gzip          /mbin/
 copy_exec /bin/umount        /mbin/
 copy_exec /sbin/mke2fs       /mbin/
 

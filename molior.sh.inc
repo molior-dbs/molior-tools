@@ -47,9 +47,11 @@ aquire_pass()
 xzversion=`dpkg -s xz-utils | grep ^Version: | sed 's/^Version: //'`
 if dpkg --compare-versions "$xzversion" lt 5.2.4-1; then
   TAR_PXZ="-Ipxz"
+  TAR_EXTRA_OPTS=""
   PXZ_CMD=pxz
 else
   TAR_PXZ=""
+  TAR_EXTRA_OPTS="J"
   PXZ_CMD=xz
 fi
 

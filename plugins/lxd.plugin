@@ -12,7 +12,7 @@ init_deployment()
 
 finalize_deployment()
 {
-  deployment=$(get_deployment_filename "tar.xz")
+  deployment=$(get_deployment_filename "tar$DEPLOYMENT_COMPRESSION_EXT")
   echo " * creating ${deployment}"
 
   umount_bootstrap
@@ -48,7 +48,21 @@ EOF
 
   mv $WORK_DIR/root $WORK_DIR/rootfs
 
-  tar $TAR_PXZ -cf $WORK_DIR/${deployment} -C $WORK_DIR metadata.yaml templates rootfs
+  case $DEPLOYMENT_COMPRESSION in
+      none)
+         tar -cf $WORK_DIR/$deployment -C $WORK_DIR metadata.yaml templates rootfs
+         exit_on_error "Error creating tar"
+      ;;
+      xz)
+         tar $TAR_PXZ -c${TAR_EXTRA_OPTS}f $WORK_DIR/$deployment -C $WORK_DIR metadata.yaml templates rootfs
+         exit_on_error "Error creating tar"
+      ;;
+      gzip)
+         tar -czf $WORK_DIR/$deployment -C $WORK_DIR metadata.yaml templates rootfs
+         exit_on_error "Error creating tar"
+      ;;
+  esac
+
   mv $WORK_DIR/${deployment} ./
   if [ -n "$SUDO_UID" -a -n "$SUDO_GID" ]; then
     chown $SUDO_UID:$SUDO_GID $deployment
