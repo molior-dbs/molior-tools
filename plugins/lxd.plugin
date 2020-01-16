@@ -12,7 +12,7 @@ init_deployment_lxd()
 
 finalize_deployment_lxd()
 {
-  deployment=$(get_deployment_filename "tar.xz")
+  deployment=$(get_deployment_filename "tar$DEPLOYMENT_COMPRESSION_EXT")
   echo " * creating ${deployment}"
 
   umount_bootstrap
@@ -48,7 +48,18 @@ EOF
 
   mv $WORK_DIR/root $WORK_DIR/rootfs
 
-  tar $TAR_PXZ -cf $WORK_DIR/${deployment} -C $WORK_DIR metadata.yaml templates rootfs
+  case $DEPLOYMENT_COMPRESSION in
+      none)
+         tar -cf $WORK_DIR/$deployment -C $WORK_DIR metadata.yaml templates rootfs
+      ;;
+      xz)
+         tar $TAR_PXZ -cJf $WORK_DIR/$deployment -C $WORK_DIR metadata.yaml templates rootfs
+      ;;
+      gzip)
+         tar -czf $WORK_DIR/$deployment -C $WORK_DIR metadata.yaml templates rootfs
+      ;;
+  esac
+
   mv $WORK_DIR/${deployment} ./
   if [ -n "$SUDO_UID" -a -n "$SUDO_GID" ]; then
     chown $SUDO_UID:$SUDO_GID $deployment
