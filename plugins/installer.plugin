@@ -25,6 +25,25 @@ finalize_deployment_installer()
 {
   umount_bootstrap
 
+  if [ -z "$INSTALLER_COMPRESSION" ]; then
+      INSTALLER_COMPRESSION="xz"
+  fi
+
+  case $INSTALLER_COMPRESSION in
+      none)
+        INSTALLER_COMPRESSION_EXT=""
+      ;;
+      xz)
+        INSTALLER_COMPRESSION_EXT=".xz"
+      ;;
+      gzip)
+        INSTALLER_COMPRESSION_EXT=".gz"
+      ;;
+      *)
+        log_error "Compression '$INSTALLER_COMPRESSION' not supported"
+      ;;
+  esac
+
   mkdir -p $WORK_DIR/iso
   echo " * creating installer initrd"
 
@@ -110,7 +129,7 @@ EOF
     mkdir -p $WORK_DIR/iso/boot/grub/$GRUBEFITYPE/
     cp $WORK_DIR/instroot/usr/lib/grub/$GRUBEFITYPE/* $WORK_DIR/iso/boot/grub/$GRUBEFITYPE/
     cat >$WORK_DIR/iso/boot/grub/grub.cfg <<EOF
-search --file --set=root /image.cpio.xz
+search --file --set=root /image.cpio$INSTALLER_COMPRESSION_EXT
 insmod all_video
 linux /vmlinuz quiet
 initrd /initrd.img
@@ -171,14 +190,25 @@ $APT_SOURCES
 $INSTALLED_PACKAGES
 EOF
 
-  echo " * creating image.cpio.xz"
+  echo " * creating image.cpio$INSTALLER_COMPRESSION_EXT"
   cd $target
   find . -xdev -depth -print | cpio --quiet -o -H newc -B > $WORK_DIR/iso/image.cpio
   exit_on_error "Error creating $WORK_DIR/iso/image.cpio"
 
   cd - >/dev/null
-  $PXZ_CMD -T `nproc --ignore 1` $WORK_DIR/iso/image.cpio 2>&1
-  exit_on_error "Error compressing $WORK_DIR/iso/image.cpio"
+
+  case $INSTALLER_COMPRESSION in
+      none)
+      ;;
+      xz)
+        $PXZ_CMD -T `nproc --ignore 1` $WORK_DIR/iso/image.cpio 2>&1
+        exit_on_error "Error compressing $WORK_DIR/iso/image.cpio$INSTALLER_COMPRESSION_EXT"
+      ;;
+      gzip)
+        gzip $WORK_DIR/iso/image.cpio 2>&1
+        exit_on_error "Error compressing $WORK_DIR/iso/image.cpio$INSTALLER_COMPRESSION_EXT"
+      ;;
+  esac
 
   deployment=$(get_deployment_filename "iso")
   echo " * creating $deployment"
