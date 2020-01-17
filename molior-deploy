@@ -39,10 +39,11 @@ usage()
   echo "  -F OUTPUT_FILE    Custom deployment output's filename"
   echo "  -d                Print debug output to stdout instead of file"
   echo "  -L                Keep log file"
+  echo "  -b BASE_LAYER     Use a base layer (rootfs) to create deployment from"
   echo
   echo "Example:"
   echo "  $0 test 1.0"
-  echo "  $0 deployment.tar.xz"
+  echo "  $0 -b base-deployment.tar.xz"
   if [ -n "$1" ]; then
     echo
     echo $1
@@ -52,7 +53,7 @@ usage()
 }
 
 origopts=$@
-while getopts "n:s:v:p:m:a:V:o:F:AlcfdOL" opt; do
+while getopts "n:s:v:p:m:a:V:o:F:b:AlcfdOL" opt; do
   case $opt in
     n)
       PACKAGE_NAME=$OPTARG
@@ -88,6 +89,10 @@ while getopts "n:s:v:p:m:a:V:o:F:AlcfdOL" opt; do
       ;;
     F)
       DEPLOYMENT_OUTPUT_FILE=$OPTARG
+      shift 2
+      ;;
+    b)
+      BASE_LAYER=$OPTARG
       shift 2
       ;;
     O)
@@ -131,13 +136,15 @@ if [ $LIST_ONLY -eq 0 -a `id -u` -ne 0 ]; then
   usage "Please run $0 as root" >&2
 fi
 
-PROJECT=$1
-VERSION=$2
 
-if [ -f "$PROJECT" ]; then
-  BASE_LAYER="$PROJECT"
+if [ ! -z "$BASE_LAYER" ]; then
+  # use a base layer for the deployment
   VERSION="overlay"
 else
+  # bootstrap deployment from molior
+  PROJECT=$1
+  VERSION=$2
+
   if [ -z "$PROJECT" ]; then
     usage
   fi
