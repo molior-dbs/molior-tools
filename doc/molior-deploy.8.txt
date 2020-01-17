@@ -3,6 +3,7 @@ NAME
 
 SYNOPSIS
  molior-deploy [OPTIONS] PROJECT VERSION
+ molior-deploy -b BASE_LAYER
 
 DESCRIPTION
  molior-deploy creates various types of deployments for molior projects. This is done by downloading the
@@ -44,6 +45,7 @@ OPTIONS
   -F OUTPUT_FILE    Custom deployment output's filename
   -d                Print debug output to stdout instead of file
   -L                Keep log file
+  -b BASE_LAYER     Use a base layer (rootfs) to create deployment from
 
 COMMON PARAMETERS
 
@@ -149,6 +151,10 @@ EXAMPLE
 	LVM_LV3_MNT=/opt
 	LVM_LV3_SIZE=16G
 	LVM_LV3_FS="ext4"
+
+  Create a deployment based on a previously created dir deployment (base layer):
+
+	$ sudo molior-deploy -b base-layer.tar.xz
 
 AUTHORS
  Please see the AUTHORS file in the source repositories.
