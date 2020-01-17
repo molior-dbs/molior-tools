@@ -1,83 +1,44 @@
 # molior-deploy plugin
 # vim: syntax=sh
 
-INITRDINST=/usr/lib/molior-deploy/initrd-installer
+. /usr/lib/molior-deploy/plugins/installer.plugin
+
+# override installer functions:
+preinit_deployment()
+{
+}
 
 init_deployment()
 {
   do_fstab=0
-  INSTALLER_USE_PXE=yes
   init_deployment_dir
-}
-
-preinst_deployment_pxeinst()
-{
-  APT_INSTALL_EXTRA="$APT_INSTALL_EXTRA cpio"
-  cp -ar $target $WORK_DIR/instroot
+  INSTALLER_USE_PXE=yes
 }
 
 finalize_deployment()
 {
-  umount_bootstrap
+  # do the same as installer
+  prepare_initrd_deployment
 
-  mkdir -p $WORK_DIR/pxe
-  echo " * creating installer initrd"
-
-  KERNEL_ARCH="$ARCH"
-
-  if [ "$ARCH" = "i386" ]; then
-    # The kernel architecture of i386 (32 bit) kernels is called 686
-    KERNEL_ARCH="686"
-  fi
-  if [ "$fs_has_lvm" -eq 1 ]; then
-    INSTALLER_EXTRA_PACKAGES="$INSTALLER_EXTRA_PACKAGES lvm2"
-  fi
-  if [ "$fs_has_luks" -eq 1 ]; then
-    INSTALLER_EXTRA_PACKAGES="$INSTALLER_EXTRA_PACKAGES cryptsetup"
-  fi
-  chroot $WORK_DIR/instroot apt-get install --no-install-recommends --yes $INSTALLER_EXTRA_PACKAGES linux-image-$KERNEL_ARCH busybox initramfs-tools isolinux syslinux-common xz-utils pv util-linux >&2
-  chroot $WORK_DIR/instroot apt-get clean >&2
-  initrd=$WORK_DIR/instroot/etc/initramfs-tools
-  rm -rf $initrd
-  cp -ar $INITRDINST $initrd
-  if [ -d "$SOURCE_DIR/$INSTALLER_EXTRA_INITRD" ]; then
-    cp -ar $SOURCE_DIR/$INSTALLER_EXTRA_INITRD/* $initrd
-  fi
-
-  get_deploy_config >> $initrd/scripts/install.conf
-
-  cp /usr/lib/molior-deploy/molior-deploy.sh.inc $initrd/scripts/
-
-  if [ "$fs_has_luks" -eq 1 ]; then
-    echo "copy_exec /sbin/cryptsetup /sbin" >> $initrd/hooks/installer
-    echo dm_crypt >> $initrd/modules
-  fi
-
-  initrd=`readlink $WORK_DIR/instroot/initrd.img | xargs basename`
-  chroot $WORK_DIR/instroot update-initramfs -u >/dev/null
-  exit_on_error "Error updating installer initrd"
-
-  cp $WORK_DIR/instroot/boot/$initrd $WORK_DIR/pxe/initrd.img
-  cp -L $WORK_DIR/instroot/vmlinuz $WORK_DIR/pxe/
-
-  cat >$WORK_DIR/pxe/README.md <<EOF
-=Molior PXE Installer for ${PROJECT}_${REVISION} `date -R`=
-
-==APT sources==
-$APT_SOURCES
-
-==Installed Packages (`echo \"$INSTALLED_PACKAGES\" | wc -l`)==
-$INSTALLED_PACKAGES
-EOF
-
-  echo " * creating image.cpio.xz"
-  chroot $target sh -c "find / -xdev -depth -print | cpio --quiet -o -H newc -B" > $WORK_DIR/pxe/image.cpio
-  $PXZ_CMD -T `nproc --ignore 1` $WORK_DIR/pxe/image.cpio 2>&1
-  exit_on_error "Error compressing $WORK_DIR/pxe/image.cpio"
-
-  deployment=$(get_deployment_filename "tar.xz")
+  deployment=$(get_deployment_filename "tar$DEPLOYMENT_COMPRESSION_EXT")
   echo " * creating $deployment"
-  tar $TAR_PXZ -cf $WORK_DIR/${deployment} -C $WORK_DIR/pxe vmlinuz initrd.img image.cpio.xz README.md
+
+
+  case $DEPLOYMENT_COMPRESSION in
+      none)
+         tar $TAR_PXZ -cf $WORK_DIR/$deployment -C $WORK_DIR/pxe vmlinuz initrd.img image.cpio.xz README.md
+         exit_on_error "Error creating tar"
+      ;;
+      xz)
+         tar $TAR_PXZ -c${TAR_EXTRA_OPTS}f $WORK_DIR/$deployment -C $WORK_DIR/pxe vmlinuz initrd.img image.cpio.xz README.md
+         exit_on_error "Error creating tar"
+      ;;
+      gzip)
+         tar -czf $WORK_DIR/$deployment -C $WORK_DIR/pxe vmlinuz initrd.img image.cpio.xz README.md
+         exit_on_error "Error creating tar"
+      ;;
+  esac
+
   mv $WORK_DIR/${deployment} ./
   if [ -n "$SUDO_UID" -a -n "$SUDO_GID" ]; then
     chown $SUDO_UID:$SUDO_GID $deployment
