@@ -21,7 +21,7 @@ finalize_deployment()
   prepare_initrd_deployment
 
   deployment=$(get_deployment_filename "tar$DEPLOYMENT_COMPRESSION_EXT")
-  echo " * creating $deployment"
+  log "creating $deployment"
 
 
   case $DEPLOYMENT_COMPRESSION in

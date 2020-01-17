@@ -46,7 +46,7 @@ prepare_initrd_deployment()
       ;;
   esac
 
-  echo " * creating installer initrd"
+  log "creating installer initrd"
 
   KERNEL_ARCH="$ARCH"
   if [ "$ARCH" = "i386" ]; then
@@ -192,7 +192,7 @@ $APT_SOURCES
 $INSTALLED_PACKAGES
 EOF
 
-  echo " * creating image.cpio$INSTALLER_COMPRESSION_EXT"
+  log "creating image.cpio$INSTALLER_COMPRESSION_EXT"
   cd $target
   find . -xdev -depth -print | cpio --quiet -o -H newc -B > $WORK_DIR/out/image.cpio
   exit_on_error "Error creating $WORK_DIR/out/image.cpio"
@@ -218,7 +218,7 @@ finalize_deployment()
   prepare_initrd_deployment
 
   deployment=$(get_deployment_filename "iso")
-  echo " * creating $deployment"
+  log "creating $deployment"
   rm -f $deployment
   VOLID=`printf "%.32s" "MLR:${PROJECT}"`
   if [ "$ARCH" = "amd64" -o "$ARCH" = "i386" ]; then

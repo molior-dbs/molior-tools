@@ -14,7 +14,7 @@ init_deployment()
 
 postinst_internal_deployment()
 {
-  echo " * gathering info"
+  log "gathering info"
   packages_file=${PROJECT}_${REVISION}_packages.txt
   manual_packages_file=${PROJECT}_${REVISION}_packages-manual.txt
   debsecan_complete_file=${PROJECT}_${REVISION}_debsecan-complete_`date +%d%m%Y-%H%M%S`.txt
@@ -92,7 +92,7 @@ postinst_internal_deployment()
 finalize_deployment()
 {
   deployment=$(get_deployment_filename "zip")
-  echo " * creating $deployment"
+  log "creating $deployment"
   umount_bootstrap
   umount_fs
   cd $target

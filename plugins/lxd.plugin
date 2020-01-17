@@ -13,7 +13,7 @@ init_deployment()
 finalize_deployment()
 {
   deployment=$(get_deployment_filename "tar$DEPLOYMENT_COMPRESSION_EXT")
-  echo " * creating ${deployment}"
+  log "creating ${deployment}"
 
   umount_bootstrap
   umount_fs

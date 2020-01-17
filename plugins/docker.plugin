@@ -17,7 +17,7 @@ init_deployment()
 
 finalize_deployment()
 {
-  echo " * creating docker container"
+  log "creating docker container"
   umount_bootstrap
   umount_fs
 

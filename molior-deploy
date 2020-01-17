@@ -218,7 +218,7 @@ finish ()
       fi
     fi
   fi
-  log " * cleanup"
+  log "cleanup"
 
   umount_bootstrap
   umount_fs
@@ -291,7 +291,7 @@ trap abort INT
 log()
 {
   if [ "$LIST_ONLY" -eq 0 ]; then
-    echo "$@"
+    echo " * $@"
   fi
 }
 
@@ -499,9 +499,9 @@ setup_deployment()
   DEPLOYMENT_TIMESTAMP=`date -R`
   starttime=$(date +"%s")
   log_info "Creating deployment for $PROJECT/$VERSION"
-  log " * molior-tools $MOLIOR_TOOLS_VERSION"
-  log " * started: `date -R`"
-  log " * logfile: $WORK_DIR/output.log"
+  log "molior-tools $MOLIOR_TOOLS_VERSION"
+  log "started: `date -R`"
+  log "logfile: $WORK_DIR/output.log"
 
   if [ -z "$MOLIOR_PROJECTSOURCES_FILE" ]; then
     log_info "Getting deployment information ..."
@@ -533,28 +533,28 @@ setup_deployment()
   REPOURL=`dirname $tmp`
   BASEMIRROR=`basename $tmp`
   BASEVERSION=`basename $MIRROR`
-  log " * mirror: $MIRROR"
+  log "mirror: $MIRROR"
 
   log_info "Getting source package ..."
   if [ -n "$SOURCE_DIR" ]; then
     SOURCE_DIR=`readlink -f $SOURCE_DIR`
-    log " * using local package source: $SOURCE_DIR"
+    log "using local package source: $SOURCE_DIR"
     cd $SOURCE_DIR
     REVISION=`dpkg-parsechangelog -S Version`+local
-    log " * found source package: $PACKAGE_NAME $REVISION"
+    log "found source package: $PACKAGE_NAME $REVISION"
     cd - >/dev/null
   else
     SOURCES_VERSION=$VERSION
     if [ -n "$OVERLAY_VERSION" ]; then
       SOURCES_VERSION=$OVERLAY_VERSION
-      log " * using overlay source: $SOURCES_VERSION"
+      log "using overlay source: $SOURCES_VERSION"
     fi
     if [ "$OVERLAY_AUTO" -eq 1 ]; then
       baseurls=`echo "$APT_SOURCES" | grep $MIRROR/repos/$PROJECT | awk '{print $2}'`
       for baseurl in $baseurls
       do
         SOURCES_VERSION=`basename $baseurl`
-        log " * trying to download package source from $SOURCES_VERSION"
+        log "trying to download package source from $SOURCES_VERSION"
         SOURCES=`wget -q -O- $MIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$DIST/main/source/Sources`
         if [ -z "$SOURCES" ]; then
           # try next baseurl
@@ -575,7 +575,7 @@ setup_deployment()
       if [ -z "$FILENAME" ]; then
         log_error "No filename found for $PACKAGE_NAME in $MIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$DIST/main/source/Sources"
       fi
-      log " * using package source: $SOURCES_VERSION"
+      log "using package source: $SOURCES_VERSION"
     else
       SOURCES=`wget -q -O- $MIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$DIST/main/source/Sources`
       if [ -z "$SOURCES" ]; then
@@ -591,7 +591,7 @@ setup_deployment()
       fi
     fi
 
-    log " * downloading source: $MIRROR/repos/$PROJECT/$SOURCES_VERSION/$FILENAME"
+    log "downloading source: $MIRROR/repos/$PROJECT/$SOURCES_VERSION/$FILENAME"
     cd $WORK_DIR
     wget -q $MIRROR/repos/$PROJECT/$SOURCES_VERSION/$FILENAME
     exit_on_error "Error downloading $MIRROR/repos/$PROJECT/$SOURCES_VERSION/$FILENAME"
@@ -720,7 +720,7 @@ bootstrap_deployment()
   fi
 
   KEY_URL=$REPOURL/$PUBKEY_FILE
-  log " * importing gpg key from $KEY_URL"
+  log "importing gpg key from $KEY_URL"
 
   include="gnupg"
   eval t=\$DEBOOTSTRAP_INCLUDE_`echo $SUITE | tr '-' '_'`
@@ -742,10 +742,10 @@ bootstrap_deployment()
   done
   gpg -q --import --no-default-keyring --keyring=trustedkeys.gpg $WORK_DIR/repo.asc
 
-  echo " * downloading debootstrap for $SUITE $BASEMIRROR/$BASEVERSION $ARCH"
+  log "downloading debootstrap for $SUITE $BASEMIRROR/$BASEVERSION $ARCH"
   wget -q $MOLIOR_SERVER/debootstrap/${BASEMIRROR}_${BASEVERSION}_$ARCH.tar.xz -O $WORK_DIR/root.tar.xz
   if [ $? -eq 0 ]; then
-    echo " * extracting debootstrap"
+    log "extracting debootstrap"
     mkdir -p $target
     cd $target
     tar $TAR_PXZ -xf $WORK_DIR/root.tar.xz
@@ -753,8 +753,8 @@ bootstrap_deployment()
     rm -f $WORK_DIR/root.tar.xz
     cp -f /etc/resolv.conf $target/etc/resolv.conf
   else
-    echo " * error downloading debootstrap archive..."
-    echo " * running debootstrap for $SUITE $BASEMIRROR/$BASEVERSION $ARCH"
+    log "error downloading debootstrap archive..."
+    log "running debootstrap for $SUITE $BASEMIRROR/$BASEVERSION $ARCH"
 
     if echo $ARCH | grep -q arm; then
       debootstrap --foreign --arch $ARCH --keyring=/root/.gnupg/trustedkeys.gpg --variant=minbase --include=$include $SUITE $target $MIRROR >&2
@@ -845,11 +845,11 @@ EOF
     mountbind $WORK_DIR/.netrc $target/etc/apt/auth.conf
   fi
 
-  echo " * updating APT database"
+  log "updating APT database"
   chroot $target apt-get -o Acquire::Languages=none update >&2
   exit_on_error "apt-get update failed"
 
-  echo " * upgrading system"
+  log "upgrading system"
   chroot $target apt-get --yes dist-upgrade >&2
   exit_on_error "apt-get dist-upgrade failed"
 
@@ -861,7 +861,7 @@ EOF
       from=`echo $m | cut -d: -f1`
       to=`echo $m | cut -d: -f2`
       mkdir -p $target/$from $target/$to
-      echo " * bind mount $target/$from $target/$to"
+      log "bind mount $target/$from $target/$to"
       mount -o rw,noexec,nosuid,nodev,bind $target/$from $target/$to
     done
     IFS=$old_IFS
@@ -890,7 +890,7 @@ install_deployment()
     fi
   fi
 
-  echo " * installing package: $INSTALL_PACKAGE"
+  log "installing package: $INSTALL_PACKAGE"
   DEBIAN_FRONTEND=noninteractive chroot $target apt-get install --no-install-recommends --yes $INSTALL_PACKAGE $APT_INSTALL_EXTRA >&2
   exit_on_error "Error installing software"
 
@@ -925,7 +925,7 @@ install_grub_bootloader()
     log_error "Error: \$target not set"
   fi
   mount_fs_devices
-  echo " * grub-install"
+  log "grub-install"
   chroot $target grub-install --modules part_msdos --recheck --force --no-floppy ${disk} >&2
   exit_on_error "installing grub failed"
 
@@ -933,7 +933,7 @@ install_grub_bootloader()
     log_error "Error updating grub: no rootpart defined"
   fi
 
-  echo " * update-grub"
+  log "update-grub"
   if [ -n "$LINUX_CMDLINE" ]; then
     sed -i "s%^GRUB_CMDLINE_LINUX=.*$%GRUB_CMDLINE_LINUX=\"$LINUX_CMDLINE\"%" $target/etc/default/grub
   fi
@@ -993,7 +993,7 @@ elif type preinit_deployment >/dev/null; then
 fi
 
 if [ -n "$REQUIRED_HOST_COMMANDS" ]; then
-  echo " * checking required commands: $REQUIRED_HOST_COMMANDS"
+  log "checking required commands: $REQUIRED_HOST_COMMANDS"
   ok=1
   for cmd in $REQUIRED_HOST_COMMANDS
   do

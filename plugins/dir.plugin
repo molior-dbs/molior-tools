@@ -6,7 +6,7 @@
 finalize_deployment()
 {
   deployment=$(get_deployment_filename "tar.xz")
-  echo " * creating $deployment"
+  log "creating $deployment"
   umount_bootstrap
   umount_fs
 
