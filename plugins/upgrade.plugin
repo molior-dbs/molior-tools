@@ -1,12 +1,12 @@
 # molior-deploy plugin
 # vim: syntax=sh
 
-preinit_deployment_upgrade()
+preinit_deployment()
 {
   REQUIRED_HOST_COMMANDS="apt-ftparchive"
 }
 
-init_deployment_upgrade()
+init_deployment()
 {
   init_deployment_dir
   BASE_VERSION=`echo $VARIANT | sed -n 's/^[a-zA-Z0-9-]\+-upgrade-\([a-zA-Z0-9-]\+\)/\1/p'`
@@ -33,7 +33,7 @@ init_deployment_upgrade()
   log " * mirror: $MIRROR"
 }
 
-postinst_deployment_upgrade()
+postinst_deployment()
 {
   # restore the version to be upgraded to
   VERSION=$UPGRADE_VERSION
@@ -64,7 +64,7 @@ postinst_deployment_upgrade()
   rm -f $WORK_DIR/dpkgs.list
 }
 
-finalize_deployment_upgrade()
+finalize_deployment()
 {
   deployment=$(get_deployment_filename "tar.xz")
   log " * creating Packages and Release files"

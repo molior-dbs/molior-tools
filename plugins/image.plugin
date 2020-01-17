@@ -1,12 +1,12 @@
 # molior-deploy plugin
 # vim: syntax=sh
 
-preinit_deployment_image()
+preinit_deployment()
 {
   PARTSEP="p"
 }
 
-init_deployment_image()
+init_deployment()
 {
   # FIXME: escape vars
   imagename==$(get_deployment_filename "img")
@@ -23,7 +23,7 @@ init_deployment_image()
   deployment="$imagename"
 }
 
-deinit_deployment_image()
+deinit_deployment()
 {
   if [ -n "$LVM_VG" ]; then
     vgremove -f $LVM_VG >&2
@@ -35,7 +35,7 @@ deinit_deployment_image()
   fi
 }
 
-finalize_deployment_image()
+finalize_deployment()
 {
   umount_bootstrap
   umount_fs

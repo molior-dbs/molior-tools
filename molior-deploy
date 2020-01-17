@@ -658,6 +658,12 @@ setup_deployment()
   . $SOURCE_DIR/deploy/$VARIANT.conf
   log_notice "Selected deployment type: $DEPLOYMENT_TYPE"
 
+  # load plugin
+  if [ ! -e /usr/lib/molior-deploy/plugins/$DEPLOYMENT_TYPE.plugin ]; then
+    exit_on_error "No plugin found '$DEPLOYMENT_TYPE.plugin'"
+  fi
+  . /usr/lib/molior-deploy/plugins/$DEPLOYMENT_TYPE.plugin
+
   if [ "$ROOTPART" ]; then
     log_warn "Warning: ROOTPART is depreciated, please use PART${ROOTPART}_MNT=/"
     eval PART${ROOTPART}_MNT=/
@@ -925,16 +931,19 @@ get_deployment_filename()
   echo "$deployment"
 }
 
+# directory deployments are used from multiple plugins
+init_deployment_dir()
+{
+  do_fstab=0
+  target=$WORK_DIR/root
+  mkdir $target
+  log "creating rootfs in $target"
+}
+
 # disable comflicting binfmts
 for b in $BADFMTS
 do
   update-binfmts --disable $b >&2
-done
-
-# load plugins
-for plugin in /usr/lib/molior-deploy/plugins/*.plugin
-do
-  . $plugin
 done
 
 # workflow
@@ -944,10 +953,14 @@ if type precond_deployment_$DEPLOYMENT_TYPE >/dev/null; then
   if ! precond_deployment_$DEPLOYMENT_TYPE; then
     log_error "precondition failed"
   fi
+elif type precond_deployment >/dev/null; then
+  precond_deployment
 fi
 
 if type preinit_deployment_$DEPLOYMENT_TYPE >/dev/null; then
   preinit_deployment_$DEPLOYMENT_TYPE
+elif type preinit_deployment >/dev/null; then
+  preinit_deployment
 fi
 
 if [ -n "$REQUIRED_HOST_COMMANDS" ]; then
@@ -968,13 +981,24 @@ if [ -n "$REQUIRED_HOST_COMMANDS" ]; then
 fi
 
 log_info "Initializing deployment ..."
-init_deployment_$DEPLOYMENT_TYPE
+
+if type init_deployment_$DEPLOYMENT_TYPE >/dev/null; then
+  init_deployment_$DEPLOYMENT_TYPE
+elif type init_deployment >/dev/null; then
+  init_deployment
+fi
+
 log_info "Installing base OS ..."
 get_fsinfo
 bootstrap_deployment
+
+# run preinst_deployment
 if type preinst_deployment_$DEPLOYMENT_TYPE >/dev/null; then
   preinst_deployment_$DEPLOYMENT_TYPE
+elif type preinst_deployment >/dev/null; then
+  preinst_deployment
 fi
+
 log_info "Installing software ..."
 install_deployment
 
@@ -987,6 +1011,8 @@ fi
 # run postinst_deployment
 if type postinst_deployment_$DEPLOYMENT_TYPE >/dev/null; then
   postinst_deployment_$DEPLOYMENT_TYPE
+elif type postinst_deployment >/dev/null; then
+  postinst_deployment
 fi
 
 # run postinst_internal_deployment
@@ -1007,12 +1033,20 @@ if [ -n "$INSTALL_GRUB" ]; then
     install_grub_bootloader
   fi
 fi
+
 cleanup_deployment
 log_info "Creating deployment ..."
-finalize_deployment_$DEPLOYMENT_TYPE
+if type finalize_deployment_$DEPLOYMENT_TYPE >/dev/null; then
+  finalize_deployment_$DEPLOYMENT_TYPE
+elif type finalize_deployment >/dev/null; then
+  finalize_deployment
+fi
 #FIXME: check outcome
+
 if type deinit_deployment_$DEPLOYMENT_TYPE >/dev/null; then
   deinit_deployment_$DEPLOYMENT_TYPE
+elif type deinit_deployment >/dev/null; then
+  deinit_deployment
 fi
 
 # everything hunky dory :-)

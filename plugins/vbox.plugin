@@ -1,7 +1,7 @@
 # molior-deploy plugin
 # vim: syntax=sh
 
-preinit_deployment_vbox()
+preinit_deployment()
 {
   REQUIRED_HOST_COMMANDS="vboxmanage kpartx qemu-img qemu-nbd"
   INSTALL_GRUB="yes"
@@ -18,7 +18,7 @@ preinit_deployment_vbox()
   fi
 }
 
-init_deployment_vbox()
+init_deployment()
 {
   vmname=$(get_deployment_filename "")
   #FIXME check VMSIZE
@@ -70,7 +70,7 @@ init_deployment_vbox()
   mount_fs
 }
 
-deinit_deployment_vbox()
+deinit_deployment()
 {
   if [ -n "$LVM_VG" ]; then
     vgchange -an molior ${LVM_VG} >&2
@@ -86,14 +86,13 @@ deinit_deployment_vbox()
   fi
 }
 
-finalize_deployment_vbox()
+finalize_deployment()
 {
   umount_bootstrap
   umount_fs
-  deinit_deployment_vbox
+  deinit_deployment
 
-  ostype=Debian_64
-  # or Debian for i386
+  ostype=Debian_64 # FIXME: Debian for i386
 
   echo " * creating VirtualBox VM"
   if [ -e "/root/VirtualBox VMs/$vmname" ]; then

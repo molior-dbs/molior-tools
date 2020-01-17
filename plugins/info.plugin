@@ -1,18 +1,18 @@
 # molior-deploy plugin
 # vim: syntax=sh
 
-preinit_deployment_info()
+preinit_deployment()
 {
   REQUIRED_HOST_COMMANDS="dot zip"
 }
 
-init_deployment_info()
+init_deployment()
 {
   init_deployment_dir
   do_compress=0
 }
 
-postinst_internal_deployment_info()
+postinst_internal_deployment()
 {
   echo " * gathering info"
   packages_file=${PROJECT}_${REVISION}_packages.txt
@@ -89,7 +89,7 @@ postinst_internal_deployment_info()
   cp $target/etc/apt/sources.list $WORK_DIR/info/apt-sources.list
 }
 
-finalize_deployment_info()
+finalize_deployment()
 {
   deployment=$(get_deployment_filename "zip")
   echo " * creating $deployment"

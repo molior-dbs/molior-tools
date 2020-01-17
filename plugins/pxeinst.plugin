@@ -3,7 +3,7 @@
 
 INITRDINST=/usr/lib/molior-deploy/initrd-installer
 
-init_deployment_pxeinst()
+init_deployment()
 {
   do_fstab=0
   INSTALLER_USE_PXE=yes
@@ -16,7 +16,7 @@ preinst_deployment_pxeinst()
   cp -ar $target $WORK_DIR/instroot
 }
 
-finalize_deployment_pxeinst()
+finalize_deployment()
 {
   umount_bootstrap
 

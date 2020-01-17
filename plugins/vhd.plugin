@@ -1,14 +1,14 @@
 # molior-deploy plugin
 # vim: syntax=sh
 
-preinit_deployment_vhd()
+preinit_deployment()
 {
   REQUIRED_HOST_COMMANDS="kpartx qemu-img qemu-nbd"
   INSTALL_GRUB="yes"
   PARTSEP="p"
 }
 
-init_deployment_vhd()
+init_deployment()
 {
   vmname=$(get_deployment_filename "vhd")
   deployment=$vmname
@@ -50,13 +50,14 @@ init_deployment_vhd()
   mount_fs
 }
 
-deinit_deployment_vhd()
+deinit_deployment()
 {
   if [ -n "$LVM_VG" ]; then
     vgchange -an molior ${LVM_VG} >&2
   fi
 
   if [ -n "$nbd" ]; then
+    test "$OLD_KERNEL" -eq 1 && kpartx -dv $nbd >&2
     rm -f /dev/mapper/$nb
     qemu-nbd -d $nbd >&2
     disk=""
@@ -65,11 +66,11 @@ deinit_deployment_vhd()
   fi
 }
 
-finalize_deployment_vhd()
+finalize_deployment()
 {
   umount_bootstrap
   umount_fs
-  deinit_deployment_vbox
+  deinit_deployment
 
   echo " * creating VHD disk '$deployment.xz'"
   $PXZ_CMD -T `nproc --ignore 1` $WORK_DIR/$deployment

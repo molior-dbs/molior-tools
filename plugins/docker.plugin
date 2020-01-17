@@ -1,12 +1,12 @@
 # molior-deploy plugin
 # vim: syntax=sh
 
-preinit_deployment_docker()
+preinit_deployment()
 {
   REQUIRED_HOST_COMMANDS="docker"
 }
 
-init_deployment_docker()
+init_deployment()
 {
   init_deployment_dir
   # Minimize per default, if no specified otherwise
@@ -15,7 +15,7 @@ init_deployment_docker()
   fi
 }
 
-finalize_deployment_docker()
+finalize_deployment()
 {
   echo " * creating docker container"
   umount_bootstrap
