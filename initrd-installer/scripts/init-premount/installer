@@ -79,7 +79,9 @@ exec 3>&2
 exec 2>$errlog
 set -x
 
-
+if [ -z "$SFDISK" ]; then
+  log_error "Error: partitions not definded, please set \$SFDISK"
+fi
 
 if [ "$INSTALLER_USE_PXE" != "yes" ]; then
 
@@ -123,15 +125,13 @@ else
 
   configure_networking
   tftp -g -l /mnt/source/image.cpio$INSTALLER_COMPRESSION_EXT -r image.cpio$INSTALLER_COMPRESSION_EXT -b 16384 "$ROOTSERVER"
-
-  SOURCEDISK="NONEXISTENT"
 fi
 
-if [ -z "$SFDISK" ]; then
-  log_error "Error: partitions not definded, please set \$SFDISK"
+if [ -n "$SOURCEDISK" ]; then
+  disks=`ls /sys/block/ | sed s_^_/dev/_ | grep -v $SOURCEDISK`
+else
+  disks=`ls /sys/block/ | sed s_^_/dev/_`
 fi
-
-disks=`ls /sys/block/ | sed s_^_/dev/_ | grep -v $SOURCEDISK`
 if [ -z "$disks" ]; then
   log_error "No installable disks found, aborting installation."
 fi
@@ -387,6 +387,11 @@ echo " * installation time: $(($diff / 60))min $(($diff % 60))sec"
 echo -n -e "\033[1;32m"
 echo -n "Done ! "
 echo -e "\033[1;m"
+
+if [ -n "$SOURCEDISK" ]; then
+  eject -rs $SOURCEDISK 2>&1
+fi
+
 if [ "$INSTALLER_ASK_REBOOT" != "no" ]; then
   echo "=> Please remove install media and press enter to reboot"
   read x

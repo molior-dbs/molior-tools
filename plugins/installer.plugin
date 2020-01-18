@@ -83,6 +83,7 @@ prepare_initrd_deployment()
     xz-utils \
     pv \
     util-linux \
+    eject \
     >&2
   chroot $WORK_DIR/instroot apt-get clean >&2
   initrd=$WORK_DIR/instroot/etc/initramfs-tools
