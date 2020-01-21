@@ -12,8 +12,8 @@ init_deployment()
 
 finalize_deployment()
 {
-  deployment=$(get_deployment_filename "tar$DEPLOYMENT_COMPRESSION_EXT")
-  log "creating ${deployment}"
+  deployment=$(get_deployment_filename "tar")
+  log "creating $deployment$DEPLOYMENT_COMPRESSION_EXT"
 
   umount_bootstrap
   umount_fs
@@ -48,19 +48,7 @@ EOF
 
   mv $WORK_DIR/root $WORK_DIR/rootfs
 
-  case $DEPLOYMENT_COMPRESSION in
-      none)
-         tar -cf $WORK_DIR/$deployment -C $WORK_DIR metadata.yaml templates rootfs
-         exit_on_error "Error creating tar"
-      ;;
-      xz)
-         tar $TAR_PXZ -c${TAR_EXTRA_OPTS}f $WORK_DIR/$deployment -C $WORK_DIR metadata.yaml templates rootfs
-         exit_on_error "Error creating tar"
-      ;;
-      gzip)
-         tar -czf $WORK_DIR/$deployment -C $WORK_DIR metadata.yaml templates rootfs
-         exit_on_error "Error creating tar"
-      ;;
-  esac
+  tar -cf $WORK_DIR/$deployment -C $WORK_DIR metadata.yaml templates rootfs
+  exit_on_error "Error creating tar"
 }
 

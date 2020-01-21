@@ -20,6 +20,7 @@ preinit_deployment()
 
 init_deployment()
 {
+  do_compress=0 # ova is already compressed
   vmname=$(get_deployment_filename "")
   #FIXME check VMSIZE
   echo " * creating ${VMSIZE}MB"

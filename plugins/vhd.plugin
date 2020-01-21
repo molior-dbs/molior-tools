@@ -72,8 +72,6 @@ finalize_deployment()
   umount_fs
   deinit_deployment
 
-  echo " * creating VHD disk '$deployment.xz'"
-  $PXZ_CMD -T `nproc --ignore 1` $WORK_DIR/$deployment
-  deployment=$deployment.xz
+  echo " * creating VHD disk '$deployment'"
 }
 

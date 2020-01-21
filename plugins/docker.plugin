@@ -33,7 +33,5 @@ finalize_deployment()
   exit_on_error "Error running docker save"
 
   docker rmi ${PROJECT}:${CONTAINER_VERSION} >&2
-  $PXZ_CMD -T `nproc --ignore 1` $WORK_DIR/$deployment
-  deployment=$deployment.xz
 }
 

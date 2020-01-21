@@ -190,6 +190,7 @@ chmod 755 $WORK_DIR
 errlog=$WORK_DIR/output.log
 
 do_fstab=1
+do_compress=1
 starttime="0"
 endtime="0"
 target=""
@@ -1071,10 +1072,29 @@ elif type finalize_deployment >/dev/null; then
   finalize_deployment
 fi
 
-# move deployment to current dir, fix permissions if possible
 if [ ! -f $WORK_DIR/$deployment ]; then
     log_error "Deployment not found: $WORK_DIR/$deployment"
 fi
+
+# compress if requested
+if [ do_compress -eq 1 ]; then
+  case $DEPLOYMENT_COMPRESSION in
+      none)
+      ;;
+      xz)
+         $PXZ_CMD $WORK_DIR/$deployment
+         exit_on_error "Error compressing $deployment"
+         deployment=$deployment.xz
+      ;;
+      gzip)
+         gzip $WORK_DIR/$deployment
+         exit_on_error "Error compressing $deployment"
+         deployment=$deployment.gz
+      ;;
+  esac
+fi
+
+# move deployment to current dir, fix permissions if possible
 mv $WORK_DIR/$deployment ./
 if [ -n "$SUDO_UID" -a -n "$SUDO_GID" ]; then
   chown $SUDO_UID:$SUDO_GID $deployment

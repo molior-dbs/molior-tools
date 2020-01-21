@@ -66,7 +66,7 @@ postinst_deployment()
 
 finalize_deployment()
 {
-  deployment=$(get_deployment_filename "tar.xz")
+  deployment=$(get_deployment_filename "tar")
   log " * creating Packages and Release files"
   mkdir -p $WORK_DIR/debian/dists/$PROJECT/$VERSION/stable/binary-$ARCH
   cd $WORK_DIR/debian
@@ -127,6 +127,6 @@ EOF
   fi
 
   cd $WORK_DIR/offlinerepo
-  tar $TAR_PXZ -cf $WORK_DIR/$deployment *
+  tar -cf $WORK_DIR/$deployment *
   cd - >/dev/null
 }

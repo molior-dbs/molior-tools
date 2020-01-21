@@ -39,7 +39,6 @@ finalize_deployment()
 {
   umount_bootstrap
   umount_fs
-  deployment=$imagename.xz
   log "creating image '$deployment'"
-  $PXZ_CMD -T `nproc --ignore 1` $WORK_DIR/$imagename
+  deployment=$imagename
 }

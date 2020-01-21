@@ -5,14 +5,14 @@
 
 finalize_deployment()
 {
-  deployment=$(get_deployment_filename "tar.xz")
+  deployment=$(get_deployment_filename "tar")
   log "creating $deployment"
   umount_bootstrap
   umount_fs
 
   cwd=`pwd`
   cd $target
-  tar $TAR_PXZ -cf ../$deployment .
+  tar -cf ../$deployment .
   cd - >/dev/null
 }
 

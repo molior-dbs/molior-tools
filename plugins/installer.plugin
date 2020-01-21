@@ -12,6 +12,7 @@ preinit_deployment()
 init_deployment()
 {
   do_fstab=0
+  do_compress=0
   init_deployment_dir
 }
 
