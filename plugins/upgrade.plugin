@@ -129,9 +129,4 @@ EOF
   cd $WORK_DIR/offlinerepo
   tar $TAR_PXZ -cf $WORK_DIR/$deployment *
   cd - >/dev/null
-
-  mv $WORK_DIR/$deployment .
-  if [ -n "$SUDO_UID" -a -n "$SUDO_GID" ]; then
-    chown $SUDO_UID:$SUDO_GID $deployment
-  fi
 }

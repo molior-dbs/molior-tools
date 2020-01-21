@@ -1070,8 +1070,17 @@ if type finalize_deployment_$DEPLOYMENT_TYPE >/dev/null; then
 elif type finalize_deployment >/dev/null; then
   finalize_deployment
 fi
-#FIXME: check outcome
 
+# move deployment to current dir, fix permissions if possible
+if [ ! -f $WORK_DIR/$deployment ]; then
+    log_error "Deployment not found: $WORK_DIR/$deployment"
+fi
+mv $WORK_DIR/$deployment ./
+if [ -n "$SUDO_UID" -a -n "$SUDO_GID" ]; then
+  chown $SUDO_UID:$SUDO_GID $deployment
+fi
+
+# deinitialize stuff
 if type deinit_deployment_$DEPLOYMENT_TYPE >/dev/null; then
   deinit_deployment_$DEPLOYMENT_TYPE
 elif type deinit_deployment >/dev/null; then

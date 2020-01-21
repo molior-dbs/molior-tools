@@ -12,11 +12,7 @@ finalize_deployment()
 
   cwd=`pwd`
   cd $target
-  tar $TAR_PXZ -cf $cwd/$deployment .
+  tar $TAR_PXZ -cf ../$deployment .
   cd - >/dev/null
-
-  if [ -n "$SUDO_UID" -a -n "$SUDO_GID" ]; then
-    chown $SUDO_UID:$SUDO_GID $deployment
-  fi
 }
 

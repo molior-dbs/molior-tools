@@ -138,10 +138,6 @@ $APT_SOURCES
   vboxmanage export $vmname -o $WORK_DIR/$deployment >&2
   exit_on_error "Error exporting VM"
 
-  if [ -n "$SUDO_UID" -a -n "$SUDO_GID" ]; then
-    chown $SUDO_UID:$SUDO_GID $WORK_DIR/$deployment
-  fi
-  mv $WORK_DIR/$deployment ./
   vboxmanage unregistervm "$vmname" --delete >&2
 }
 

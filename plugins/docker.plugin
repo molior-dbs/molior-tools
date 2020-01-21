@@ -29,14 +29,11 @@ finalize_deployment()
   exit_on_error "Error running docker import"
 
   deployment=$(get_deployment_filename "docker")
-  docker save  -o $deployment ${PROJECT}:${CONTAINER_VERSION} >&2
+  docker save  -o $WORK_DIR/$deployment ${PROJECT}:${CONTAINER_VERSION} >&2
   exit_on_error "Error running docker save"
 
   docker rmi ${PROJECT}:${CONTAINER_VERSION} >&2
-  $PXZ_CMD -T `nproc --ignore 1` $deployment
+  $PXZ_CMD -T `nproc --ignore 1` $WORK_DIR/$deployment
   deployment=$deployment.xz
-  if [ -n "$SUDO_UID" -a -n "$SUDO_GID" ]; then
-    chown $SUDO_UID:$SUDO_GID $deployment
-  fi
 }
 

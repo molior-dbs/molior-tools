@@ -223,7 +223,7 @@ finalize_deployment()
   rm -f $deployment
   VOLID=`printf "%.32s" "MLR:${PROJECT}"`
   if [ "$ARCH" = "amd64" -o "$ARCH" = "i386" ]; then
-    eval genisoimage -quiet -o $deployment \
+    eval genisoimage -quiet -o $WORK_DIR/$deployment \
       -b isolinux.bin \
       -c boot.cat \
       -l -V $VOLID \
@@ -240,7 +240,7 @@ finalize_deployment()
     isohybrid $deployment
 
   elif [ "$ARCH" = "arm64" ]; then
-    xorriso -as mkisofs -quiet -o $deployment \
+    xorriso -as mkisofs -quiet -o $WORK_DIR/$deployment \
       -J -joliet-long -cache-inodes -l \
       -e boot/grub/efi.img -no-emul-boot \
       -append_partition 2 0xef $WORK_DIR/out/boot/grub/efi.img \
@@ -249,10 +249,6 @@ finalize_deployment()
       -A "${PROJECT}_${REVISION}" \
       -r $WORK_DIR/out/
     exit_on_error "Error running xorriso"
-  fi
-
-  if [ -n "$SUDO_UID" -a -n "$SUDO_GID" ]; then
-    chown $SUDO_UID:$SUDO_GID $deployment
   fi
 }
 

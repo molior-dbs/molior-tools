@@ -103,9 +103,5 @@ finalize_deployment()
   cd $WORK_DIR/info
   zip -r ../$deployment * 1>&2
   cd - >/dev/null
-  if [ -n "$SUDO_UID" -a -n "$SUDO_GID" ]; then
-    chown $SUDO_UID:$SUDO_GID $WORK_DIR/$deployment
-  fi
-  mv -f $WORK_DIR/$deployment ./
 }
 

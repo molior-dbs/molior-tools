@@ -42,8 +42,4 @@ finalize_deployment()
   deployment=$imagename.xz
   log "creating image '$deployment'"
   $PXZ_CMD -T `nproc --ignore 1` $WORK_DIR/$imagename
-  mv -f $WORK_DIR/$deployment ./
-  if [ -n "$SUDO_UID" -a -n "$SUDO_GID" ]; then
-    chown $SUDO_UID:$SUDO_GID $deployment
-  fi
 }

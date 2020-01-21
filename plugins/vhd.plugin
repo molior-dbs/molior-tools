@@ -75,10 +75,5 @@ finalize_deployment()
   echo " * creating VHD disk '$deployment.xz'"
   $PXZ_CMD -T `nproc --ignore 1` $WORK_DIR/$deployment
   deployment=$deployment.xz
-
-  if [ -n "$SUDO_UID" -a -n "$SUDO_GID" ]; then
-    chown $SUDO_UID:$SUDO_GID $WORK_DIR/$deployment
-  fi
-  mv $WORK_DIR/$deployment ./
 }
 
