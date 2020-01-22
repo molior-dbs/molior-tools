@@ -980,13 +980,115 @@ init_deployment_dir()
   log "creating rootfs in $target"
 }
 
-# disable comflicting binfmts
+install_docker()
+{
+  if [ -z "$DOCKER_COMPOSE_FILE" ]; then
+      if [ -z "$DOCKER_CONTAINERS" ]; then
+          return  # nothing to do
+      fi
+      # only pull DOCKER_CONTAINERS
+  elif [ -z "$DOCKER_CONTAINERS" ]; then
+    DOCKER_CONTAINERS=`grep "image:" $target/$DOCKER_COMPOSE_FILE | awk '{ print $2 }'`
+    if [ -z "$DOCKER_CONTAINERS" ]; then
+      log_error "Cannot find images in DOCKER_COMPOSE_FILE $target/$DOCKER_COMPOSE_FILE"
+    fi
+  fi
+
+  log_info "Installing docker containers ..."
+
+
+  # prepare filesystem
+  umount $target/sys
+  exit_on_error "Error unmouting /sys"
+  umount $target/proc
+  exit_on_error "Error unmouting /proc"
+
+  docker_root_remount=0
+  if ! mountpoint -q $target; then
+    docker_root_remount=1
+    mount -o bind $target $target
+  fi
+  mount proc -t proc $target/proc
+  exit_on_error "Error mouting /proc rw"
+  mount sys -t sysfs $target/sys
+  exit_on_error "Error mouting /sys rw"
+  mkdir -p $target/run/systemd/journal
+  mount --bind /run/systemd/journal $target/run/systemd/journal
+  exit_on_error "Error mounting /run/systemd/journal"
+  chroot $target cgroupfs-mount >&2
+
+  # start docker
+  chroot $target sh -c '. /etc/default/docker; exec /usr/sbin/dockerd -H unix:// $DOCKER_OPTS' >&2 &
+  dockerpid=$!
+  sleep 5
+
+  # pull containers
+  echo "$DOCKER_CONTAINERS" | (while IFS= read -r container
+  do
+    if echo "$container" | grep -q "^#"; then
+      continue
+    fi
+    if echo "$container" | grep -q "^[\t ]*$"; then
+      continue
+    fi
+    log "docker pull $container"
+    chroot $target docker pull "$container" >&2
+    RET=$?
+    if [ "$RET" -ne 0 ]; then
+        exit $RET
+    fi
+  done)
+  if [ "$?" -ne 0 ]; then
+    docker_install_cleanup
+    log_error "Error pulling docker container $container"
+  fi
+
+  if [ -n "$DOCKER_COMPOSE_FILE" ]; then
+    chroot $target docker-compose -f $DOCKER_COMPOSE_FILE up --no-start >&2
+    if [ "$?" -ne 0 ]; then
+      docker_install_cleanup
+      log_error "Error running docker-compose"
+    fi
+    sleep 1
+  fi
+
+  docker_install_cleanup
+}
+
+docker_install_cleanup()
+{
+  # stop docker
+  kill $dockerpid
+  if [ "$?" -ne 0 ]; then
+    docker_install_cleanup
+    log_error "kill dockerpid unsuccessful"
+  fi
+  sleep 5
+
+  # cleaup filesystems
+  umount $target/run/systemd/journal
+  chroot $target cgroupfs-umount >&2
+  umount $target/sys/fs/cgroup
+  umount $target/sys
+  umount $target/proc
+  if [ $docker_root_remount -eq 1 ]; then
+    umount $target
+  fi
+
+  # restore bootstrap mounts
+  mountbind /proc $target/proc ro
+  exit_on_error "Error mounting $target/proc"
+  mountbind /sys $target/sys ro
+  exit_on_error "Error mounting $target/sys"
+}
+
+# disable conflicting binfmts
 for b in $BADFMTS
 do
   update-binfmts --disable $b >&2
 done
 
-# workflow
+# main workflow
 setup_deployment
 
 if type precond_deployment >/dev/null; then
@@ -1057,6 +1159,11 @@ elif type postinst_deployment_$DEPLOYMENT_TYPE >/dev/null; then
   postinst_deployment_$DEPLOYMENT_TYPE
 fi
 
+# install docker containers
+if [ -n "$DOCKER_CONTAINERS" -o -n "$DOCKER_COMPOSE_FILE" ]; then
+  install_docker
+fi
+
 # run postinst_internal_deployment
 if type postinst_internal_deployment_$DEPLOYMENT_TYPE >/dev/null; then
   postinst_internal_deployment_$DEPLOYMENT_TYPE
@@ -1077,6 +1184,7 @@ if [ -n "$INSTALL_GRUB" ]; then
 fi
 
 cleanup_deployment
+
 log_info "Creating deployment ..."
 if type finalize_deployment >/dev/null; then
   finalize_deployment
