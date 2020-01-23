@@ -325,7 +325,16 @@ log_error()
   if [ -n "$target" -a "$user_abort" -eq 0 ]; then
     log_info "examine situation: sudo chroot $target"
   fi
-  exit 1
+
+  # if RET is set to non zero, use it as exit code
+  if [ -n "$RET" ]; then
+      if [ "$RET" = "0" ]; then
+          RET=1
+      fi
+  else
+      RET=1
+  fi
+  exit $RET
 }
 
 ask()
