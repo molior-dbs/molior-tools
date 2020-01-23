@@ -4,9 +4,7 @@
 . /usr/lib/molior-deploy/plugins/installer.plugin
 
 # override installer functions:
-preinit_deployment()
-{
-}
+unset -f preinit_deployment
 
 init_deployment()
 {
