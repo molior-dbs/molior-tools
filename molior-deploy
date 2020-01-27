@@ -1120,7 +1120,7 @@ if [ -n "$REQUIRED_HOST_COMMANDS" ]; then
   if [ "$ok" -eq 0 ]; then
     ask_cleanup=0
     user_abort=1
-    log_error "Please install missing commands"
+    log_error "Please install missing packages (i.e. sudo apt install $REQUIRED_PACKAGES)"
   fi
 fi
 
