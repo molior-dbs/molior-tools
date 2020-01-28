@@ -988,18 +988,20 @@ done
 # workflow
 setup_deployment
 
-if type precond_deployment_$DEPLOYMENT_TYPE >/dev/null; then
+if type precond_deployment >/dev/null; then
+  if ! precond_deployment; then
+    log_error "precondition failed"
+  fi
+elif type precond_deployment_$DEPLOYMENT_TYPE >/dev/null; then
   if ! precond_deployment_$DEPLOYMENT_TYPE; then
     log_error "precondition failed"
   fi
-elif type precond_deployment >/dev/null; then
-  precond_deployment
 fi
 
-if type preinit_deployment_$DEPLOYMENT_TYPE >/dev/null; then
-  preinit_deployment_$DEPLOYMENT_TYPE
-elif type preinit_deployment >/dev/null; then
+if type preinit_deployment >/dev/null; then
   preinit_deployment
+elif type preinit_deployment_$DEPLOYMENT_TYPE >/dev/null; then
+  preinit_deployment_$DEPLOYMENT_TYPE
 fi
 
 if [ -n "$REQUIRED_HOST_COMMANDS" ]; then
@@ -1021,10 +1023,10 @@ fi
 
 log_info "Initializing deployment ..."
 
-if type init_deployment_$DEPLOYMENT_TYPE >/dev/null; then
-  init_deployment_$DEPLOYMENT_TYPE
-elif type init_deployment >/dev/null; then
+if type init_deployment >/dev/null; then
   init_deployment
+elif type init_deployment_$DEPLOYMENT_TYPE >/dev/null; then
+  init_deployment_$DEPLOYMENT_TYPE
 fi
 
 log_info "Installing base OS ..."
@@ -1032,10 +1034,10 @@ get_fsinfo
 bootstrap_deployment
 
 # run preinst_deployment
-if type preinst_deployment_$DEPLOYMENT_TYPE >/dev/null; then
-  preinst_deployment_$DEPLOYMENT_TYPE
-elif type preinst_deployment >/dev/null; then
+if type preinst_deployment >/dev/null; then
   preinst_deployment
+elif type preinst_deployment_$DEPLOYMENT_TYPE >/dev/null; then
+  preinst_deployment_$DEPLOYMENT_TYPE
 fi
 
 log_info "Installing software ..."
@@ -1048,10 +1050,10 @@ if [ -e $target/etc/resolv.conf -o -h $target/etc/resolv.conf ]; then
 fi
 
 # run postinst_deployment
-if type postinst_deployment_$DEPLOYMENT_TYPE >/dev/null; then
-  postinst_deployment_$DEPLOYMENT_TYPE
-elif type postinst_deployment >/dev/null; then
+if type postinst_deployment >/dev/null; then
   postinst_deployment
+elif type postinst_deployment_$DEPLOYMENT_TYPE >/dev/null; then
+  postinst_deployment_$DEPLOYMENT_TYPE
 fi
 
 # run postinst_internal_deployment
@@ -1075,10 +1077,10 @@ fi
 
 cleanup_deployment
 log_info "Creating deployment ..."
-if type finalize_deployment_$DEPLOYMENT_TYPE >/dev/null; then
-  finalize_deployment_$DEPLOYMENT_TYPE
-elif type finalize_deployment >/dev/null; then
+if type finalize_deployment >/dev/null; then
   finalize_deployment
+elif type finalize_deployment_$DEPLOYMENT_TYPE >/dev/null; then
+  finalize_deployment_$DEPLOYMENT_TYPE
 fi
 
 if [ ! -f $WORK_DIR/$deployment ]; then
@@ -1110,10 +1112,10 @@ if [ -n "$SUDO_UID" -a -n "$SUDO_GID" ]; then
 fi
 
 # deinitialize stuff
-if type deinit_deployment_$DEPLOYMENT_TYPE >/dev/null; then
-  deinit_deployment_$DEPLOYMENT_TYPE
-elif type deinit_deployment >/dev/null; then
+if type deinit_deployment >/dev/null; then
   deinit_deployment
+elif type deinit_deployment_$DEPLOYMENT_TYPE >/dev/null; then
+  deinit_deployment_$DEPLOYMENT_TYPE
 fi
 
 # everything hunky dory :-)

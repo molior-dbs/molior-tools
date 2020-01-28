@@ -4,16 +4,16 @@
 . /usr/lib/molior-deploy/plugins/installer.plugin
 
 # override installer functions:
-unset -f preinit_deployment
+unset -f preinit_deployment_pxeinst
 
-init_deployment()
+init_deployment_pxeinst()
 {
   do_fstab=0
   init_deployment_dir
   INSTALLER_USE_PXE=yes
 }
 
-finalize_deployment()
+finalize_deployment_pxeinst()
 {
   # do the same as installer
   prepare_initrd_deployment

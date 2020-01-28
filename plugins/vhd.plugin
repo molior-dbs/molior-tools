@@ -1,14 +1,14 @@
 # molior-deploy plugin
 # vim: syntax=sh
 
-preinit_deployment()
+preinit_deployment_vhd()
 {
   REQUIRED_HOST_COMMANDS="kpartx qemu-img qemu-nbd"
   INSTALL_GRUB="yes"
   PARTSEP="p"
 }
 
-init_deployment()
+init_deployment_vhd()
 {
   vmname=$(get_deployment_filename "vhd")
   deployment=$vmname
@@ -50,7 +50,7 @@ init_deployment()
   mount_fs
 }
 
-deinit_deployment()
+deinit_deployment_vhd()
 {
   if [ -n "$LVM_VG" ]; then
     vgchange -an molior ${LVM_VG} >&2
@@ -66,7 +66,7 @@ deinit_deployment()
   fi
 }
 
-finalize_deployment()
+finalize_deployment_vhd()
 {
   umount_bootstrap
   umount_fs

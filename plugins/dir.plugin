@@ -3,7 +3,7 @@
 
 # init_deployment_dir() is used from multiple plugins and defined in molior-deploy
 
-finalize_deployment()
+finalize_deployment_dir()
 {
   deployment=$(get_deployment_filename "tar")
   log "creating $deployment"
@@ -15,4 +15,3 @@ finalize_deployment()
   tar -cf ../$deployment .
   cd - >/dev/null
 }
-

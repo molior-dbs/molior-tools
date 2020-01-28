@@ -1,7 +1,7 @@
 # molior-deploy plugin
 # vim: syntax=sh
 
-init_deployment()
+init_deployment_lxd()
 {
   init_deployment_dir
   # Minimize per default, if not specified otherwise
@@ -10,7 +10,7 @@ init_deployment()
   fi
 }
 
-finalize_deployment()
+finalize_deployment_lxd()
 {
   deployment=$(get_deployment_filename "tar")
   log "creating $deployment$DEPLOYMENT_COMPRESSION_EXT"

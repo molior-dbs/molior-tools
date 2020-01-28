@@ -3,20 +3,20 @@
 
 INITRDINST=/usr/lib/molior-deploy/initrd-installer
 
-preinit_deployment()
+preinit_deployment_installer()
 {
   REQUIRED_HOST_COMMANDS="isohybrid genisoimage xorriso mcopy mmd"
   # FIXME: check /usr/lib/ISOLINUX/isolinux.bin
 }
 
-init_deployment()
+init_deployment_installer()
 {
   do_fstab=0
   do_compress=0
   init_deployment_dir
 }
 
-preinst_deployment()
+preinst_deployment_installer()
 {
   APT_INSTALL_EXTRA="$APT_INSTALL_EXTRA cpio"
   cp -ar $target $WORK_DIR/instroot
@@ -217,7 +217,7 @@ EOF
   esac
 }
 
-finalize_deployment()
+finalize_deployment_installer()
 {
   prepare_initrd_deployment
 

@@ -1,7 +1,7 @@
 # molior-deploy plugin
 # vim: syntax=sh
 
-preinit_deployment()
+preinit_deployment_vbox()
 {
   REQUIRED_HOST_COMMANDS="vboxmanage kpartx qemu-img qemu-nbd"
   INSTALL_GRUB="yes"
@@ -18,7 +18,7 @@ preinit_deployment()
   fi
 }
 
-init_deployment()
+init_deployment_vbox()
 {
   do_compress=0 # ova is already compressed
   vmname=$(get_deployment_filename "")
@@ -71,7 +71,7 @@ init_deployment()
   mount_fs
 }
 
-deinit_deployment()
+deinit_deployment_vbox()
 {
   if [ -n "$LVM_VG" ]; then
     vgchange -an molior ${LVM_VG} >&2
@@ -87,7 +87,7 @@ deinit_deployment()
   fi
 }
 
-finalize_deployment()
+finalize_deployment_vbox()
 {
   umount_bootstrap
   umount_fs
