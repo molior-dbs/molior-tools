@@ -90,8 +90,10 @@ prepare_initrd_deployment()
   initrd=$WORK_DIR/instroot/etc/initramfs-tools
   rm -rf $initrd
   cp -ar $INITRDINST $initrd
-  if [ -d "$SOURCE_DIR/$INSTALLER_EXTRA_INITRD" ]; then
-    cp -ar $SOURCE_DIR/$INSTALLER_EXTRA_INITRD/* $initrd
+  if [ -n "$INSTALLER_EXTRA_INITRD" ]; then
+    if [ -d "$SOURCE_DIR/$INSTALLER_EXTRA_INITRD" ]; then
+      cp -ar $SOURCE_DIR/$INSTALLER_EXTRA_INITRD/* $initrd
+    fi
   fi
 
   get_deploy_config >> $initrd/scripts/install.conf
