@@ -671,9 +671,10 @@ setup_deployment()
 
   # load plugin
   if [ ! -e /usr/lib/molior-deploy/plugins/$DEPLOYMENT_TYPE.plugin ]; then
-    exit_on_error "No plugin found '$DEPLOYMENT_TYPE.plugin'"
+    log "using custom plugin for '$DEPLOYMENT_TYPE'"
+  else
+    . /usr/lib/molior-deploy/plugins/$DEPLOYMENT_TYPE.plugin
   fi
-  . /usr/lib/molior-deploy/plugins/$DEPLOYMENT_TYPE.plugin
 
   if [ "$ROOTPART" ]; then
     log_warn "Warning: ROOTPART is depreciated, please use PART${ROOTPART}_MNT=/"
@@ -1083,32 +1084,32 @@ elif type finalize_deployment_$DEPLOYMENT_TYPE >/dev/null; then
   finalize_deployment_$DEPLOYMENT_TYPE
 fi
 
-if [ ! -f $WORK_DIR/$deployment ]; then
+if [ -f $WORK_DIR/$deployment ]; then
+  # compress if requested
+  if [ do_compress -eq 1 ]; then
+    case $DEPLOYMENT_COMPRESSION in
+        none)
+        ;;
+        xz)
+           $PXZ_CMD $WORK_DIR/$deployment
+           exit_on_error "Error compressing $deployment"
+           deployment=$deployment.xz
+        ;;
+        gzip)
+           gzip $WORK_DIR/$deployment
+           exit_on_error "Error compressing $deployment"
+           deployment=$deployment.gz
+        ;;
+    esac
+  fi
+
+  # move deployment to current dir, fix permissions if possible
+  mv $WORK_DIR/$deployment ./
+  if [ -n "$SUDO_UID" -a -n "$SUDO_GID" ]; then
+    chown $SUDO_UID:$SUDO_GID $deployment
+  fi
+elif [ ! -f ./$deployment ]; then
     log_error "Deployment not found: $WORK_DIR/$deployment"
-fi
-
-# compress if requested
-if [ do_compress -eq 1 ]; then
-  case $DEPLOYMENT_COMPRESSION in
-      none)
-      ;;
-      xz)
-         $PXZ_CMD $WORK_DIR/$deployment
-         exit_on_error "Error compressing $deployment"
-         deployment=$deployment.xz
-      ;;
-      gzip)
-         gzip $WORK_DIR/$deployment
-         exit_on_error "Error compressing $deployment"
-         deployment=$deployment.gz
-      ;;
-  esac
-fi
-
-# move deployment to current dir, fix permissions if possible
-mv $WORK_DIR/$deployment ./
-if [ -n "$SUDO_UID" -a -n "$SUDO_GID" ]; then
-  chown $SUDO_UID:$SUDO_GID $deployment
 fi
 
 # deinitialize stuff
