@@ -206,7 +206,7 @@ EOF
   fi
 fi
 
-SBUILD="sbuild --no-source --verbose --run-lintian --no-clean-source --no-apt-clean --chroot=$SUITE-$ARCH-$VERSION --arch=$ARCH --dist=$SUITE -A $EXTRA_APT_SOURCES"
+SBUILD="sbuild --no-source --no-run-lintian --apt-update --apt-upgrade --verbose --build-dep-resolver=aptitude --run-lintian --no-clean-source --no-apt-clean --chroot=$SUITE-$ARCH-$VERSION --arch=$ARCH --dist=$SUITE -A $EXTRA_APT_SOURCES"
 
 log_info "Running sbuild"
 echo "$SBUILD"
