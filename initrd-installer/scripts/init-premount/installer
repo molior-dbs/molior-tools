@@ -326,6 +326,9 @@ case $INSTALLER_COMPRESSION in
    gzip)
        gzip -dc /mnt/source/image.cpio$INSTALLER_COMPRESSION_EXT | pv -s $bytes | cpio -B -H newc -imd --no-absolute-filenames 2>/dev/null
    ;;
+   *)
+       log_error "Compression '$INSTALLER_COMPRESSION' not supported"
+   ;;
 esac
 
 exec 2>&4 4>&- # restore logfile

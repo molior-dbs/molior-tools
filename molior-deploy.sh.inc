@@ -189,7 +189,8 @@ create_partitions()
   fi
   if [ -n "$SFDISK" ]; then
     echo " * creating partitions"
-    echo "$SFDISK" | sfdisk --force $disk >/dev/null
+    echo "$SFDISK" | sfdisk --force --wipe=always $disk >/dev/null
+    exit_on_error "Error creating partitions"
   fi
 }
 
