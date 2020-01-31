@@ -27,9 +27,11 @@ init_deployment_vbox()
   if [ "$OLD_KERNEL" -eq 1 ]; then
     VMDISK=$WORK_DIR/disk.vdi
     vboxmanage createhd --filename $VMDISK --size=$VMSIZE >&2
+    exit_on_error "Error creating VirtualBox disk '$VMDISK' with size '$VMSIZE' MB"
   else
     VMDISK=$WORK_DIR/disk.qcow2
     qemu-img create -f qcow2 $VMDISK ${VMSIZE}M >&2
+    exit_on_error "Error creating VirtualBox qcow2 disk '$VMDISK' with size '$VMSIZE' MB"
   fi
   exit_on_error "Error creating $VMDISK"
 
@@ -91,30 +93,36 @@ finalize_deployment_vbox()
 {
   umount_bootstrap
   umount_fs
-  deinit_deployment
+  deinit_deployment_vbox
 
   ostype=Debian_64 # FIXME: Debian for i386
 
   echo " * creating VirtualBox VM"
   if [ -e "/root/VirtualBox VMs/$vmname" ]; then
     vboxmanage unregistervm "$vmname" --delete >&2
+    exit_on_error "Error deleting existing VirtualBox '$vmname'"
   fi
 
   if [ -z "$VMCPUS" ]; then
     VMCPUS=2
   fi
   vboxmanage createvm --name $vmname --ostype=$ostype --register >&2
+  exit_on_error "Error creating VirtualBox VM"
   vboxmanage storagectl $vmname --name "SATA Controller" --add sata --controller IntelAHCI --portcount 2 >&2
   if [ "$OLD_KERNEL" -eq 0 ]; then
     qemu-img convert -f qcow2 -O vdi $WORK_DIR/disk.qcow2 $WORK_DIR/disk.vdi
+    exit_on_error "Error converting qcow2 to VirtualBox vdi"
     rm -f $WORK_DIR/disk.qcow2
   fi
   vboxmanage storageattach $vmname --storagectl "SATA Controller" --port 0 --device 0 --type hdd      --medium $WORK_DIR/disk.vdi >&2
+  exit_on_error "Error adding VirtualBox disk $WORK_DIR/disk.vdi"
   vboxmanage storageattach $vmname --storagectl "SATA Controller" --port 1 --device 0 --type dvddrive --medium emptydrive >&2
   vboxmanage modifyvm $vmname --ioapic on >&2
   vboxmanage modifyvm $vmname --boot1 disk --boot2 none --boot3 none --boot4 none >&2
   vboxmanage modifyvm $vmname --cpus $VMCPUS >&2
+  exit_on_error "Error setting number of VirtualBox CPUS to '$VMCPUS'"
   vboxmanage modifyvm $vmname --memory $VMRAM --vram $VMVRAM >&2
+  exit_on_error "Error setting VirtualBox RAM to '$VMVRAM'"
   vboxmanage modifyvm $vmname --nic1 nat --nictype1 Am79C973 >&2
   vboxmanage modifyvm $vmname --accelerate3d on >&2
   vboxmanage modifyvm $vmname --rtcuseutc on >&2
@@ -125,6 +133,7 @@ Installed Packages: `echo \"$INSTALLED_PACKAGES\" | wc -l`
 APT sources:
 $APT_SOURCES
 " >&2
+  exit_on_error "Error setting VirtualBox description"
 
   if [ -n "$VMMODIFY" ]; then
     echo "$VMMODIFY" | while read line; do
