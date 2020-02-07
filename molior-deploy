@@ -9,6 +9,7 @@ ask_cleanup=1
 user_abort=0
 deploy_all=0
 keep_log=0
+no_color=0
 OVERLAY_VERSION=""
 OVERLAY_AUTO=0
 VARIANT="undefined"
@@ -36,6 +37,7 @@ usage()
   echo "  -f                Build all variants (Default: ask)"
   echo "  -F OUTPUT_FILE    Custom deployment output's filename"
   echo "  -d                Print debug output to stdout instead of file"
+  echo "  -t                Text output only, do not print colored output"
   echo "  -L                Keep log file"
   echo
   echo "Example:"
@@ -49,7 +51,7 @@ usage()
 }
 
 origopts=$@
-while getopts "n:s:v:p:m:a:V:o:F:AlcfdOL" opt; do
+while getopts "n:s:v:p:m:a:V:o:F:tAlcfdOL" opt; do
   case $opt in
     n)
       PACKAGE_NAME=$OPTARG
@@ -113,6 +115,10 @@ while getopts "n:s:v:p:m:a:V:o:F:AlcfdOL" opt; do
       ;;
     L)
       keep_log=1
+      shift 1
+      ;;
+    t)
+      no_color=1
       shift 1
       ;;
     \?)
@@ -288,6 +294,22 @@ abort()
 trap finish EXIT
 trap abort INT
 
+if [ $no_color -ne 1 ]; then
+  color_info="\e[36m\e[1m"
+  color_notice="\e[34m\e[1m"
+  color_warn="\e[35m\e[1m"
+  color_error="\e[31m\e[1m"
+  color_ask="\e[33m\e[1m"
+  color_reset="\e[0m"
+else
+  color_info=""
+  color_notice=""
+  color_warn=""
+  color_error=""
+  color_ask=""
+  color_reset=""
+fi
+
 
 log()
 {
@@ -299,21 +321,21 @@ log()
 log_info()
 {
   if [ "$LIST_ONLY" -eq 0 ]; then
-    /bin/echo -e "\e[36m\e[1mI: $@\e[0m"
+    /bin/echo -e "${color_info}I: $@ $color_reset"
   fi
 }
 
 log_notice()
 {
   if [ "$LIST_ONLY" -eq 0 ]; then
-    /bin/echo -e "\e[34m\e[1mN: $@\e[0m"
+    /bin/echo -e "${color_notice}N: $@ $color_reset"
   fi
 }
 
 log_warn()
 {
   if [ "$LIST_ONLY" -eq 0 ]; then
-    /bin/echo -e "\e[35m\e[1mW: $@\e[0m"
+    /bin/echo -e "${color_warn}W: $@ $color_reset"
   fi
 }
 
@@ -321,7 +343,7 @@ log_error()
 {
   set +x
   LIST_ONLY=0
-  /bin/echo -e "\e[31m\e[1mE: $@\e[0m"
+  /bin/echo -e "${color_error}E: $@ $color_reset"
   if [ -n "$target" -a "$user_abort" -eq 0 ]; then
     log_info "examine situation: sudo chroot $target"
   fi
@@ -349,7 +371,7 @@ ask()
   if [ "$2" = "N" ]; then
     n="N"
   fi
-  /bin/echo -n -e "\e[33m\e[1mQ: $1 [$y/$n] \e[0m"
+  /bin/echo -n -e "${color_ask}Q: $1 [$y/$n] $color_reset"
   read x
   case "$x" in
     Y|y)
@@ -651,7 +673,7 @@ setup_deployment()
   if [ "$found_variant" -ne 1 ]; then
     while true
     do
-      /bin/echo -n -e "\e[33m\e[1mQ: Please choose a deployment variant:\n`echo $variants | tr ' ' '\n' | sed 's/^/ > /'`\nEnter variant: \e[0m"
+      /bin/echo -n -e "${color_ask}Q: Please choose a deployment variant:\n`echo $variants | tr ' ' '\n' | sed 's/^/ > /'`\nEnter variant: $color_reset"
       read VARIANT
       if [ -z "$VARIANT" ]; then
         log_warn "No deployment variant choosen, aborting ..."
@@ -1044,7 +1066,7 @@ install_docker()
   fi
 
   if [ -n "$DOCKER_COMPOSE_FILE" ]; then
-    chroot $target docker-compose -f $DOCKER_COMPOSE_FILE up --no-start >&2
+    chroot $target docker-compose --no-ansi -f $DOCKER_COMPOSE_FILE up --no-start >&2
     if [ "$?" -ne 0 ]; then
       docker_install_cleanup
       log_error "Error running docker-compose"
