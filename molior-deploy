@@ -344,7 +344,7 @@ log_error()
   set +x
   LIST_ONLY=0
   /bin/echo -e "${color_error}E: $@ $color_reset"
-  if [ -n "$target" -a "$user_abort" -eq 0 ]; then
+  if [ -n "$target" -a "$user_abort" -eq 0 -a "$ask_cleanup" -eq 1 ]; then
     log_info "examine situation: sudo chroot $target"
   fi
 
@@ -1066,6 +1066,7 @@ install_docker()
   fi
 
   if [ -n "$DOCKER_COMPOSE_FILE" ]; then
+    log "docker compose"
     chroot $target docker-compose --no-ansi -f $DOCKER_COMPOSE_FILE up --no-start >&2
     if [ "$?" -ne 0 ]; then
       docker_install_cleanup
@@ -1221,12 +1222,12 @@ if [ -f $WORK_DIR/$deployment ]; then
         none)
         ;;
         xz)
-           $PXZ_CMD $WORK_DIR/$deployment
+           $PXZ_CMD $WORK_DIR/$deployment >&2
            exit_on_error "Error compressing $deployment"
            deployment=$deployment.xz
         ;;
         gzip)
-           gzip $WORK_DIR/$deployment
+           gzip $WORK_DIR/$deployment >&2
            exit_on_error "Error compressing $deployment"
            deployment=$deployment.gz
         ;;
@@ -1236,7 +1237,7 @@ if [ -f $WORK_DIR/$deployment ]; then
   # move deployment to current dir, fix permissions if possible
   mv $WORK_DIR/$deployment ./
   if [ -n "$SUDO_UID" -a -n "$SUDO_GID" ]; then
-    chown $SUDO_UID:$SUDO_GID $deployment
+    chown $SUDO_UID:$SUDO_GID $deployment >&2
   fi
 elif [ ! -f ./$deployment ]; then
     log_error "Deployment not found: $WORK_DIR/$deployment"

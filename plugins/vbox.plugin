@@ -23,7 +23,7 @@ init_deployment_vbox()
   do_compress=0 # ova is already compressed
   vmname=$(get_deployment_filename "")
   #FIXME check VMSIZE
-  echo " * creating ${VMSIZE}MB"
+  echo " * creating ${VMSIZE}MB virtual disk"
   if [ "$OLD_KERNEL" -eq 1 ]; then
     VMDISK=$WORK_DIR/disk.vdi
     vboxmanage createhd --filename $VMDISK --size=$VMSIZE >&2
