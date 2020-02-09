@@ -189,13 +189,13 @@ EOF
   cp -L $WORK_DIR/instroot/vmlinuz $WORK_DIR/out/
 
   cat >$WORK_DIR/out/README.md <<EOF
-=Molior Installer for ${PROJECT}_${REVISION} `date -R`=
+= Molior Installer for ${PROJECT}_${REVISION} `date -R` =
 
-==APT sources==
+== APT sources ==
 $APT_SOURCES
 
-==Installed Packages (`echo \"$INSTALLED_PACKAGES\" | wc -l`)==
-$INSTALLED_PACKAGES
+== Installed Packages (`wc -l $WORK_DIR/packages.txt`) ==
+`cat $WORK_DIR/packages.txt`
 EOF
 
   log "creating image.cpio$INSTALLER_COMPRESSION_EXT"

@@ -928,7 +928,7 @@ install_deployment()
   exit_on_error "Error installing software"
 
   chroot $target apt-get clean >&2
-  INSTALLED_PACKAGES=`chroot $target dpkg -l | tail -n +6 | awk '{ printf "%-42s %s\n", $2, $3 }'`
+  chroot $target dpkg -l | tail -n +6 | awk '{ printf "%-42s %s\n", $2, $3 }' >$WORK_DIR/packages.txt
 }
 
 cleanup_deployment()
