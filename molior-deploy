@@ -181,6 +181,7 @@ export HOME=/root
 # default settings
 DEPLOYMENT_TYPE=image
 INSTALL_PACKAGE=""
+PRESEED_FILE=""
 
 # init
 success=0
@@ -189,6 +190,7 @@ chmod 755 $WORK_DIR
 errlog=$WORK_DIR/output.log
 
 do_fstab=1
+do_compress=1
 starttime="0"
 endtime="0"
 target=""
@@ -217,7 +219,7 @@ finish ()
       fi
     fi
   fi
-  log " * cleanup"
+  log "cleanup"
 
   umount_bootstrap
   umount_fs
@@ -290,7 +292,7 @@ trap abort INT
 log()
 {
   if [ "$LIST_ONLY" -eq 0 ]; then
-    echo "$@"
+    echo " * $@"
   fi
 }
 
@@ -323,7 +325,16 @@ log_error()
   if [ -n "$target" -a "$user_abort" -eq 0 ]; then
     log_info "examine situation: sudo chroot $target"
   fi
-  exit 1
+
+  # if RET is set to non zero, use it as exit code
+  if [ -n "$RET" ]; then
+      if [ "$RET" = "0" ]; then
+          RET=1
+      fi
+  else
+      RET=1
+  fi
+  exit $RET
 }
 
 ask()
@@ -498,9 +509,9 @@ setup_deployment()
   DEPLOYMENT_TIMESTAMP=`date -R`
   starttime=$(date +"%s")
   log_info "Creating deployment for $PROJECT/$VERSION"
-  log " * molior-tools $MOLIOR_TOOLS_VERSION"
-  log " * started: `date -R`"
-  log " * logfile: $WORK_DIR/output.log"
+  log "molior-tools $MOLIOR_TOOLS_VERSION"
+  log "started: `date -R`"
+  log "logfile: $WORK_DIR/output.log"
 
   if [ -z "$MOLIOR_PROJECTSOURCES_FILE" ]; then
     log_info "Getting deployment information ..."
@@ -532,28 +543,28 @@ setup_deployment()
   REPOURL=`dirname $tmp`
   BASEMIRROR=`basename $tmp`
   BASEVERSION=`basename $MIRROR`
-  log " * mirror: $MIRROR"
+  log "mirror: $MIRROR"
 
   log_info "Getting source package ..."
   if [ -n "$SOURCE_DIR" ]; then
     SOURCE_DIR=`readlink -f $SOURCE_DIR`
-    log " * using local package source: $SOURCE_DIR"
+    log "using local package source: $SOURCE_DIR"
     cd $SOURCE_DIR
     REVISION=`dpkg-parsechangelog -S Version`+local
-    log " * found source package: $PACKAGE_NAME $REVISION"
+    log "found source package: $PACKAGE_NAME $REVISION"
     cd - >/dev/null
   else
     SOURCES_VERSION=$VERSION
     if [ -n "$OVERLAY_VERSION" ]; then
       SOURCES_VERSION=$OVERLAY_VERSION
-      log " * using overlay source: $SOURCES_VERSION"
+      log "using overlay source: $SOURCES_VERSION"
     fi
     if [ "$OVERLAY_AUTO" -eq 1 ]; then
       baseurls=`echo "$APT_SOURCES" | grep $MIRROR/repos/$PROJECT | awk '{print $2}'`
       for baseurl in $baseurls
       do
         SOURCES_VERSION=`basename $baseurl`
-        log " * trying to download package source from $SOURCES_VERSION"
+        log "trying to download package source from $SOURCES_VERSION"
         SOURCES=`wget -q -O- $MIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$DIST/main/source/Sources`
         if [ -z "$SOURCES" ]; then
           # try next baseurl
@@ -574,7 +585,7 @@ setup_deployment()
       if [ -z "$FILENAME" ]; then
         log_error "No filename found for $PACKAGE_NAME in $MIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$DIST/main/source/Sources"
       fi
-      log " * using package source: $SOURCES_VERSION"
+      log "using package source: $SOURCES_VERSION"
     else
       SOURCES=`wget -q -O- $MIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$DIST/main/source/Sources`
       if [ -z "$SOURCES" ]; then
@@ -590,7 +601,7 @@ setup_deployment()
       fi
     fi
 
-    log " * downloading source: $MIRROR/repos/$PROJECT/$SOURCES_VERSION/$FILENAME"
+    log "downloading source: $MIRROR/repos/$PROJECT/$SOURCES_VERSION/$FILENAME"
     cd $WORK_DIR
     wget -q $MIRROR/repos/$PROJECT/$SOURCES_VERSION/$FILENAME
     exit_on_error "Error downloading $MIRROR/repos/$PROJECT/$SOURCES_VERSION/$FILENAME"
@@ -658,6 +669,13 @@ setup_deployment()
   . $SOURCE_DIR/deploy/$VARIANT.conf
   log_notice "Selected deployment type: $DEPLOYMENT_TYPE"
 
+  # load plugin
+  if [ ! -e /usr/lib/molior-deploy/plugins/$DEPLOYMENT_TYPE.plugin ]; then
+    log "using custom plugin for '$DEPLOYMENT_TYPE'"
+  else
+    . /usr/lib/molior-deploy/plugins/$DEPLOYMENT_TYPE.plugin
+  fi
+
   if [ "$ROOTPART" ]; then
     log_warn "Warning: ROOTPART is depreciated, please use PART${ROOTPART}_MNT=/"
     eval PART${ROOTPART}_MNT=/
@@ -681,6 +699,24 @@ setup_deployment()
     fi
   fi
 
+  if [ -z "$DEPLOYMENT_COMPRESSION" ]; then
+      DEPLOYMENT_COMPRESSION=xz
+  fi
+  case $DEPLOYMENT_COMPRESSION in
+      none)
+          DEPLOYMENT_COMPRESSION_EXT=""
+      ;;
+      xz)
+          DEPLOYMENT_COMPRESSION_EXT=".xz"
+      ;;
+      gzip)
+          DEPLOYMENT_COMPRESSION_EXT=".gz"
+      ;;
+      *)
+          log_error "Unsupported deployment compressions: '$DEPLOYMENT_COMPRESSION'"
+      ;;
+  esac
+
   target=$WORK_DIR/root
   mkdir $target
 }
@@ -695,7 +731,7 @@ bootstrap_deployment()
   fi
 
   KEY_URL=$REPOURL/$PUBKEY_FILE
-  log " * importing gpg key from $KEY_URL"
+  log "importing gpg key from $KEY_URL"
 
   include="gnupg"
   eval t=\$DEBOOTSTRAP_INCLUDE_`echo $SUITE | tr '-' '_'`
@@ -717,10 +753,10 @@ bootstrap_deployment()
   done
   gpg -q --import --no-default-keyring --keyring=trustedkeys.gpg $WORK_DIR/repo.asc
 
-  echo " * downloading debootstrap for $SUITE $BASEMIRROR/$BASEVERSION $ARCH"
+  log "downloading debootstrap for $SUITE $BASEMIRROR/$BASEVERSION $ARCH"
   wget -q $MOLIOR_SERVER/debootstrap/${BASEMIRROR}_${BASEVERSION}_$ARCH.tar.xz -O $WORK_DIR/root.tar.xz
   if [ $? -eq 0 ]; then
-    echo " * extracting debootstrap"
+    log "extracting debootstrap"
     mkdir -p $target
     cd $target
     tar $TAR_PXZ -xf $WORK_DIR/root.tar.xz
@@ -728,8 +764,8 @@ bootstrap_deployment()
     rm -f $WORK_DIR/root.tar.xz
     cp -f /etc/resolv.conf $target/etc/resolv.conf
   else
-    echo " * error downloading debootstrap archive..."
-    echo " * running debootstrap for $SUITE $BASEMIRROR/$BASEVERSION $ARCH"
+    log "error downloading debootstrap archive..."
+    log "running debootstrap for $SUITE $BASEMIRROR/$BASEVERSION $ARCH"
 
     if echo $ARCH | grep -q arm; then
       debootstrap --foreign --arch $ARCH --keyring=/root/.gnupg/trustedkeys.gpg --variant=minbase --include=$include $SUITE $target $MIRROR >&2
@@ -820,11 +856,11 @@ EOF
     mountbind $WORK_DIR/.netrc $target/etc/apt/auth.conf
   fi
 
-  echo " * updating APT database"
+  log "updating APT database"
   chroot $target apt-get -o Acquire::Languages=none update >&2
   exit_on_error "apt-get update failed"
 
-  echo " * upgrading system"
+  log "upgrading system"
   chroot $target apt-get --yes dist-upgrade >&2
   exit_on_error "apt-get dist-upgrade failed"
 
@@ -836,7 +872,7 @@ EOF
       from=`echo $m | cut -d: -f1`
       to=`echo $m | cut -d: -f2`
       mkdir -p $target/$from $target/$to
-      echo " * bind mount $target/$from $target/$to"
+      log "bind mount $target/$from $target/$to"
       mount -o rw,noexec,nosuid,nodev,bind $target/$from $target/$to
     done
     IFS=$old_IFS
@@ -849,13 +885,23 @@ install_deployment()
     log_error "Error: \$target not set"
   fi
   mount_bootstrap
-  echo " * installing package: $INSTALL_PACKAGE"
 
   if [ -n "$DPKG_ADD_ARCH" ]; then
     chroot $target dpkg --add-architecture $DPKG_ADD_ARCH
     chroot $target apt-get update
   fi
 
+  if [ -n "$PRESEED_FILE" ]; then
+    log "applying preseed file '$PRESEED_FILE'"
+    if [ -f "$SOURCE_DIR/$PRESEED_FILE" ]; then
+      chroot $target debconf-set-selections < $SOURCE_DIR/$PRESEED_FILE
+      exit_on_error "Error applying preseed file '$PRESEED_FILE'"
+    else
+      log_error "The preseed file '$PRESEED_FILE' does not exist in source package"
+    fi
+  fi
+
+  log "installing package: $INSTALL_PACKAGE"
   DEBIAN_FRONTEND=noninteractive chroot $target apt-get install --no-install-recommends --yes $INSTALL_PACKAGE $APT_INSTALL_EXTRA >&2
   exit_on_error "Error installing software"
 
@@ -890,7 +936,7 @@ install_grub_bootloader()
     log_error "Error: \$target not set"
   fi
   mount_fs_devices
-  echo " * grub-install"
+  log "grub-install"
   chroot $target grub-install --modules part_msdos --recheck --force --no-floppy ${disk} >&2
   exit_on_error "installing grub failed"
 
@@ -898,7 +944,7 @@ install_grub_bootloader()
     log_error "Error updating grub: no rootpart defined"
   fi
 
-  echo " * update-grub"
+  log "update-grub"
   if [ -n "$LINUX_CMDLINE" ]; then
     sed -i "s%^GRUB_CMDLINE_LINUX=.*$%GRUB_CMDLINE_LINUX=\"$LINUX_CMDLINE\"%" $target/etc/default/grub
   fi
@@ -925,33 +971,42 @@ get_deployment_filename()
   echo "$deployment"
 }
 
+# directory deployments are used from multiple plugins
+init_deployment_dir()
+{
+  do_fstab=0
+  target=$WORK_DIR/root
+  mkdir $target
+  log "creating rootfs in $target"
+}
+
 # disable comflicting binfmts
 for b in $BADFMTS
 do
   update-binfmts --disable $b >&2
 done
 
-# load plugins
-for plugin in /usr/lib/molior-deploy/plugins/*.plugin
-do
-  . $plugin
-done
-
 # workflow
 setup_deployment
 
-if type precond_deployment_$DEPLOYMENT_TYPE >/dev/null; then
+if type precond_deployment >/dev/null; then
+  if ! precond_deployment; then
+    log_error "precondition failed"
+  fi
+elif type precond_deployment_$DEPLOYMENT_TYPE >/dev/null; then
   if ! precond_deployment_$DEPLOYMENT_TYPE; then
     log_error "precondition failed"
   fi
 fi
 
-if type preinit_deployment_$DEPLOYMENT_TYPE >/dev/null; then
+if type preinit_deployment >/dev/null; then
+  preinit_deployment
+elif type preinit_deployment_$DEPLOYMENT_TYPE >/dev/null; then
   preinit_deployment_$DEPLOYMENT_TYPE
 fi
 
 if [ -n "$REQUIRED_HOST_COMMANDS" ]; then
-  echo " * checking required commands: $REQUIRED_HOST_COMMANDS"
+  log "checking required commands: $REQUIRED_HOST_COMMANDS"
   ok=1
   for cmd in $REQUIRED_HOST_COMMANDS
   do
@@ -968,13 +1023,24 @@ if [ -n "$REQUIRED_HOST_COMMANDS" ]; then
 fi
 
 log_info "Initializing deployment ..."
-init_deployment_$DEPLOYMENT_TYPE
+
+if type init_deployment >/dev/null; then
+  init_deployment
+elif type init_deployment_$DEPLOYMENT_TYPE >/dev/null; then
+  init_deployment_$DEPLOYMENT_TYPE
+fi
+
 log_info "Installing base OS ..."
 get_fsinfo
 bootstrap_deployment
-if type preinst_deployment_$DEPLOYMENT_TYPE >/dev/null; then
+
+# run preinst_deployment
+if type preinst_deployment >/dev/null; then
+  preinst_deployment
+elif type preinst_deployment_$DEPLOYMENT_TYPE >/dev/null; then
   preinst_deployment_$DEPLOYMENT_TYPE
 fi
+
 log_info "Installing software ..."
 install_deployment
 
@@ -985,7 +1051,9 @@ if [ -e $target/etc/resolv.conf -o -h $target/etc/resolv.conf ]; then
 fi
 
 # run postinst_deployment
-if type postinst_deployment_$DEPLOYMENT_TYPE >/dev/null; then
+if type postinst_deployment >/dev/null; then
+  postinst_deployment
+elif type postinst_deployment_$DEPLOYMENT_TYPE >/dev/null; then
   postinst_deployment_$DEPLOYMENT_TYPE
 fi
 
@@ -1007,11 +1075,47 @@ if [ -n "$INSTALL_GRUB" ]; then
     install_grub_bootloader
   fi
 fi
+
 cleanup_deployment
 log_info "Creating deployment ..."
-finalize_deployment_$DEPLOYMENT_TYPE
-#FIXME: check outcome
-if type deinit_deployment_$DEPLOYMENT_TYPE >/dev/null; then
+if type finalize_deployment >/dev/null; then
+  finalize_deployment
+elif type finalize_deployment_$DEPLOYMENT_TYPE >/dev/null; then
+  finalize_deployment_$DEPLOYMENT_TYPE
+fi
+
+if [ -f $WORK_DIR/$deployment ]; then
+  # compress if requested
+  if [ do_compress -eq 1 ]; then
+    case $DEPLOYMENT_COMPRESSION in
+        none)
+        ;;
+        xz)
+           $PXZ_CMD $WORK_DIR/$deployment
+           exit_on_error "Error compressing $deployment"
+           deployment=$deployment.xz
+        ;;
+        gzip)
+           gzip $WORK_DIR/$deployment
+           exit_on_error "Error compressing $deployment"
+           deployment=$deployment.gz
+        ;;
+    esac
+  fi
+
+  # move deployment to current dir, fix permissions if possible
+  mv $WORK_DIR/$deployment ./
+  if [ -n "$SUDO_UID" -a -n "$SUDO_GID" ]; then
+    chown $SUDO_UID:$SUDO_GID $deployment
+  fi
+elif [ ! -f ./$deployment ]; then
+    log_error "Deployment not found: $WORK_DIR/$deployment"
+fi
+
+# deinitialize stuff
+if type deinit_deployment >/dev/null; then
+  deinit_deployment
+elif type deinit_deployment_$DEPLOYMENT_TYPE >/dev/null; then
   deinit_deployment_$DEPLOYMENT_TYPE
 fi
 

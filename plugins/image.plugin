@@ -10,7 +10,7 @@ init_deployment_image()
 {
   # FIXME: escape vars
   imagename==$(get_deployment_filename "img")
-  echo " * creating $IMAGESIZE $WORK_DIR/$imagename"
+  log "creating $IMAGESIZE $WORK_DIR/$imagename"
   fallocate -l $IMAGESIZE $WORK_DIR/$imagename
   exit_on_error "Error creating $WORK_DIR/$imagename"
 
@@ -39,11 +39,6 @@ finalize_deployment_image()
 {
   umount_bootstrap
   umount_fs
-  deployment=$imagename.xz
-  echo " * creating image '$deployment'"
-  $PXZ_CMD -T `nproc --ignore 1` $WORK_DIR/$imagename
-  mv -f $WORK_DIR/$deployment ./
-  if [ -n "$SUDO_UID" -a -n "$SUDO_GID" ]; then
-    chown $SUDO_UID:$SUDO_GID $deployment
-  fi
+  log "creating image '$deployment'"
+  deployment=$imagename
 }

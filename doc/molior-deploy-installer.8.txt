@@ -7,15 +7,15 @@ DESCRIPTION
 OPTIONS
  The deployment configuration (deploy/*.conf file) recognizes the following variables:
 
- DEPLOYMENT_TYPE                Specify 'installer' to use the installer plugin
- INSTALLER_EXTRA_PACKAGES       Add additional packages to the installer (may need hooks in initrd)
- INSTALLER_BOOTTYPE             For EFI bootable ISOs, specify 'efi' (default: standard)
- INSTALLER_EXTRA_INITRD         Add the contents of the specified directory (in source package) to the /etc/initramfs-tools/ in the installer
- INSTALLER_USE_PXE              Specify 'yes' to use PXE/TFTP for downloading the deployment for installation
- INSTALLER_PASSWD_USERS         List of users separated by space to ask for setting a password during installation
- INSTALLER_ASK_CONFIRM          Specify 'no' to disable asking for confirmation to install
- INSTALLER_ASK_HOSTNAME         Specify 'no' to disable asking for the hostname
- INSTALLER_ASK_REBOOT           Specify 'no' to disable asking for confirmation to reboot the system
+ DEPLOYMENT_TYPE            Specify 'installer' to use the installer plugin
+ INSTALLER_COMPRESSION      Compression method to be used for the installer image (xz, gzip, none)
+ INSTALLER_EXTRA_PACKAGES   Add additional packages to the installer (may need hooks in initrd)
+ INSTALLER_BOOTTYPE         For EFI bootable ISOs, specify 'efi' (default: standard)
+ INSTALLER_EXTRA_INITRD     Add the contents of the specified directory (in source package) to the /etc/initramfs-tools/ in the installer
+ INSTALLER_PASSWD_USERS     List of users separated by space to ask for setting a password during installation
+ INSTALLER_ASK_CONFIRM      Specify 'no' to disable asking for confirmation to install
+ INSTALLER_ASK_HOSTNAME     Specify 'no' to disable asking for the hostname
+ INSTALLER_ASK_REBOOT       Specify 'no' to disable asking for confirmation to reboot the system
 
 EXAMPLE
 

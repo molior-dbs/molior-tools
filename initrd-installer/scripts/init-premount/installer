@@ -79,7 +79,9 @@ exec 3>&2
 exec 2>$errlog
 set -x
 
-
+if [ -z "$SFDISK" ]; then
+  log_error "Error: partitions not definded, please set \$SFDISK"
+fi
 
 if [ "$INSTALLER_USE_PXE" != "yes" ]; then
 
@@ -122,16 +124,14 @@ else
   echo -n "Downloading install medium ..."
 
   configure_networking
-  tftp -g -l /mnt/source/image.cpio.xz -r image.cpio.xz -b 16384 "$ROOTSERVER"
-
-  SOURCEDISK="NONEXISTENT"
+  tftp -g -l /mnt/source/image.cpio$INSTALLER_COMPRESSION_EXT -r image.cpio$INSTALLER_COMPRESSION_EXT -b 16384 "$ROOTSERVER"
 fi
 
-if [ -z "$SFDISK" ]; then
-  log_error "Error: partitions not definded, please set \$SFDISK"
+if [ -n "$SOURCEDISK" ]; then
+  disks=`ls /sys/block/ | sed s_^_/dev/_ | grep -v $SOURCEDISK`
+else
+  disks=`ls /sys/block/ | sed s_^_/dev/_`
 fi
-
-disks=`ls /sys/block/ | sed s_^_/dev/_ | grep -v $SOURCEDISK`
 if [ -z "$disks" ]; then
   log_error "No installable disks found, aborting installation."
 fi
@@ -295,12 +295,35 @@ echo -n -e "\033[1;32m"
 echo Copying system ...
 echo -n -e "\033[1;m"
 cd /mnt/target
-bytes=`xz --robot --list /mnt/source/image.cpio.xz 2>/dev/null | grep totals | awk '{ print $5 }'`
+
+case $INSTALLER_COMPRESSION in
+   none)
+   ;;
+   xz)
+       bytes=`xz --robot --list /mnt/source/image.cpio$INSTALLER_COMPRESSION_EXT 2>/dev/null | grep totals | awk '{ print $5 }'`
+   ;;
+   gzip)
+       bytes=`gzip -l /mnt/source/image.cpio$INSTALLER_COMPRESSION_EXT | grep /mnt/source/image.cpio | awk '{ print $2 }'`
+   ;;
+esac
+
 # allow progress bar to be displayed
 set +x
 exec 4>&2 # backup logfile
 exec 2>&3
-xz -dc /mnt/source/image.cpio.xz | pv -s $bytes | cpio -B -H newc -imd --no-absolute-filenames 2>/dev/null
+
+case $INSTALLER_COMPRESSION in
+   none)
+       pv /mnt/source/image.cpio | cpio -B -H newc -imd --no-absolute-filenames 2>/dev/null
+   ;;
+   xz)
+       xz -dc /mnt/source/image.cpio$INSTALLER_COMPRESSION_EXT | pv -s $bytes | cpio -B -H newc -imd --no-absolute-filenames 2>/dev/null
+   ;;
+   gzip)
+       gzip -dc /mnt/source/image.cpio$INSTALLER_COMPRESSION_EXT | pv -s $bytes | cpio -B -H newc -imd --no-absolute-filenames 2>/dev/null
+   ;;
+esac
+
 exec 2>&4 4>&- # restore logfile
 set -x
 
@@ -364,6 +387,11 @@ echo " * installation time: $(($diff / 60))min $(($diff % 60))sec"
 echo -n -e "\033[1;32m"
 echo -n "Done ! "
 echo -e "\033[1;m"
+
+if [ -n "$SOURCEDISK" ]; then
+  eject -rs $SOURCEDISK 2>&1
+fi
+
 if [ "$INSTALLER_ASK_REBOOT" != "no" ]; then
   echo "=> Please remove install media and press enter to reboot"
   read x

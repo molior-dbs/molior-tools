@@ -57,6 +57,7 @@ deinit_deployment_vhd()
   fi
 
   if [ -n "$nbd" ]; then
+    test "$OLD_KERNEL" -eq 1 && kpartx -dv $nbd >&2
     rm -f /dev/mapper/$nb
     qemu-nbd -d $nbd >&2
     disk=""
@@ -69,15 +70,8 @@ finalize_deployment_vhd()
 {
   umount_bootstrap
   umount_fs
-  deinit_deployment_vbox
+  deinit_deployment
 
-  echo " * creating VHD disk '$deployment.xz'"
-  $PXZ_CMD -T `nproc --ignore 1` $WORK_DIR/$deployment
-  deployment=$deployment.xz
-
-  if [ -n "$SUDO_UID" -a -n "$SUDO_GID" ]; then
-    chown $SUDO_UID:$SUDO_GID $WORK_DIR/$deployment
-  fi
-  mv $WORK_DIR/$deployment ./
+  echo " * creating VHD disk '$deployment'"
 }
 

@@ -9,7 +9,7 @@ preinit_deployment_docker()
 init_deployment_docker()
 {
   init_deployment_dir
-  # Minimize per default, if no specified otherwise
+  # Minimize per default, if not specified otherwise
   if [ -z "$MINIMIZE" ]; then
     MINIMIZE=1
   fi
@@ -17,7 +17,7 @@ init_deployment_docker()
 
 finalize_deployment_docker()
 {
-  echo " * creating docker container"
+  log "creating docker container"
   umount_bootstrap
   umount_fs
 
@@ -29,14 +29,9 @@ finalize_deployment_docker()
   exit_on_error "Error running docker import"
 
   deployment=$(get_deployment_filename "docker")
-  docker save  -o $deployment ${PROJECT}:${CONTAINER_VERSION} >&2
+  docker save  -o $WORK_DIR/$deployment ${PROJECT}:${CONTAINER_VERSION} >&2
   exit_on_error "Error running docker save"
 
   docker rmi ${PROJECT}:${CONTAINER_VERSION} >&2
-  $PXZ_CMD -T `nproc --ignore 1` $deployment
-  deployment=$deployment.xz
-  if [ -n "$SUDO_UID" -a -n "$SUDO_GID" ]; then
-    chown $SUDO_UID:$SUDO_GID $deployment
-  fi
 }
 

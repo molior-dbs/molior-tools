@@ -1,28 +1,17 @@
 # molior-deploy plugin
 # vim: syntax=sh
 
-init_deployment_dir()
-{
-  do_fstab=0
-  target=$WORK_DIR/root
-  mkdir $target
-  echo " * creating rootfs in $target"
-}
+# init_deployment_dir() is used from multiple plugins and defined in molior-deploy
 
 finalize_deployment_dir()
 {
-  deployment=$(get_deployment_filename "tar.xz")
-  echo " * creating $deployment"
+  deployment=$(get_deployment_filename "tar")
+  log "creating $deployment"
   umount_bootstrap
   umount_fs
 
   cwd=`pwd`
   cd $target
-  tar $TAR_PXZ -cf $cwd/$deployment .
+  tar -cf ../$deployment .
   cd - >/dev/null
-
-  if [ -n "$SUDO_UID" -a -n "$SUDO_GID" ]; then
-    chown $SUDO_UID:$SUDO_GID $deployment
-  fi
 }
-

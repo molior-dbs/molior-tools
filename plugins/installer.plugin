@@ -12,6 +12,7 @@ preinit_deployment_installer()
 init_deployment_installer()
 {
   do_fstab=0
+  do_compress=0
   init_deployment_dir
 }
 
@@ -21,12 +22,32 @@ preinst_deployment_installer()
   cp -ar $target $WORK_DIR/instroot
 }
 
-finalize_deployment_installer()
+prepare_initrd_deployment()
 {
   umount_bootstrap
 
-  mkdir -p $WORK_DIR/iso
-  echo " * creating installer initrd"
+  mkdir -p $WORK_DIR/out
+
+  if [ -z "$INSTALLER_COMPRESSION" ]; then
+      INSTALLER_COMPRESSION="xz"
+  fi
+
+  case $INSTALLER_COMPRESSION in
+      none)
+        INSTALLER_COMPRESSION_EXT=""
+      ;;
+      xz)
+        INSTALLER_COMPRESSION_EXT=".xz"
+      ;;
+      gzip)
+        INSTALLER_COMPRESSION_EXT=".gz"
+      ;;
+      *)
+        log_error "Compression '$INSTALLER_COMPRESSION' not supported"
+      ;;
+  esac
+
+  log "creating installer initrd"
 
   KERNEL_ARCH="$ARCH"
   if [ "$ARCH" = "i386" ]; then
@@ -63,13 +84,16 @@ finalize_deployment_installer()
     xz-utils \
     pv \
     util-linux \
+    eject \
     >&2
   chroot $WORK_DIR/instroot apt-get clean >&2
   initrd=$WORK_DIR/instroot/etc/initramfs-tools
   rm -rf $initrd
   cp -ar $INITRDINST $initrd
-  if [ -d "$SOURCE_DIR/$INSTALLER_EXTRA_INITRD" ]; then
-    cp -ar $SOURCE_DIR/$INSTALLER_EXTRA_INITRD/* $initrd
+  if [ -n "$INSTALLER_EXTRA_INITRD" ]; then
+    if [ -d "$SOURCE_DIR/$INSTALLER_EXTRA_INITRD" ]; then
+      cp -ar $SOURCE_DIR/$INSTALLER_EXTRA_INITRD/* $initrd
+    fi
   fi
 
   get_deploy_config >> $initrd/scripts/install.conf
@@ -107,10 +131,10 @@ EOF
   exit_on_error "Error updating installer initrd"
 
   if [ "$INSTALLER_BOOTTYPE" = "efi" ]; then
-    mkdir -p $WORK_DIR/iso/boot/grub/$GRUBEFITYPE/
-    cp $WORK_DIR/instroot/usr/lib/grub/$GRUBEFITYPE/* $WORK_DIR/iso/boot/grub/$GRUBEFITYPE/
-    cat >$WORK_DIR/iso/boot/grub/grub.cfg <<EOF
-search --file --set=root /image.cpio.xz
+    mkdir -p $WORK_DIR/out/boot/grub/$GRUBEFITYPE/
+    cp $WORK_DIR/instroot/usr/lib/grub/$GRUBEFITYPE/* $WORK_DIR/out/boot/grub/$GRUBEFITYPE/
+    cat >$WORK_DIR/out/boot/grub/grub.cfg <<EOF
+search --file --set=root /image.cpio$INSTALLER_COMPRESSION_EXT
 insmod all_video
 linux /vmlinuz quiet
 initrd /initrd.img
@@ -120,8 +144,8 @@ EOF
                                            part_msdos part_gpt fat iso9660 search
     exit_on_error "Error creating grub image"
 
-    mkdir -p $WORK_DIR/iso/efi/boot/
-    cp $WORK_DIR/instroot/boot/$EFIFILE $WORK_DIR/iso/efi/boot/
+    mkdir -p $WORK_DIR/out/efi/boot/
+    cp $WORK_DIR/instroot/boot/$EFIFILE $WORK_DIR/out/efi/boot/
 
     if [ "$ARCH" = "arm64" ]; then
       mkdir $WORK_DIR/debian-installer
@@ -132,36 +156,37 @@ EOF
       tar xf debian-cd_info.tar.gz ./grub/efi.img
       exit_on_error "Error grub/efi.img not found in debian-cd_info.tar.gz"
 
-      mcopy -i grub/efi.img ::efi/boot/bootaa64.efi $WORK_DIR/iso/efi/boot/bootaa64.efi
+      mcopy -i grub/efi.img ::efi/boot/bootaa64.efi $WORK_DIR/out/efi/boot/bootaa64.efi
       exit_on_error "Error copying bootaa64.efi"
 
       cd - >/dev/null
 
       # copyed from debian-cd installer
       blocks=2048
-      rm -f $WORK_DIR/iso/boot/grub/efi.img
-      mkfs.msdos -v -C "$WORK_DIR/iso/boot/grub/efi.img" $blocks >/dev/null
-      mmd -i "$WORK_DIR/iso/boot/grub/efi.img" ::efi
-      mmd -i "$WORK_DIR/iso/boot/grub/efi.img" ::efi/boot
-      mcopy -o -i "$WORK_DIR/iso/boot/grub/efi.img" $WORK_DIR/iso/efi/boot/*.efi "::efi/boot"
+      rm -f $WORK_DIR/out/boot/grub/efi.img
+      mkfs.msdos -v -C "$WORK_DIR/out/boot/grub/efi.img" $blocks >/dev/null
+      mmd -i "$WORK_DIR/out/boot/grub/efi.img" ::efi
+      mmd -i "$WORK_DIR/out/boot/grub/efi.img" ::efi/boot
+      mcopy -o -i "$WORK_DIR/out/boot/grub/efi.img" $WORK_DIR/out/efi/boot/*.efi "::efi/boot"
       exit_on_error "Error copying efi/boot/*.efi"
 
       # for stretch
-      cp $WORK_DIR/iso/boot/grub/grub.cfg $WORK_DIR/iso/boot/grub/arm64-efi/
-      mkdir $WORK_DIR/iso/.disk
-      touch $WORK_DIR/iso/.disk/info
+      cp $WORK_DIR/out/boot/grub/grub.cfg $WORK_DIR/out/boot/grub/arm64-efi/
+      mkdir $WORK_DIR/out/.disk
+      touch $WORK_DIR/out/.disk/info
     else # not arm64
-      cp $WORK_DIR/instroot/usr/lib/ISOLINUX/isolinux.bin $WORK_DIR/iso/
+      cp $WORK_DIR/instroot/usr/lib/ISOLINUX/isolinux.bin $WORK_DIR/out/
     fi
-  else # not EFI
-    cp $WORK_DIR/instroot/usr/lib/ISOLINUX/isolinux.bin $WORK_DIR/iso/
-    cp $WORK_DIR/instroot/usr/lib/syslinux/modules/bios/menu.c32 $WORK_DIR/iso/
-    cp $WORK_DIR/instroot/usr/lib/syslinux/modules/bios/ldlinux.c32 $WORK_DIR/iso/
-    cp $INITRDINST/syslinux.cfg $WORK_DIR/iso/
+  elif [ "$INSTALLER_USE_PXE" != "yes" ]; then # not EFI and not PXE (= ISO)
+    cp $WORK_DIR/instroot/usr/lib/ISOLINUX/isolinux.bin $WORK_DIR/out/
+    cp $WORK_DIR/instroot/usr/lib/syslinux/modules/bios/menu.c32 $WORK_DIR/out/
+    cp $WORK_DIR/instroot/usr/lib/syslinux/modules/bios/ldlinux.c32 $WORK_DIR/out/
+    cp $INITRDINST/syslinux.cfg $WORK_DIR/out/
   fi
-  cp $WORK_DIR/instroot/boot/$initrd $WORK_DIR/iso/initrd.img
-  cp -L $WORK_DIR/instroot/vmlinuz $WORK_DIR/iso/
-  cat >$WORK_DIR/iso/README.md <<EOF
+  cp $WORK_DIR/instroot/boot/$initrd $WORK_DIR/out/initrd.img
+  cp -L $WORK_DIR/instroot/vmlinuz $WORK_DIR/out/
+
+  cat >$WORK_DIR/out/README.md <<EOF
 =Molior Installer for ${PROJECT}_${REVISION} `date -R`=
 
 ==APT sources==
@@ -171,21 +196,37 @@ $APT_SOURCES
 $INSTALLED_PACKAGES
 EOF
 
-  echo " * creating image.cpio.xz"
+  log "creating image.cpio$INSTALLER_COMPRESSION_EXT"
   cd $target
-  find . -xdev -depth -print | cpio --quiet -o -H newc -B > $WORK_DIR/iso/image.cpio
-  exit_on_error "Error creating $WORK_DIR/iso/image.cpio"
+  find . -xdev -depth -print | cpio --quiet -o -H newc -B > $WORK_DIR/out/image.cpio
+  exit_on_error "Error creating $WORK_DIR/out/image.cpio"
 
   cd - >/dev/null
-  $PXZ_CMD -T `nproc --ignore 1` $WORK_DIR/iso/image.cpio 2>&1
-  exit_on_error "Error compressing $WORK_DIR/iso/image.cpio"
+
+  case $INSTALLER_COMPRESSION in
+      none)
+      ;;
+      xz)
+        $PXZ_CMD -T `nproc --ignore 1` $WORK_DIR/out/image.cpio 2>&1
+        exit_on_error "Error compressing $WORK_DIR/out/image.cpio$INSTALLER_COMPRESSION_EXT"
+      ;;
+      gzip)
+        gzip $WORK_DIR/out/image.cpio 2>&1
+        exit_on_error "Error compressing $WORK_DIR/out/image.cpio$INSTALLER_COMPRESSION_EXT"
+      ;;
+  esac
+}
+
+finalize_deployment_installer()
+{
+  prepare_initrd_deployment
 
   deployment=$(get_deployment_filename "iso")
-  echo " * creating $deployment"
+  log "creating $deployment"
   rm -f $deployment
   VOLID=`printf "%.32s" "MLR:${PROJECT}"`
   if [ "$ARCH" = "amd64" -o "$ARCH" = "i386" ]; then
-    eval genisoimage -quiet -o $deployment \
+    eval genisoimage -quiet -o $WORK_DIR/$deployment \
       -b isolinux.bin \
       -c boot.cat \
       -l -V $VOLID \
@@ -197,23 +238,20 @@ EOF
       -boot-load-size 4 \
       -boot-info-table \
       $INSTALLER_EXTRA_GENISOIMAGE_OPTIONS \
-      $WORK_DIR/iso/
+      $WORK_DIR/out/
     exit_on_error "Error running genisoimage"
     isohybrid $deployment
 
   elif [ "$ARCH" = "arm64" ]; then
-    xorriso -as mkisofs -quiet -o $deployment \
+    xorriso -as mkisofs -quiet -o $WORK_DIR/$deployment \
       -J -joliet-long -cache-inodes -l \
       -e boot/grub/efi.img -no-emul-boot \
-      -append_partition 2 0xef $WORK_DIR/iso/boot/grub/efi.img \
+      -append_partition 2 0xef $WORK_DIR/out/boot/grub/efi.img \
       -partition_cyl_align all \
       -V $VOLID \
       -A "${PROJECT}_${REVISION}" \
-      -r $WORK_DIR/iso/
+      -r $WORK_DIR/out/
     exit_on_error "Error running xorriso"
-  fi
-  if [ -n "$SUDO_UID" -a -n "$SUDO_GID" ]; then
-    chown $SUDO_UID:$SUDO_GID $deployment
   fi
 }
 

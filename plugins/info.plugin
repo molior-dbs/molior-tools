@@ -14,7 +14,7 @@ init_deployment_info()
 
 postinst_internal_deployment_info()
 {
-  echo " * gathering info"
+  log "gathering info"
   packages_file=${PROJECT}_${REVISION}_packages.txt
   manual_packages_file=${PROJECT}_${REVISION}_packages-manual.txt
   debsecan_complete_file=${PROJECT}_${REVISION}_debsecan-complete_`date +%d%m%Y-%H%M%S`.txt
@@ -92,7 +92,7 @@ postinst_internal_deployment_info()
 finalize_deployment_info()
 {
   deployment=$(get_deployment_filename "zip")
-  echo " * creating $deployment"
+  log "creating $deployment"
   umount_bootstrap
   umount_fs
   cd $target
@@ -103,9 +103,5 @@ finalize_deployment_info()
   cd $WORK_DIR/info
   zip -r ../$deployment * 1>&2
   cd - >/dev/null
-  if [ -n "$SUDO_UID" -a -n "$SUDO_GID" ]; then
-    chown $SUDO_UID:$SUDO_GID $WORK_DIR/$deployment
-  fi
-  mv -f $WORK_DIR/$deployment ./
 }
 
