@@ -1217,7 +1217,8 @@ fi
 
 if [ -f $WORK_DIR/$deployment ]; then
   # compress if requested
-  if [ do_compress -eq 1 ]; then
+  if [ $do_compress -eq 1 ]; then
+    log "compressing $deployment$DEPLOYMENT_COMPRESSION_EXT"
     case $DEPLOYMENT_COMPRESSION in
         none)
         ;;

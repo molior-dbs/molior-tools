@@ -87,6 +87,7 @@ prepare_initrd_deployment()
     util-linux \
     eject \
     >&2
+  exit_on_error "Error installing initrd packages"
   chroot $WORK_DIR/instroot apt-get clean >&2
   initrd=$WORK_DIR/instroot/etc/initramfs-tools
   rm -rf $initrd
