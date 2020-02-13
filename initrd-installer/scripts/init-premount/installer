@@ -400,6 +400,7 @@ if [ -n "$SOURCEDISK" ]; then
 fi
 
 if [ "$INSTALLER_ASK_REBOOT" != "no" ]; then
-  echo "=> Please remove install media and press enter to reboot"
+  echo
+  echo "=> Please remove the installation media and press 'Enter' to restart"
   read x
 fi
