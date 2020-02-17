@@ -90,7 +90,7 @@ fi
 if [ "$INSTALLER_USE_PXE" != "yes" ]; then
 
   # we are booting from usb, find the disk
-  echo -n "Searching install medium ..."
+  echo -n "Searching installation media ..."
 
   # scan block devices
   for d in `ls /sys/block`; do
@@ -119,7 +119,7 @@ if [ "$INSTALLER_USE_PXE" != "yes" ]; then
   if blkid $SOURCE | grep -q iso9660 ; then
     modprobe iso9660
   fi
-  echo -e "\rInstalling from: $SOURCE"
+  echo -e "\rInstalling from: $SOURCE                                "
 
   mount $SOURCE /mnt/source $MOUNTOPTS
 else
@@ -257,7 +257,7 @@ if [ "$INSTALLER_ASK_CONFIRM" != "no" ]; then
     echo "Warning: this will erase all existing data !"
   fi
   echo -e "\033[1;m"
-  echo -n "Press Enter to continue, Ctrl-Alt-Delete to reboot"
+  echo -n "Press 'Enter' to confirm, Ctrl-Alt-Delete to reboot"
   read x
 fi
 
@@ -401,6 +401,6 @@ fi
 
 if [ "$INSTALLER_ASK_REBOOT" != "no" ]; then
   echo
-  echo "=> Please remove the installation media and press 'Enter' to restart"
+  echo "=> Please remove the installation media and press 'Enter' to reboot"
   read x
 fi
