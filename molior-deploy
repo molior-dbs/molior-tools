@@ -598,12 +598,12 @@ setup_deployment()
       do
         SOURCES_VERSION=`basename $baseurl`
         log "trying to download package source from $SOURCES_VERSION"
-        SOURCES=`wget -q -O- $MIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$DIST/main/source/Sources`
-        if [ -z "$SOURCES" ]; then
+        wget -q -O $WORK_DIR/Sources $MIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$DIST/main/source/Sources
+        if [ `wc -l $WORK_DIR/Sources 2>/dev/null` -eq 0 ]; then
           # try next baseurl
           continue
         fi
-        srcinfo=`echo "$SOURCES" | /usr/lib/molior-tools/find-latest-version.pl $PACKAGE_NAME $PACKAGE_VERSION`
+        srcinfo=`/usr/lib/molior-tools/find-latest-version.pl $PACKAGE_NAME $PACKAGE_VERSION < $WORK_DIR/Sources`
         if [ $? -ne 0 ]; then
           # try next baseurl
           continue
@@ -620,11 +620,11 @@ setup_deployment()
       fi
       log "using package source: $SOURCES_VERSION"
     else
-      SOURCES=`wget -q -O- $MIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$DIST/main/source/Sources`
-      if [ -z "$SOURCES" ]; then
+      wget -q -O $WORK_DIR/Sources $MIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$DIST/main/source/Sources
+      if [ `wc -l $WORK_DIR/Sources 2>/dev/null` -eq 0 ]; then
         log_error "Could not download $MIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$DIST/main/source/Sources"
       fi
-      srcinfo=`echo "$SOURCES" | /usr/lib/molior-tools/find-latest-version.pl $PACKAGE_NAME $PACKAGE_VERSION`
+      srcinfo=`/usr/lib/molior-tools/find-latest-version.pl $PACKAGE_NAME $PACKAGE_VERSION < $WORK_DIR/Sources`
       exit_on_error "Error searching $PACKAGE_NAME revision"
 
       FILENAME=`echo $srcinfo | cut -d ' ' -f 1`/`echo $srcinfo | cut -d ' ' -f 2`
