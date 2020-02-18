@@ -1003,7 +1003,7 @@ init_deployment_dir()
 {
   do_fstab=0
   target=$WORK_DIR/root
-  mkdir $target
+  mkdir -p $target
   log "creating rootfs in $target"
 }
 
