@@ -189,7 +189,12 @@ create_partitions()
   fi
   if [ -n "$SFDISK" ]; then
     echo " * creating partitions"
-    echo "$SFDISK" | sfdisk --force --wipe=always $disk >/dev/null
+    sfdiskversion=`dpkg -s util-linux | grep ^Version: | sed 's/^Version: //'`
+    wipearg=""
+    if dpkg --compare-versions "$sfdiskversion" gt "2.27.1"; then
+      wipearg="--wipe=always"
+    fi
+    echo "$SFDISK" | sfdisk --force $wiparg $disk >/dev/null
     exit_on_error "Error creating partitions"
   fi
 }
