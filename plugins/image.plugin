@@ -40,5 +40,4 @@ finalize_deployment_image()
   umount_bootstrap
   umount_fs
   log "creating image '$deployment'"
-  deployment=$imagename
 }
