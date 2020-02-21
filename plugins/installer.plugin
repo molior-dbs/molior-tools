@@ -248,7 +248,8 @@ finalize_deployment_installer()
       $INSTALLER_EXTRA_GENISOIMAGE_OPTIONS \
       $WORK_DIR/out/
     exit_on_error "Error running genisoimage"
-    isohybrid $deployment
+    isohybrid $WORK_DIR/$deployment
+    exit_on_error "Error running isohybrid"
 
   elif [ "$ARCH" = "arm64" ]; then
     xorriso -as mkisofs -quiet -o $WORK_DIR/$deployment \
