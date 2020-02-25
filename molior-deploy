@@ -1080,6 +1080,10 @@ install_docker()
     sleep 1
   fi
 
+  if type postinst_docker >/dev/null; then
+      postinst_docker
+  fi
+
   docker_install_cleanup
 }
 
@@ -1200,11 +1204,11 @@ workflow_base()
     log_info "Installing software ..."
     install_deployment
 
-    # enable host network in chroot for postinst
+    # enable DNS in chroot for postinst
     if [ -e $target/etc/resolv.conf -o -h $target/etc/resolv.conf ]; then
       mv $target/etc/resolv.conf $target/etc/resolv.conf.molior-deploy.bak
-      cp -f /etc/resolv.conf $target/etc/resolv.conf
     fi
+    cp -L /etc/resolv.conf $target/etc/resolv.conf
 
     # run postinst_deployment
     if type postinst_deployment >/dev/null; then
@@ -1212,6 +1216,12 @@ workflow_base()
     elif type postinst_deployment_$DEPLOYMENT_TYPE >/dev/null; then
       postinst_deployment_$DEPLOYMENT_TYPE
     fi
+
+    # ensure DNS is still enabled
+    if [ -e $target/etc/resolv.conf -o -h $target/etc/resolv.conf ]; then
+      mv $target/etc/resolv.conf $target/etc/resolv.conf.molior-deploy.bak
+    fi
+    cp -L /etc/resolv.conf $target/etc/resolv.conf
 
     # install docker containers
     if [ -n "$DOCKER_CONTAINERS" -o -n "$DOCKER_COMPOSE_FILE" ]; then
