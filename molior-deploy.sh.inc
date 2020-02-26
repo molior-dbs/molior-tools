@@ -9,10 +9,8 @@ fs_has_luks=0
 
 exit_on_error()
 {
-  RET=$?
-  ERR_MSG=$@
-  if [ "$RET" -ne 0 ]; then
-    log_error "$ERR_MSG"
+  if [ "$?" -ne 0 ]; then
+    log_error "$@"
   fi
 }
 
