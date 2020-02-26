@@ -786,7 +786,7 @@ bootstrap_deployment()
     tar $TAR_PXZ -xf $WORK_DIR/root.tar.xz
     cd - >/dev/null
     rm -f $WORK_DIR/root.tar.xz
-    cp -f /etc/resolv.conf $target/etc/resolv.conf
+    cp -fL /etc/resolv.conf $target/etc/resolv.conf
   else
     log "error downloading debootstrap archive..."
     log "running debootstrap for $SUITE $BASEMIRROR/$BASEVERSION $ARCH"
@@ -1219,9 +1219,6 @@ workflow_base()
     fi
 
     # ensure DNS is still enabled
-    if [ -e $target/etc/resolv.conf -o -h $target/etc/resolv.conf ]; then
-      mv $target/etc/resolv.conf $target/etc/resolv.conf.molior-deploy.bak
-    fi
     cp -L /etc/resolv.conf $target/etc/resolv.conf
 
     # install docker containers
