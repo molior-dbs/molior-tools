@@ -15,6 +15,7 @@ deployment_only=0
 OVERLAY_VERSION=""
 OVERLAY_AUTO=0
 VARIANT="undefined"
+MOLIOR_PROJECTINFO_FILE=""
 
 MOLIOR_TOOLS_VERSION=`cat /usr/lib/molior-tools/version`
 
@@ -1237,6 +1238,11 @@ workflow_base()
     rm -f $target/etc/resolv.conf
     if [ -e $target/etc/resolv.conf.molior-deploy.bak -o -h $target/etc/resolv.conf.molior-deploy.bak ]; then
       mv $target/etc/resolv.conf.molior-deploy.bak $target/etc/resolv.conf
+    fi
+
+    if [ -n "$MOLIOR_PROJECTINFO_FILE" ]; then
+        echo $PROJECT/$VERSION > $target/$MOLIOR_PROJECTINFO_FILE
+        exit_on_error "Error writing project/version to $target/$MOLIOR_PROJECTINFO_FILE"
     fi
 
     if [ $base_only -eq 0 ]; then

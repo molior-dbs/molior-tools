@@ -50,12 +50,13 @@ OPTIONS
 
 COMMON PARAMETERS
 
- DEPLOYMENT_TYPE        Deployment type (plugin) to be used (mandatory)
- ARCH                   Target machine architecture (amd64, i386, armhf, arm64)
- TARGET_HOSTNAME        Hostname to be set
- INSTALL_PACKAGE        Package to be installed (default: top level package with same name as project)
- DEPLOYMENT_COMPRESSION Compression method to be used for output (xz, gzip, none)
- PRESEED_FILE           Debconf preseed file (relative to source repository)
+ DEPLOYMENT_TYPE          Deployment type (plugin) to be used (mandatory)
+ ARCH                     Target machine architecture (amd64, i386, armhf, arm64)
+ TARGET_HOSTNAME          Hostname to be set
+ INSTALL_PACKAGE          Package to be installed (default: top level package with same name as project)
+ DEPLOYMENT_COMPRESSION   Compression method to be used for output (xz, gzip, none)
+ PRESEED_FILE             Debconf preseed file (relative to source repository)
+ MOLIOR_PROJECTINFO_FILE  Write the PROJECT/VERSION to this file in the deployment
 
 FILESYSTEM PARAMETERS
  Partitions and filesystems may be created by defining the following parameters.
