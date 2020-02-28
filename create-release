@@ -1,14 +1,5 @@
 #!/bin/bash
 
-# Increment the given version number
-# on the specified number
-increment_version() {
-    local version="$1"
-    local digit="$2"
-    number_to_increment=$(echo "${version}" | cut -d'.' -f"${digit}")
-    echo "${version}" | awk -v "number=${number_to_increment}" 'BEGIN{FS=OFS="."} {$'"${digit}"' = ++number; print}'
-}
-
 log()
 {
   echo " * $@"
@@ -35,9 +26,7 @@ log_error()
   exit 1
 }
 
-AUTO_INCREMENT=""
-VERSION_POSTFIX=""
-SAME_VERSION=false
+AUTO_INCREMENT=0
 DCH_OPTIONS=""
 NOPUSH=0
 SKIP_CONFIRM=0
@@ -51,9 +40,7 @@ do
         --remote)            REMOTE=$2; shift 2;;
         --skip-edit)         SKIP_EDIT=1; shift 1;;
         --skip-confirm)      SKIP_CONFIRM=1; shift 1;;
-        --auto-increment)    AUTO_INCREMENT="$2"; shift 2;;
-        --same-version)      SAME_VERSION=true; shift;;
-        --version-postfix)   VERSION_POSTFIX="~$2"; shift 2;;
+        --auto-increment)    AUTO_INCREMENT=1; shift 1;;
         --force-bad-version) DCH_OPTIONS="${DCH_OPTIONS} --force-bad-version"; shift;;
         *)                   break ;;
     esac
@@ -136,49 +123,44 @@ if [ -n "$previous_version" ]; then
   rm -f debian/changelog.tmp
 fi
 
-if [ -n "${AUTO_INCREMENT}" ]; then
-    version="$(increment_version "${previous_version}" "${AUTO_INCREMENT}")${VERSION_POSTFIX}"
-    log "Auto incremented ${AUTO_INCREMENT} field of version ${previous_version} to ${version}"
-elif ${SAME_VERSION}; then
-    version="${previous_version}${VERSION_POSTFIX}"
-    log "Used same version as the previous build ('${previous_version}') but appended postfix to it: '${version}'"
-else
-    version=$1
 
-    while [ -z "$version" ]; do
-      echo -n -e "\e[33m\e[1mQ: Please enter version to be released [$next_version]: \e[0m"
-      read version
-      if [ -z "$version" ]; then
-        version=$next_version
-      fi
-      if [ -f debian/source/format ]; then
-        if grep -q native debian/source/format; then
-          if echo "$version" | grep -q -- -; then
-            log_warn "debian/source/format is set to native: version may not contain '-'"
-            version=""
-            continue
-          fi
-        fi
-      fi
-      if ! echo "$version" | grep -q '^\([0-9]\+:\)\?[0-9]\+[0-9a-z.]*\([\~-][0-9a-z.\~-]*\)\?$' ; then
-        log_warn "Invalid Debian version specified"
-        echo -n -e "\e[33m\e[1mQ: Press i to ignore and continue, press Enter to change the version ... \e[0m"
-        read resp
-        if [ "$resp" = "i" ]; then
-          break
-        fi
+version=$1
+
+while [ -z "$version" ]; do
+  if [ $AUTO_INCREMENT -eq 0 ]; then
+    echo -n -e "\e[33m\e[1mQ: Please enter version to be released [$next_version]: \e[0m"
+    read version
+  fi
+  if [ -z "$version" ]; then
+    version=$next_version
+  fi
+  if [ -f debian/source/format ]; then
+    if grep -q native debian/source/format; then
+      if echo "$version" | grep -q -- -; then
+        log_warn "debian/source/format is set to native: version may not contain '-'"
         version=""
         continue
       fi
-      git_version=v$(echo "$version" | tr '~' '-')
-      if ! git tag | grep -q --fixed-strings --line-regex "$git_version"; then
-        break
-      else
-        log "git tag $git_version already exists on $REMOTE"
-        version=""
-      fi
-    done
-fi
+    fi
+  fi
+  if ! echo "$version" | grep -q '^\([0-9]\+:\)\?[0-9]\+[0-9a-z.]*\([\~-][0-9a-z.\~-]*\)\?$' ; then
+    log_warn "Invalid Debian version specified"
+    echo -n -e "\e[33m\e[1mQ: Press i to ignore and continue, press Enter to change the version ... \e[0m"
+    read resp
+    if [ "$resp" = "i" ]; then
+      break
+    fi
+    version=""
+    continue
+  fi
+  git_version=v$(echo "$version" | tr '~' '-')
+  if ! git tag | grep -q --fixed-strings --line-regex "$git_version"; then
+    break
+  else
+    log "git tag $git_version already exists on $REMOTE"
+    version=""
+  fi
+done
 
 log "Updating debian/changelog "
 
