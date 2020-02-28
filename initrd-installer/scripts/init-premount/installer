@@ -128,7 +128,11 @@ else
   echo -n "Downloading install medium ..."
 
   configure_networking
-  tftp -g -l /mnt/source/image.cpio$INSTALLER_COMPRESSION_EXT -r image.cpio$INSTALLER_COMPRESSION_EXT -b 16384 "$ROOTSERVER"
+  if [ -n "$INSTALLER_PXE_IMAGE_URL" ]; then
+    wget -q -O /mnt/source/image.cpio$INSTALLER_COMPRESSION_EXT $INSTALLER_PXE_IMAGE_URL/image.cpio$INSTALLER_COMPRESSION_EXT
+  else
+    tftp -g -l /mnt/source/image.cpio$INSTALLER_COMPRESSION_EXT -r image.cpio$INSTALLER_COMPRESSION_EXT -b 16384 "$ROOTSERVER"
+  fi
 fi
 
 if [ -n "$SOURCEDISK" ]; then
