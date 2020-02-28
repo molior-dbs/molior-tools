@@ -201,6 +201,7 @@ export HOME=/root
 DEPLOYMENT_TYPE=image
 INSTALL_PACKAGE=""
 PRESEED_FILE=""
+REQUIRED_MOLIORTOOLS_VERSION=""
 
 # init
 success=0
@@ -703,6 +704,8 @@ setup_deployment()
   . $SOURCE_DIR/deploy/$VARIANT.conf
   log_notice "Selected deployment type: $DEPLOYMENT_TYPE"
 
+  check_required_version
+
   # load plugin
   if [ ! -e /usr/lib/molior-deploy/plugins/$DEPLOYMENT_TYPE.plugin ]; then
     log "using custom plugin for '$DEPLOYMENT_TYPE'"
@@ -1113,6 +1116,15 @@ docker_install_cleanup()
   exit_on_error "Error mounting $target/proc"
   mountbind /sys $target/sys ro
   exit_on_error "Error mounting $target/sys"
+}
+
+check_required_version()
+{
+    if [ "$REQUIRED_MOLIORTOOLS_VERSION" != "" ]; then
+        log "checking required molior-tools version"
+        dpkg --compare-versions $MOLIOR_TOOLS_VERSION $REQUIRED_MOLIORTOOLS_VERSION
+        exit_on_error "Incompatible version. Required version: $REQUIRED_MOLIORTOOLS_VERSION"
+    fi
 }
 
 # 1st stage: create the base rootfs
