@@ -7,7 +7,8 @@ DESCRIPTION
 OPTIONS
  The deployment configuration (deploy/*.conf file) needs the following setting:
 
- DEPLOYMENT_TYPE    Specify 'pxeinst' to use the pxeinst plugin
+ DEPLOYMENT_TYPE          Specify 'pxeinst' to use the pxeinst plugin
+ INSTALLER_PXE_IMAGE_URL  If set, use this wget URL download the cpio.image.* file, otherwise use tftp
 
  As pxeinst is using the installer, see molior-deploy-installer(8) for other options.
 
