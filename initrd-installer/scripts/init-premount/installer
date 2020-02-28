@@ -387,10 +387,8 @@ umount /mnt/target/dev
 umount /mnt/target/sys
 umount /mnt/target/proc
 
-cp $errlog /mnt/target/var/log
-umount_fs >/dev/null 2>&1
-
 SUCCESS=1
+set +e
 
 endtime=$(date +"%s")
 diff=$(($endtime-$starttime))
@@ -398,6 +396,9 @@ echo " * installation time: $(($diff / 60))min $(($diff % 60))sec"
 echo -n -e "\033[1;32m"
 echo -n "Done ! "
 echo -e "\033[1;m"
+
+cp $errlog /mnt/target/var/log
+umount_fs >/dev/null 2>&1
 
 if [ -n "$SOURCEDISK" ]; then
   eject -rs $SOURCEDISK 2>&1
