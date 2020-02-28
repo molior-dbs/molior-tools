@@ -58,7 +58,7 @@ postinst_deployment_upgrade()
 
   log "upgrading from $UPGRADE_BASE to $UPGRADE_VERSION"
   chroot $target apt-get clean >&2
-  DEBIAN_FRONTEND=noninteractive chroot $target apt-get -y dist-upgrade > $WORK_DIR/upgrade.log
+  DEBIAN_FRONTEND=noninteractive chroot $target apt-get -y -f dist-upgrade > $WORK_DIR/upgrade.log 2>&1
   if [ $? -ne 0 ]; then
     cat $WORK_DIR/upgrade.log >&2
     log_error "Error upgrading from $UPGRADE_BASE to $UPGRADE_VERSION"
