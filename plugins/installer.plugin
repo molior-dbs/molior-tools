@@ -199,10 +199,14 @@ EOF
 
 == APT sources ==
 $APT_SOURCES
+EOF
 
+  if [ -f $WORK_DIR/packages.txt ]; then
+    cat >>$WORK_DIR/out/README.md <<EOF
 == Installed Packages (`wc -l $WORK_DIR/packages.txt`) ==
 `cat $WORK_DIR/packages.txt`
 EOF
+  fi
 
   log "creating image.cpio$INSTALLER_COMPRESSION_EXT"
   cd $target
