@@ -1,5 +1,10 @@
 #!/bin/sh
 
+if [ `id -u` -eq 0 ]; then
+    echo Error: do not run as root >&2
+    exit 1
+fi
+
 set -e
 
 . /usr/lib/molior-tools/molior.sh.inc
@@ -175,11 +180,12 @@ _create_version()
     sed -i "s/target_repo_version:.*$/target_repo_version: '$NEWVERSION'/g" debian/molior.yml
   else
     if [ "$APPEND_VERSION" -ne 1 ]; then
-      for target in `molior-parseconfig target list | grep "^$PROJECT/"`
+      for entry in `molior-parseconfig target list`
       do
-        echo "Removing old version: $target"
-        target_version=`echo $target | cut -d/ -f2`
-        molior-parseconfig target remove "$PROJECT" $target_version
+        target_project=`echo $entry | cut -d/ -f1`
+        target_version=`echo $entry | cut -d/ -f2`
+        echo "Removing target: $target_project/$target_version"
+        molior-parseconfig target remove $target_project $target_version
       done
     fi
 
