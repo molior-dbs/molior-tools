@@ -1219,6 +1219,7 @@ workflow_base()
     fi
 
     # ensure DNS is still enabled
+    rm -f $target/etc/resolv.conf
     cp -L /etc/resolv.conf $target/etc/resolv.conf
 
     # install docker containers
