@@ -43,7 +43,8 @@ OPTIONS
   -f                Build all variants (Default: ask)
   -F OUTPUT_FILE    Custom deployment output's filename
   -d                Print debug output to stdout instead of file
-  -L                Keep log file
+  -t                Text output only, do not print colored output
+  -L                Keep log file for successful runs
 
 COMMON PARAMETERS
 

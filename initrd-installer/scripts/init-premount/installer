@@ -55,6 +55,10 @@ SOURCEDISK=""
 MOUNTOPTS=""
 SUCCESS=0
 
+if [ -z "$INSTALLER_DISK_MIN" ]; then
+  INSTALLER_DISK_MIN=3
+fi
+
 log_error()
 {
   echo -e "\e[31m\e[1mE: $@\e[0m"
@@ -219,7 +223,7 @@ while [ $found -ne 1 ]; do
       fi
       size=$((size / 1024 / 1024 / 1024))
       # FIXME: verify deployment size
-      if [ "$size" -ge 3 ]; then
+      if [ "$size" -ge $INSTALLER_DISK_MIN ]; then
         let idx++ || true
         echo "  $idx) $d    Size: ${size}Gb"
         eval "disk${idx}=$d"
@@ -322,6 +326,9 @@ case $INSTALLER_COMPRESSION in
    gzip)
        gzip -dc /mnt/source/image.cpio$INSTALLER_COMPRESSION_EXT | pv -s $bytes | cpio -B -H newc -imd --no-absolute-filenames 2>/dev/null
    ;;
+   *)
+       log_error "Compression '$INSTALLER_COMPRESSION' not supported"
+   ;;
 esac
 
 exec 2>&4 4>&- # restore logfile
@@ -393,6 +400,7 @@ if [ -n "$SOURCEDISK" ]; then
 fi
 
 if [ "$INSTALLER_ASK_REBOOT" != "no" ]; then
-  echo "=> Please remove install media and press enter to reboot"
+  echo
+  echo "=> Please remove the installation media and press 'Enter' to restart"
   read x
 fi

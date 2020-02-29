@@ -13,7 +13,7 @@ init_deployment_lxd()
 finalize_deployment_lxd()
 {
   deployment=$(get_deployment_filename "tar")
-  log "creating $deployment$DEPLOYMENT_COMPRESSION_EXT"
+  log "creating $deployment"
 
   umount_bootstrap
   umount_fs

@@ -9,6 +9,7 @@ ask_cleanup=1
 user_abort=0
 deploy_all=0
 keep_log=0
+no_color=0
 OVERLAY_VERSION=""
 OVERLAY_AUTO=0
 VARIANT="undefined"
@@ -36,6 +37,7 @@ usage()
   echo "  -f                Build all variants (Default: ask)"
   echo "  -F OUTPUT_FILE    Custom deployment output's filename"
   echo "  -d                Print debug output to stdout instead of file"
+  echo "  -t                Text output only, do not print colored output"
   echo "  -L                Keep log file"
   echo
   echo "Example:"
@@ -49,7 +51,7 @@ usage()
 }
 
 origopts=$@
-while getopts "n:s:v:p:m:a:V:o:F:AlcfdOL" opt; do
+while getopts "n:s:v:p:m:a:V:o:F:tAlcfdOL" opt; do
   case $opt in
     n)
       PACKAGE_NAME=$OPTARG
@@ -113,6 +115,10 @@ while getopts "n:s:v:p:m:a:V:o:F:AlcfdOL" opt; do
       ;;
     L)
       keep_log=1
+      shift 1
+      ;;
+    t)
+      no_color=1
       shift 1
       ;;
     \?)
@@ -288,6 +294,22 @@ abort()
 trap finish EXIT
 trap abort INT
 
+if [ $no_color -ne 1 ]; then
+  color_info="\e[36m\e[1m"
+  color_notice="\e[34m\e[1m"
+  color_warn="\e[35m\e[1m"
+  color_error="\e[31m\e[1m"
+  color_ask="\e[33m\e[1m"
+  color_reset="\e[0m"
+else
+  color_info=""
+  color_notice=""
+  color_warn=""
+  color_error=""
+  color_ask=""
+  color_reset=""
+fi
+
 
 log()
 {
@@ -299,21 +321,21 @@ log()
 log_info()
 {
   if [ "$LIST_ONLY" -eq 0 ]; then
-    /bin/echo -e "\e[36m\e[1mI: $@\e[0m"
+    /bin/echo -e "${color_info}I: $@ $color_reset"
   fi
 }
 
 log_notice()
 {
   if [ "$LIST_ONLY" -eq 0 ]; then
-    /bin/echo -e "\e[34m\e[1mN: $@\e[0m"
+    /bin/echo -e "${color_notice}N: $@ $color_reset"
   fi
 }
 
 log_warn()
 {
   if [ "$LIST_ONLY" -eq 0 ]; then
-    /bin/echo -e "\e[35m\e[1mW: $@\e[0m"
+    /bin/echo -e "${color_warn}W: $@ $color_reset"
   fi
 }
 
@@ -321,8 +343,8 @@ log_error()
 {
   set +x
   LIST_ONLY=0
-  /bin/echo -e "\e[31m\e[1mE: $@\e[0m"
-  if [ -n "$target" -a "$user_abort" -eq 0 ]; then
+  /bin/echo -e "${color_error}E: $@ $color_reset"
+  if [ -n "$target" -a "$user_abort" -eq 0 -a "$ask_cleanup" -eq 1 ]; then
     log_info "examine situation: sudo chroot $target"
   fi
 
@@ -349,7 +371,7 @@ ask()
   if [ "$2" = "N" ]; then
     n="N"
   fi
-  /bin/echo -n -e "\e[33m\e[1mQ: $1 [$y/$n] \e[0m"
+  /bin/echo -n -e "${color_ask}Q: $1 [$y/$n] $color_reset"
   read x
   case "$x" in
     Y|y)
@@ -651,7 +673,7 @@ setup_deployment()
   if [ "$found_variant" -ne 1 ]; then
     while true
     do
-      /bin/echo -n -e "\e[33m\e[1mQ: Please choose a deployment variant:\n`echo $variants | tr ' ' '\n' | sed 's/^/ > /'`\nEnter variant: \e[0m"
+      /bin/echo -n -e "${color_ask}Q: Please choose a deployment variant:\n`echo $variants | tr ' ' '\n' | sed 's/^/ > /'`\nEnter variant: $color_reset"
       read VARIANT
       if [ -z "$VARIANT" ]; then
         log_warn "No deployment variant choosen, aborting ..."
@@ -906,7 +928,7 @@ install_deployment()
   exit_on_error "Error installing software"
 
   chroot $target apt-get clean >&2
-  INSTALLED_PACKAGES=`chroot $target dpkg -l | tail -n +6 | awk '{ printf "%-42s %s\n", $2, $3 }'`
+  chroot $target dpkg -l | tail -n +6 | awk '{ printf "%-42s %s\n", $2, $3 }' >$WORK_DIR/packages.txt
 }
 
 cleanup_deployment()
@@ -980,13 +1002,116 @@ init_deployment_dir()
   log "creating rootfs in $target"
 }
 
-# disable comflicting binfmts
+install_docker()
+{
+  if [ -z "$DOCKER_COMPOSE_FILE" ]; then
+      if [ -z "$DOCKER_CONTAINERS" ]; then
+          return  # nothing to do
+      fi
+      # only pull DOCKER_CONTAINERS
+  elif [ -z "$DOCKER_CONTAINERS" ]; then
+    DOCKER_CONTAINERS=`grep -v -P '^[ \t]*#' $target/$DOCKER_COMPOSE_FILE | grep "image:" | awk '{ print $2 }'`
+    if [ -z "$DOCKER_CONTAINERS" ]; then
+      log_error "Cannot find images in DOCKER_COMPOSE_FILE $target/$DOCKER_COMPOSE_FILE"
+    fi
+  fi
+
+  log_info "Installing docker containers ..."
+
+
+  # prepare filesystem
+  umount $target/sys
+  exit_on_error "Error unmouting /sys"
+  umount $target/proc
+  exit_on_error "Error unmouting /proc"
+
+  docker_root_remount=0
+  if ! mountpoint -q $target; then
+    docker_root_remount=1
+    mount -o bind $target $target
+  fi
+  mount proc -t proc $target/proc
+  exit_on_error "Error mouting /proc rw"
+  mount sys -t sysfs $target/sys
+  exit_on_error "Error mouting /sys rw"
+  mkdir -p $target/run/systemd/journal
+  mount --bind /run/systemd/journal $target/run/systemd/journal
+  exit_on_error "Error mounting /run/systemd/journal"
+  chroot $target cgroupfs-mount >&2
+
+  # start docker
+  chroot $target sh -c '. /etc/default/docker; exec /usr/sbin/dockerd -H unix:// $DOCKER_OPTS' >&2 &
+  dockerpid=$!
+  sleep 5
+
+  # pull containers
+  echo "$DOCKER_CONTAINERS" | (while IFS= read -r container
+  do
+    if echo "$container" | grep -q "^#"; then
+      continue
+    fi
+    if echo "$container" | grep -q "^[\t ]*$"; then
+      continue
+    fi
+    log "docker pull $container"
+    chroot $target docker pull "$container" >&2
+    RET=$?
+    if [ "$RET" -ne 0 ]; then
+        exit $RET
+    fi
+  done)
+  if [ "$?" -ne 0 ]; then
+    docker_install_cleanup
+    log_error "Error pulling docker container $container"
+  fi
+
+  if [ -n "$DOCKER_COMPOSE_FILE" ]; then
+    log "docker compose"
+    chroot $target docker-compose --no-ansi -f $DOCKER_COMPOSE_FILE up --no-start >&2
+    if [ "$?" -ne 0 ]; then
+      docker_install_cleanup
+      log_error "Error running docker-compose"
+    fi
+    sleep 1
+  fi
+
+  docker_install_cleanup
+}
+
+docker_install_cleanup()
+{
+  # stop docker
+  kill $dockerpid
+  if [ "$?" -ne 0 ]; then
+    docker_install_cleanup
+    log_error "kill dockerpid unsuccessful"
+  fi
+  sleep 5
+
+  # cleaup filesystems
+  umount $target/run/systemd/journal
+  chroot $target cgroupfs-umount >&2
+  umount $target/sys/fs/cgroup
+  umount $target/sys
+  umount $target/proc
+  if [ $docker_root_remount -eq 1 ]; then
+    umount $target
+  fi
+
+  # restore bootstrap mounts
+  mountbind /proc $target/proc ro
+  exit_on_error "Error mounting $target/proc"
+  mountbind /sys $target/sys ro
+  exit_on_error "Error mounting $target/sys"
+}
+
+# disable conflicting binfmts
 for b in $BADFMTS
 do
   update-binfmts --disable $b >&2
 done
 
-# workflow
+# main workflow
 setup_deployment
 
 if type precond_deployment >/dev/null; then
@@ -1018,7 +1143,7 @@ if [ -n "$REQUIRED_HOST_COMMANDS" ]; then
   if [ "$ok" -eq 0 ]; then
     ask_cleanup=0
     user_abort=1
-    log_error "Please install missing commands"
+    log_error "Please install missing packages (i.e. sudo apt install $REQUIRED_PACKAGES)"
   fi
 fi
 
@@ -1057,6 +1182,11 @@ elif type postinst_deployment_$DEPLOYMENT_TYPE >/dev/null; then
   postinst_deployment_$DEPLOYMENT_TYPE
 fi
 
+# install docker containers
+if [ -n "$DOCKER_CONTAINERS" -o -n "$DOCKER_COMPOSE_FILE" ]; then
+  install_docker
+fi
+
 # run postinst_internal_deployment
 if type postinst_internal_deployment_$DEPLOYMENT_TYPE >/dev/null; then
   postinst_internal_deployment_$DEPLOYMENT_TYPE
@@ -1077,6 +1207,7 @@ if [ -n "$INSTALL_GRUB" ]; then
 fi
 
 cleanup_deployment
+
 log_info "Creating deployment ..."
 if type finalize_deployment >/dev/null; then
   finalize_deployment
@@ -1086,17 +1217,18 @@ fi
 
 if [ -f $WORK_DIR/$deployment ]; then
   # compress if requested
-  if [ do_compress -eq 1 ]; then
+  if [ $do_compress -eq 1 ]; then
+    log "compressing $deployment$DEPLOYMENT_COMPRESSION_EXT"
     case $DEPLOYMENT_COMPRESSION in
         none)
         ;;
         xz)
-           $PXZ_CMD $WORK_DIR/$deployment
+           $PXZ_CMD $WORK_DIR/$deployment >&2
            exit_on_error "Error compressing $deployment"
            deployment=$deployment.xz
         ;;
         gzip)
-           gzip $WORK_DIR/$deployment
+           gzip $WORK_DIR/$deployment >&2
            exit_on_error "Error compressing $deployment"
            deployment=$deployment.gz
         ;;
@@ -1106,7 +1238,7 @@ if [ -f $WORK_DIR/$deployment ]; then
   # move deployment to current dir, fix permissions if possible
   mv $WORK_DIR/$deployment ./
   if [ -n "$SUDO_UID" -a -n "$SUDO_GID" ]; then
-    chown $SUDO_UID:$SUDO_GID $deployment
+    chown $SUDO_UID:$SUDO_GID $deployment >&2
   fi
 elif [ ! -f ./$deployment ]; then
     log_error "Deployment not found: $WORK_DIR/$deployment"

@@ -189,7 +189,8 @@ create_partitions()
   fi
   if [ -n "$SFDISK" ]; then
     echo " * creating partitions"
-    echo "$SFDISK" | sfdisk --force $disk >/dev/null
+    echo "$SFDISK" | sfdisk --force --wipe=always $disk >/dev/null
+    exit_on_error "Error creating partitions"
   fi
 }
 
@@ -667,5 +668,6 @@ get_deploy_config()
   echo "INSTALLER_BOOTTYPE=\"$INSTALLER_BOOTTYPE\""
   echo "INSTALLER_COMPRESSION=\"$INSTALLER_COMPRESSION\""
   echo "INSTALLER_COMPRESSION_EXT=\"$INSTALLER_COMPRESSION_EXT\""
+  echo "INSTALLER_DISK_MIN=\"$INSTALLER_DISK_MIN\""
 }
 

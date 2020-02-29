@@ -9,7 +9,7 @@ preinit_deployment_image()
 init_deployment_image()
 {
   # FIXME: escape vars
-  imagename==$(get_deployment_filename "img")
+  imagename=$(get_deployment_filename "img")
   log "creating $IMAGESIZE $WORK_DIR/$imagename"
   fallocate -l $IMAGESIZE $WORK_DIR/$imagename
   exit_on_error "Error creating $WORK_DIR/$imagename"
