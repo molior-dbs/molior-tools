@@ -9,17 +9,17 @@ preinit_deployment_upgrade()
 init_deployment_upgrade()
 {
   init_deployment_dir
-  BASE_VERSION=`echo $VARIANT | sed -n 's/^[a-zA-Z0-9-]\+-upgrade-\([a-zA-Z0-9-]\+\)/\1/p'`
+  UPGRADE_BASE=`echo $VARIANT | sed -n 's/^[a-zA-Z0-9-]\+-upgrade-\([a-zA-Z0-9-]\+\)/\1/p'`
   # changing VERSION to contain the base version to be upgraded from
   # this will do a debootstrap and deployment install for the old
   # to be upgraded version
   UPGRADE_VERSION=$VERSION # remember the version to be upgraded to
-  VERSION=$BASE_VERSION
+  VERSION=$UPGRADE_BASE
   if [ -z "$VERSION" ]; then
     log_error "Could not extract project version for upgrading. Please name the deployment configuration file \$VARIANT-upgrade-\$PROJECTVERSION.conf"
   fi
 
-  log " * initializing upgradable deployment for $PROJECT/$VERSION"
+  log "initializing upgradeable deployment for $PROJECT/$VERSION"
   SOURCESURL=$MOLIOR_SERVER/api/projectsources/$PROJECT/$VERSION
   APT_SOURCES_ORIG=`wget -q -O- $SOURCESURL`
   if [ -z "$APT_SOURCES" ]; then
@@ -30,7 +30,15 @@ init_deployment_upgrade()
   SUITE=`dirname $MIRROR`
   REPOURL=`dirname $SUITE`
   SUITE=`basename $SUITE`
-  log " * mirror: $MIRROR"
+  BASEMIRROR=`basename $tmp`
+  BASEVERSION=`basename $MIRROR`
+  log "old mirror: $MIRROR"
+
+  # keep work dir small
+  MINIMIZE=1
+
+  # output directory
+  mkdir -p $WORK_DIR/upgrade-package
 }
 
 postinst_deployment_upgrade()
@@ -38,22 +46,26 @@ postinst_deployment_upgrade()
   # restore the version to be upgraded to
   VERSION=$UPGRADE_VERSION
 
-  log " * downloading APT sources for $PROJECT/$VERSION"
+  log "downloading APT sources for $PROJECT/$VERSION"
   SOURCESURL=$MOLIOR_SERVER/api/projectsources/$PROJECT/$VERSION
   APT_SOURCES_ORIG=`wget -q -O- $SOURCESURL`
   echo "$APT_SOURCES_ORIG" > $target/etc/apt/sources.list
   exit_on_error "Error downloading APT sources"
 
-  log " * updating APT database"
+  log "updating APT database"
   chroot $target apt-get update >&2
   exit_on_error "Error updating APT database"
 
-  log " * downloading upgraded/new debian packages"
-  chroot $target apt-get --download-only -y dist-upgrade > $WORK_DIR/apt.log
-  exit_on_error "Error downloading upgraded/new debian packages"
+  log "upgrading from $UPGRADE_BASE to $UPGRADE_VERSION"
+  chroot $target apt-get clean >&2
+  DEBIAN_FRONTEND=noninteractive chroot $target apt-get -y -f dist-upgrade > $WORK_DIR/upgrade.log 2>&1
+  if [ $? -ne 0 ]; then
+    cat $WORK_DIR/upgrade.log >&2
+    log_error "Error upgrading from $UPGRADE_BASE to $UPGRADE_VERSION"
+  fi
 
-  grep "^Get:" $WORK_DIR/apt.log | cut -d ' ' -f 2,5 | sed 's#.*/\(.\+/.\+\) \(.\+\)#\1 \2#' | sort > $WORK_DIR/dpkgs.list
-  log " * copying `wc -l < $WORK_DIR/dpkgs.list` debian packages to APT repository"
+  grep "^Get:" $WORK_DIR/upgrade.log | cut -d ' ' -f 2,5 | sed 's#.*/\(.\+/.\+\) \(.\+\)#\1 \2#' | sort > $WORK_DIR/dpkgs.list
+  log "copying `wc -l < $WORK_DIR/dpkgs.list` debian packages to APT repository"
   while read line
   do
     path=`echo $line | cut -d ' ' -f 1`;
@@ -67,7 +79,7 @@ postinst_deployment_upgrade()
 finalize_deployment_upgrade()
 {
   deployment=$(get_deployment_filename "tar")
-  log " * creating Packages and Release files"
+  log "creating Packages and Release files"
   mkdir -p $WORK_DIR/debian/dists/$PROJECT/$VERSION/stable/binary-$ARCH
   cd $WORK_DIR/debian
   apt-ftparchive --arch $ARCH packages pool/ > dists/$PROJECT/$VERSION/stable/binary-$ARCH/Packages
@@ -113,20 +125,24 @@ Depending on the upgraded or newly installed packages, a system restart may be r
 sudo reboot
 
 EOF
-  mv $WORK_DIR/apt.log $WORK_DIR/debian/
+  mv $WORK_DIR/upgrade.log $WORK_DIR/debian/
   cd - >/dev/null
 
-  log " * creating APT repository archive"
+  log "creating APT repository archive"
 
-  mkdir $WORK_DIR/offlinerepo
-  mv $WORK_DIR/debian $WORK_DIR/offlinerepo/
+  mv $WORK_DIR/debian $WORK_DIR/upgrade-package/
 
   if [ -n "$UPGRADE_EXTRA_DIR" ]; then
-    cp -ar $SOURCE_DIR/$UPGRADE_EXTRA_DIR/* $WORK_DIR/offlinerepo/
-    exit_on_error "Error copying $WORK_DIR/$PROJECT/$UPGRADE_EXTRA_DIR/* to offlinerepo"
+    cp -ar $SOURCE_DIR/$UPGRADE_EXTRA_DIR/* $WORK_DIR/upgrade-package/
+    exit_on_error "Error copying $WORK_DIR/$PROJECT/$UPGRADE_EXTRA_DIR/* to upgrade-package"
   fi
 
-  cd $WORK_DIR/offlinerepo
+  # hook for signing, ...
+  if type prepack_upgrade >/dev/null; then
+    prepack_upgrade
+  fi
+
+  cd $WORK_DIR/upgrade-package
   tar -cf $WORK_DIR/$deployment *
   cd - >/dev/null
 }

@@ -9,10 +9,8 @@ fs_has_luks=0
 
 exit_on_error()
 {
-  RET=$?
-  ERR_MSG=$@
-  if [ "$RET" -ne 0 ]; then
-    log_error "$ERR_MSG"
+  if [ "$?" -ne 0 ]; then
+    log_error "$@"
   fi
 }
 
@@ -189,7 +187,12 @@ create_partitions()
   fi
   if [ -n "$SFDISK" ]; then
     echo " * creating partitions"
-    echo "$SFDISK" | sfdisk --force --wipe=always $disk >/dev/null
+    sfdiskversion=`dpkg -s util-linux | grep ^Version: | sed 's/^Version: //'`
+    wipearg=""
+    if dpkg --compare-versions "$sfdiskversion" gt "2.27.1"; then
+      wipearg="--wipe=always"
+    fi
+    echo "$SFDISK" | sfdisk --force $wiparg $disk >/dev/null
     exit_on_error "Error creating partitions"
   fi
 }

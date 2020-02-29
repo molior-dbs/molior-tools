@@ -75,6 +75,12 @@ prepare_initrd_deployment()
   if [ "$fs_has_luks" -eq 1 ]; then
     INSTALLER_EXTRA_PACKAGES="$INSTALLER_EXTRA_PACKAGES cryptsetup"
   fi
+  if [ ! -d $WORK_DIR/instroot ]; then
+    # in case of useing a base roots, there is no instroot debootstrap left,
+    # copy full rootfs for creating the initrd
+    cp -ar $target $WORK_DIR/instroot
+    chroot $WORK_DIR/instroot apt-get update >&2
+  fi
   chroot $WORK_DIR/instroot apt-get install --no-install-recommends --yes \
     $INSTALLER_EXTRA_PACKAGES \
     linux-image-$KERNEL_ARCH \
@@ -242,7 +248,8 @@ finalize_deployment_installer()
       $INSTALLER_EXTRA_GENISOIMAGE_OPTIONS \
       $WORK_DIR/out/
     exit_on_error "Error running genisoimage"
-    isohybrid $deployment
+    isohybrid $WORK_DIR/$deployment
+    exit_on_error "Error running isohybrid"
 
   elif [ "$ARCH" = "arm64" ]; then
     xorriso -as mkisofs -quiet -o $WORK_DIR/$deployment \
