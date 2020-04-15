@@ -52,6 +52,7 @@ postinst_internal_deployment_info()
   chroot $target apt-get -y install debsecan debsums 1>&2
   exit_on_error "Error installing: debsecan debsums"
 
+  export SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
   chroot $target debsecan > $WORK_DIR/info/$debsecan_complete_file
   exit_on_error "Error running debsecan"
 
