@@ -12,6 +12,7 @@ keep_log=0
 no_color=0
 base_only=0
 deployment_only=0
+DEPLOYMENT_SHA256=0
 OVERLAY_VERSION=""
 OVERLAY_AUTO=0
 VARIANT="undefined"
@@ -1251,6 +1252,7 @@ workflow_base()
     fi
 
     if [ -n "$MOLIOR_PROJECTINFO_FILE" ]; then
+        mkdir -p `dirname $target/$MOLIOR_PROJECTINFO_FILE`
         echo $PROJECT/$VERSION > $target/$MOLIOR_PROJECTINFO_FILE
         exit_on_error "Error writing project/version to $target/$MOLIOR_PROJECTINFO_FILE"
     fi
@@ -1301,8 +1303,21 @@ workflow_deployment()
     esac
   fi
 
+  if [ $DEPLOYMENT_SHA256 -eq 1 ]; then
+    if [ -z "$SHA256EXT" ]; then
+      SHA256EXT=sha256
+    fi
+    sha256sum $WORK_DIR/$deployment > $WORK_DIR/$deployment.$SHA256EXT
+    exit_on_error "Error sha256sum"
+    mv $WORK_DIR/$deployment.$SHA256EXT ./
+    if [ -n "$SUDO_UID" -a -n "$SUDO_GID" ]; then
+      chown $SUDO_UID:$SUDO_GID $deployment.$SHA256EXT
+    fi
+  fi
+
   # move deployment to current dir, fix permissions if possible
   mv $WORK_DIR/$deployment ./
+
   if [ -n "$SUDO_UID" -a -n "$SUDO_GID" ]; then
     chown $SUDO_UID:$SUDO_GID $deployment
   fi
