@@ -1252,6 +1252,7 @@ workflow_base()
     fi
 
     if [ -n "$MOLIOR_PROJECTINFO_FILE" ]; then
+        mkdir -p `dirname $target/$MOLIOR_PROJECTINFO_FILE`
         echo $PROJECT/$VERSION > $target/$MOLIOR_PROJECTINFO_FILE
         exit_on_error "Error writing project/version to $target/$MOLIOR_PROJECTINFO_FILE"
     fi
