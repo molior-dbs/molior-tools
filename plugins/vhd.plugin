@@ -75,7 +75,5 @@ finalize_deployment_vhd()
   umount_bootstrap
   umount_fs
   deinit_deployment
-
-  echo " * creating VHD disk '$deployment'"
 }
 
