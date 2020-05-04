@@ -18,9 +18,17 @@ init_deployment_vhd()
   fi
 
   # FIXME check VMSIZE
-  echo " * creating VHD disk of ${VMSIZE}M ($VHD_SUBFORMAT)"
+  if [ -z "$VHD_SIZE" ]; then
+    if [ -z "$VMSIZE" ]; then
+      VHD_SIZE=${VMSIZE}M
+    else
+      log_error "please set VHD_SIZE"
+    fi
+  fi
+
+  echo " * creating VHD disk of $VHD_SIZE ($VHD_SUBFORMAT)"
   VMDISK=$WORK_DIR/$deployment
-  qemu-img create -f vpc -o subformat=$VHD_SUBFORMAT $VMDISK ${VMSIZE}M >&2
+  qemu-img create -f vpc -o subformat=$VHD_SUBFORMAT $VMDISK $VHD_SIZE >&2
   exit_on_error "Error creating $VMDISK"
 
   if ! grep -q "^nbd " /proc/modules; then
