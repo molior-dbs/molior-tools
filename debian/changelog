@@ -1,3 +1,28 @@
+molior-tools (1.4.0~alpha1) stretch; urgency=medium
+
+  * build for 1.4.0
+  * molior-deploy: create missing directory for projectinfo file
+  * molior-deploy: info use ca certificates for debsecan
+  * molior-deploy: vhd: support setting subformat
+  * molior-deploy: support sha256 sums
+  * molior-deploy: pxe: support wgetting image
+  * molior-deploy: check MOLIOR_TOOLS_VERSION against required version
+  * molior-project-manager: remove all old targets
+  * create-release: simplify auto-increment
+  * molior-deploy: upgrade: force removing of packages
+  * molior-deploy: fix resolv.conf handling
+  * molior-deploy: simplify exit_on_error
+  * molior-deploy: support MOLIOR_PROJECTINFO_FILE
+  * molior-deploy: prevent service command in chroot
+  * molior-deploy: improve upgrade plugin
+  * molior-deploy: fix isohybrid call
+  * molior-deploy: make dynamic vhd image
+  * molior-deploy: fix upgrade plugin
+  * deploy: fix pxe path
+  * ...
+
+ -- André Roth <neolynx@gmail.com>  Tue, 19 May 2020 14:29:33 +0000
+
 molior-tools (1.3.3) stretch; urgency=medium
 
   * molior-deploy: fix LVM vg rename
