@@ -1,3 +1,9 @@
+molior-tools (1.4.0~alpha2) stretch; urgency=medium
+
+  * build for molior 1.4
+
+ -- André Roth <neolynx@gmail.com>  Tue, 26 May 2020 18:19:46 +0200
+
 molior-tools (1.4.0~alpha1) stretch; urgency=medium
 
   * build for 1.4.0
