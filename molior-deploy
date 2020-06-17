@@ -1020,14 +1020,13 @@ install_docker()
       fi
       # only pull DOCKER_CONTAINERS
   elif [ -z "$DOCKER_CONTAINERS" ]; then
-    DOCKER_CONTAINERS=`grep -v -P '^[ \t]*#' $target/$DOCKER_COMPOSE_FILE | grep "image:" | awk '{ print $2 }'`
-    if [ -z "$DOCKER_CONTAINERS" ]; then
+    docker_containers=`grep -v -P '^[ \t]*#' $target/$DOCKER_COMPOSE_FILE | grep "image:" | awk '{ print $2 }'`
+    if [ -z "$docker_containers" ]; then
       log_error "Cannot find images in DOCKER_COMPOSE_FILE $target/$DOCKER_COMPOSE_FILE"
     fi
+  else
+    docker_containers=$DOCKER_CONTAINERS
   fi
-
-  log_info "Installing docker containers ..."
-
 
   # prepare filesystem
   umount $target/sys
@@ -1055,7 +1054,9 @@ install_docker()
   sleep 5
 
   # pull containers
-  echo "$DOCKER_CONTAINERS" | (while IFS= read -r container
+  total_docker_images=`echo "$docker_containers" | wc -l`
+  i=1
+  echo "$docker_containers" | (while IFS= read -r container
   do
     if echo "$container" | grep -q "^#"; then
       continue
@@ -1063,12 +1064,13 @@ install_docker()
     if echo "$container" | grep -q "^[\t ]*$"; then
       continue
     fi
-    log "docker pull $container"
+    log "docker pull $container ($i/$total_docker_images)"
     chroot $target docker pull "$container" >&2
     RET=$?
     if [ "$RET" -ne 0 ]; then
         exit $RET
     fi
+    i=$((i + 1))
   done)
   if [ "$?" -ne 0 ]; then
     docker_install_cleanup
@@ -1076,11 +1078,11 @@ install_docker()
   fi
 
   if [ -n "$DOCKER_COMPOSE_FILE" ]; then
-    log "docker compose"
+    log "running docker compose up"
     chroot $target docker-compose --no-ansi -f $DOCKER_COMPOSE_FILE up --no-start >&2
     if [ "$?" -ne 0 ]; then
       docker_install_cleanup
-      log_error "Error running docker-compose"
+      log_error "Error running docker-compose up"
     fi
     sleep 1
   fi
@@ -1237,6 +1239,7 @@ workflow_base()
 
     # install docker containers
     if [ -n "$DOCKER_CONTAINERS" -o -n "$DOCKER_COMPOSE_FILE" ]; then
+      log_info "Installing docker containers ..."
       install_docker
     fi
 
