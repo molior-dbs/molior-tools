@@ -206,6 +206,7 @@ REQUIRED_MOLIORTOOLS_VERSION=""
 
 # init
 success=0
+CUR_DIR=`pwd`
 WORK_DIR=`mktemp -d /tmp/molior-XXXXXXXX`
 chmod 755 $WORK_DIR
 errlog=$WORK_DIR/output.log
@@ -279,7 +280,7 @@ finish ()
   if [ "$user_abort" -eq 0 ]; then
     if [ "$success" -ne 1 -o "$keep_log" -eq 1 ]; then
       logfile=`date "+${PROJECT}_${VERSION}_${VARIANT}_%Y%m%d%H%M%S.log"`
-      cp $errlog $logfile
+      cp $errlog $CUR_DIR/$logfile
       test "$success" -ne 1 && log_info "full log: $logfile"
     fi
   fi
@@ -294,7 +295,8 @@ finish ()
     return 1
   fi
   if [ -n "$deployment" ]; then
-    log_notice "Deployment created in $((diff / 60))m$((diff % 60))s: $deployment"
+      size=`ls -lh $CUR_DIR/$deployment | cut -d ' ' -f5`
+      log_notice "Deployment created in $((diff / 60))m$((diff % 60))s: $deployment ($size)"
   fi
 }
 
@@ -624,6 +626,7 @@ setup_deployment()
       log "using package source: $SOURCES_VERSION"
     else
       wget -q -O $WORK_DIR/Sources $MIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$DIST/main/source/Sources
+      # FIXME: check if exists...
       if [ `wc -l $WORK_DIR/Sources 2>/dev/null` -eq 0 ]; then
         log_error "Could not download $MIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$DIST/main/source/Sources"
       fi
@@ -770,6 +773,9 @@ bootstrap_deployment()
   i=0
   for url in $KEY_URL $APT_KEYS_EXTRA
   do
+    if [ -z "$url" ]; then
+      continue
+    fi
     if [ $i -ne 0 ]; then
       postfix=".$i"
     else
@@ -1312,17 +1318,18 @@ workflow_deployment()
     fi
     sha256sum $WORK_DIR/$deployment > $WORK_DIR/$deployment.$SHA256EXT
     exit_on_error "Error sha256sum"
-    mv $WORK_DIR/$deployment.$SHA256EXT ./
+    mv $WORK_DIR/$deployment.$SHA256EXT $CUR_DIR
     if [ -n "$SUDO_UID" -a -n "$SUDO_GID" ]; then
-      chown $SUDO_UID:$SUDO_GID $deployment.$SHA256EXT
+      chown $SUDO_UID:$SUDO_GID $CUR_DIR/$deployment.$SHA256EXT
     fi
   fi
 
-  # move deployment to current dir, fix permissions if possible
-  mv $WORK_DIR/$deployment ./
+  # move deployment to current dir, fix ownership if possible
+  mv $WORK_DIR/$deployment $CUR_DIR/
+  exit_on_error "Error moving deployment"
 
   if [ -n "$SUDO_UID" -a -n "$SUDO_GID" ]; then
-    chown $SUDO_UID:$SUDO_GID $deployment
+    chown $SUDO_UID:$SUDO_GID $CUR_DIR/$deployment
   fi
 
   # deinitialize stuff
@@ -1332,7 +1339,6 @@ workflow_deployment()
     deinit_deployment_$DEPLOYMENT_TYPE
   fi
 
-  # everything hunky dory :-)
   success=1
 }
 
