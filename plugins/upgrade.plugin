@@ -43,6 +43,8 @@ init_deployment_upgrade()
 
 postinst_deployment_upgrade()
 {
+  log_info "Upgrading $PROJECT $VERSION to $UPGRADE_VERSION ..."
+
   # restore the version to be upgraded to
   VERSION=$UPGRADE_VERSION
 
