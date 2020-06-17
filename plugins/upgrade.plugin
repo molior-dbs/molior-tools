@@ -43,6 +43,10 @@ init_deployment_upgrade()
 
 postinst_deployment_upgrade()
 {
+  if type pre_upgrade_deployment >/dev/null; then
+    pre_upgrade_deployment
+  fi
+
   log_info "Upgrading $PROJECT $VERSION to $UPGRADE_VERSION ..."
 
   # restore the version to be upgraded to
@@ -76,6 +80,10 @@ postinst_deployment_upgrade()
     mv $target/var/cache/apt/archives/${pkg}_*.deb $WORK_DIR/debian/pool/$path/
   done < $WORK_DIR/dpkgs.list
   rm -f $WORK_DIR/dpkgs.list
+
+  if type post_upgrade_deployment >/dev/null; then
+    post_upgrade_deployment
+  fi
 }
 
 finalize_deployment_upgrade()
