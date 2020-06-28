@@ -3,6 +3,20 @@
 
 INITRDINST=/usr/lib/molior-deploy/initrd-installer
 
+create_efi_image()
+{
+  mkfs.msdos -v -C "$WORK_DIR/efi.img" 4096 >/dev/null
+  mmd -i "$WORK_DIR/efi.img" ::efi
+  mmd -i "$WORK_DIR/efi.img" ::efi/boot
+  mmd -i "$WORK_DIR/efi.img" ::boot
+  mmd -i "$WORK_DIR/efi.img" ::boot/grub
+  exit_on_error "Error copying efi files to boot image"
+  mcopy -o -i "$WORK_DIR/efi.img" $WORK_DIR/$EFIFILE "::efi/boot"
+  exit_on_error "Error copying efi files to boot image"
+  mcopy -s -o -i "$WORK_DIR/efi.img" $WORK_DIR/out/boot/grub/* "::boot/grub"
+  exit_on_error "Error copying efi files to boot image"
+}
+
 preinit_deployment_installer()
 {
   REQUIRED_HOST_COMMANDS="isohybrid genisoimage xorriso mcopy mmd"
@@ -75,26 +89,22 @@ prepare_initrd_deployment()
   if [ "$fs_has_luks" -eq 1 ]; then
     INSTALLER_EXTRA_PACKAGES="$INSTALLER_EXTRA_PACKAGES cryptsetup"
   fi
+
   if [ ! -d $WORK_DIR/instroot ]; then
-    # in case of useing a base roots, there is no instroot debootstrap left,
+    # in case of using a base roots, there is no instroot debootstrap left,
     # copy full rootfs for creating the initrd
     cp -ar $target $WORK_DIR/instroot
     chroot $WORK_DIR/instroot apt-get update >&2
   fi
+
   chroot $WORK_DIR/instroot apt-get install --no-install-recommends --yes \
-    $INSTALLER_EXTRA_PACKAGES \
-    linux-image-$KERNEL_ARCH \
-    busybox \
-    initramfs-tools \
-    isolinux \
-    syslinux-common \
-    xz-utils \
-    pv \
-    util-linux \
-    eject \
-    >&2
+    $INSTALLER_EXTRA_PACKAGES linux-image-$KERNEL_ARCH \
+    busybox initramfs-tools isolinux syslinux-common \
+    xz-utils pv util-linux eject >&2
   exit_on_error "Error installing initrd packages"
+
   chroot $WORK_DIR/instroot apt-get clean >&2
+
   initrd=$WORK_DIR/instroot/etc/initramfs-tools
   rm -rf $initrd
   cp -ar $INITRDINST $initrd
@@ -105,7 +115,6 @@ prepare_initrd_deployment()
   fi
 
   get_deploy_config >> $initrd/scripts/install.conf
-
   cp /usr/lib/molior-deploy/molior-deploy.sh.inc $initrd/scripts/
 
   if [ "$fs_has_luks" -eq 1 ]; then
@@ -115,14 +124,23 @@ prepare_initrd_deployment()
   fi
 
   if [ "$INSTALLER_BOOTTYPE" = "efi" ]; then
-    cat >$initrd/hooks/mkfs.vfat <<EOF
-#!/bin/bash
+    echo i915 >> $initrd/modules
+    cat >$initrd/hooks/mkfs.vfat <<'EOF'
+#!/bin/sh
 
-case \$1 in
-prereqs)
-        prereqs
-        exit 0
-        ;;
+PREREQ=""
+
+# Output pre-requisites
+prereqs()
+{
+  echo "$PREREQ"
+}
+
+case "$1" in
+  prereqs)
+    prereqs
+    exit 0
+    ;;
 esac
 
 . /usr/share/initramfs-tools/hook-functions
@@ -144,45 +162,31 @@ EOF
     cat >$WORK_DIR/out/boot/grub/grub.cfg <<EOF
 search --file --set=root /image.cpio$INSTALLER_COMPRESSION_EXT
 insmod all_video
-linux /vmlinuz quiet
+set gfxpayload=keep
+set linux_gfx_mode=1024x768x32
+linux /vmlinuz
 initrd /initrd.img
 boot
 EOF
     chroot $WORK_DIR/instroot grub-mkimage -O $GRUBEFITYPE -p /boot/grub -o /boot/$EFIFILE \
-                                           part_msdos part_gpt fat iso9660 search
+                                            boot linux search normal configfile \
+                                            part_gpt btrfs fat iso9660 loopback \
+                                            test keystatus gfxmenu regexp probe \
+                                            efi_gop efi_uga all_video gfxterm font \
+                                            read ls cat png jpeg halt reboot echo sleep
     exit_on_error "Error creating grub image"
-
-    mkdir -p $WORK_DIR/out/efi/boot/
-    cp $WORK_DIR/instroot/boot/$EFIFILE $WORK_DIR/out/efi/boot/
+    mv $WORK_DIR/instroot/boot/$EFIFILE $WORK_DIR/
 
     if [ "$ARCH" = "arm64" ]; then
-      mkdir $WORK_DIR/debian-installer
-      cd $WORK_DIR/debian-installer
-      wget -q $MIRROR/dists/$SUITE/main/installer-arm64/current/images/cdrom/debian-cd_info.tar.gz
-      exit_on_error "Error downloading $MIRROR/dists/$SUITE/main/installer-arm64/current/images/cdrom/debian-cd_info.tar.gz"
-
-      tar xf debian-cd_info.tar.gz ./grub/efi.img
-      exit_on_error "Error grub/efi.img not found in debian-cd_info.tar.gz"
-
-      mcopy -i grub/efi.img ::efi/boot/bootaa64.efi $WORK_DIR/out/efi/boot/bootaa64.efi
-      exit_on_error "Error copying bootaa64.efi"
-
-      cd - >/dev/null
-
-      # copyed from debian-cd installer
-      blocks=2048
-      rm -f $WORK_DIR/out/boot/grub/efi.img
-      mkfs.msdos -v -C "$WORK_DIR/out/boot/grub/efi.img" $blocks >/dev/null
-      mmd -i "$WORK_DIR/out/boot/grub/efi.img" ::efi
-      mmd -i "$WORK_DIR/out/boot/grub/efi.img" ::efi/boot
-      mcopy -o -i "$WORK_DIR/out/boot/grub/efi.img" $WORK_DIR/out/efi/boot/*.efi "::efi/boot"
-      exit_on_error "Error copying efi/boot/*.efi"
+      create_efi_image
 
       # for stretch
       cp $WORK_DIR/out/boot/grub/grub.cfg $WORK_DIR/out/boot/grub/arm64-efi/
       mkdir $WORK_DIR/out/.disk
       touch $WORK_DIR/out/.disk/info
     else # not arm64
+      create_efi_image
+      cp $WORK_DIR/instroot/usr/lib/ISOLINUX/isohdpfx.bin $WORK_DIR/out/
       cp $WORK_DIR/instroot/usr/lib/ISOLINUX/isolinux.bin $WORK_DIR/out/
     fi
   elif [ "$INSTALLER_USE_PXE" != "yes" ]; then # not EFI and not PXE (= ISO)
@@ -238,22 +242,41 @@ finalize_deployment_installer()
   rm -f $deployment
   VOLID=`printf "%.32s" "MLR:${PROJECT}"`
   if [ "$ARCH" = "amd64" -o "$ARCH" = "i386" ]; then
-    eval genisoimage -quiet -o $WORK_DIR/$deployment \
-      -b isolinux.bin \
-      -c boot.cat \
-      -l -V $VOLID \
-      -A "${PROJECT}_${REVISION}" \
-      -input-charset utf8 \
-      --relaxed-filenames \
-      -allow-multidot \
-      -no-emul-boot \
-      -boot-load-size 4 \
-      -boot-info-table \
-      $INSTALLER_EXTRA_GENISOIMAGE_OPTIONS \
-      $WORK_DIR/out/
-    exit_on_error "Error running genisoimage"
-    isohybrid $WORK_DIR/$deployment
-    exit_on_error "Error running isohybrid"
+    if [ "$INSTALLER_BOOTTYPE" = "efi" ]; then
+      xorriso -as mkisofs -quiet \
+        -r -V $VOLID \
+        -A "${PROJECT}_${REVISION}" \
+        -o  $WORK_DIR/$deployment\
+        -J -J -joliet-long -cache-inodes \
+        -isohybrid-mbr  $WORK_DIR/out/isohdpfx.bin \
+        -b isolinux.bin \
+        -c boot.cat \
+        -boot-load-size 4 -boot-info-table -no-emul-boot \
+        -eltorito-alt-boot \
+        -e --interval:appended_partition_2:all:: \
+        -append_partition 2 0xef $WORK_DIR/efi.img \
+        -no-emul-boot -isohybrid-gpt-basdat -isohybrid-apm-hfsplus \
+        $WORK_DIR/out/
+      exit_on_error "Error running xorriso"
+    else
+      eval genisoimage -quiet -o $WORK_DIR/$deployment \
+        -b isolinux.bin \
+        -c boot.cat \
+        -l -V $VOLID \
+        -A "${PROJECT}_${REVISION}" \
+        -input-charset utf8 \
+        --relaxed-filenames \
+        -allow-multidot \
+        -no-emul-boot \
+        -boot-load-size 4 \
+        -boot-info-table \
+        $INSTALLER_EXTRA_GENISOIMAGE_OPTIONS \
+        $WORK_DIR/out/
+      exit_on_error "Error running genisoimage"
+
+      isohybrid $WORK_DIR/$deployment
+      exit_on_error "Error running isohybrid"
+    fi
 
   elif [ "$ARCH" = "arm64" ]; then
     xorriso -as mkisofs -quiet -o $WORK_DIR/$deployment \
@@ -267,4 +290,3 @@ finalize_deployment_installer()
     exit_on_error "Error running xorriso"
   fi
 }
-
