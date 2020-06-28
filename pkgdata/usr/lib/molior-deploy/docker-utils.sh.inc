@@ -47,12 +47,12 @@ docker_deduplicate()
         cd dedupwork
             mkdir old
             cd old
-                extract_layers $old_tar
+                tar -mp --delay-directory-restore -xf $old_tar
             cd ..
 
             mkdir new
             cd new
-                extract_layers $new_tar
+                tar -mp --delay-directory-restore -xf $new_tar
             cd ..
         cd ..
 
@@ -61,7 +61,7 @@ docker_deduplicate()
         exit_on_error "Error finding duplicate files in docker image"
 
         # remove duplicates
-        rdfind -outputname deduplicated.files -removeidentinode false -deleteduplicates true dedupwork/old dedupwork/new >/dev/null
+        rdfind -outputname deduplicated.files -removeidentinode false -deleteduplicates true dedupwork/old dedupwork/new
         exit_on_error "Error finding duplicate files in docker image"
         grep -v '^#' deduplicated.files | sed -e 's/DUPTYPE_FIRST_OCCURRENCE[0-9 -]*/I/' \
                                               -e 's/DUPTYPE_OUTSIDE_TREE[0-9 -]*/O/' \
@@ -70,7 +70,7 @@ docker_deduplicate()
 
         cd dedupwork
             cd new
-                assemble_layers
+            # assemble_layers
                 tar cf $out_tar .
                 exit_on_error "Error creating deduplicated docker image"
             cd ..
