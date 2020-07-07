@@ -19,7 +19,7 @@ init_deployment_vhd()
 
   # FIXME check VMSIZE
   if [ -z "$VHD_SIZE" ]; then
-    if [ -z "$VMSIZE" ]; then
+    if [ -n "$VMSIZE" ]; then
       VHD_SIZE=${VMSIZE}M
     else
       log_error "please set VHD_SIZE"
