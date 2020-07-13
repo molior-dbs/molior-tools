@@ -362,6 +362,8 @@ create_fstab
 mount --bind /dev /mnt/target/dev
 mount --bind /sys /mnt/target/sys
 mount proc -t proc /mnt/target/proc
+mkdir -p /mnt/target/run/udev
+mount --bind /run/udev/ $target/run/udev
 
 echo " * installing boot loader"
 
@@ -383,6 +385,7 @@ else
 fi
 chroot /mnt/target update-grub
 
+umount /mnt/target/run/udev
 umount /mnt/target/dev
 umount /mnt/target/sys
 umount /mnt/target/proc
