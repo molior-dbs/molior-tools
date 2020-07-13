@@ -71,7 +71,7 @@ create_fstab()
           if [ -z "$u" ]; then
             log_error "LVM no NAME"
           fi
-          part=/dev/mapper/$(echo ${LVM_VG} | sed -r 's/-/--/g')-$u
+          part=/dev/mapper/$(echo ${LVM_VG} | sed -r 's/-/--/g')-$(echo $u | sed -r 's/-/--/g')
           uuid=`blkid -o value -s UUID $part`
           if [ -z "$uuid" ]; then
             log_error "Error rootfs uuid is empty for '$part'"
@@ -131,7 +131,7 @@ create_fstab()
         log_error "LVM no FS"
       fi
 
-      part=/dev/mapper/$(echo ${LVM_VG} | sed -r 's/-/--/g')-$u
+      part=/dev/mapper/$(echo ${LVM_VG} | sed -r 's/-/--/g')-$(echo $u | sed -r 's/-/--/g')
       if [ "$s" != "encrypted-swap" ]; then
         uuid=`blkid -o value -s UUID $part`
         if [ -z "$uuid" ]; then
@@ -335,7 +335,7 @@ create_fs()
       fi
 
       # lvm replaces hyphens with double hypents in lvm name
-      part=/dev/mapper/$(echo ${LVM_VG} | sed -r 's/-/--/g')-$t
+      part=/dev/mapper/$(echo ${LVM_VG} | sed -r 's/-/--/g')-$(echo $t | sed -r 's/-/--/g')
       eval u=\$LVM_LV${p}_MNT
       if [ "$u" = "/" ]; then
         rootpart=$part
@@ -440,7 +440,7 @@ mount_fs()
         continue
       fi
 
-      part=/dev/mapper/$(echo ${LVM_VG} | sed -r 's/-/--/g')-$s
+      part=/dev/mapper/$(echo ${LVM_VG} | sed -r 's/-/--/g')-$(echo $s | sed -r 's/-/--/g')
       echo " * mount $t"
       mkdir -p $target/$t
       mount $part $target/$t
