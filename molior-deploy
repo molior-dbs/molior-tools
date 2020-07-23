@@ -836,6 +836,7 @@ path-exclude=/usr/share/locale/*
 path-include=/usr/share/locale/locale.alias
 path-exclude=/usr/share/man/*
 path-exclude=/usr/share/doc/*
+path-exclude=/usr/share/info/*
 EOF
       # Clenup already existing locales and docs
       if [ -e $target/usr/share/locale/locale.alias ]; then
@@ -964,6 +965,9 @@ cleanup_deployment()
   if [ -n "$MINIMIZE" ]; then
     if [ "$MINIMIZE" -eq 1 ]; then
       rm -f $target/var/lib/apt/lists/*Packages* $target/var/lib/apt/lists/*Release*
+      rm -f $target/var/log/alternatives.log $target/var/log/bootstrap.log \
+            $target/var/log/dpkg.log $target/var/log/faillog $target/var/log/lastlog \
+            $target/var/log/apt/*
     fi
   fi
 }
