@@ -4,6 +4,7 @@
 preinit_deployment_vbox()
 {
   REQUIRED_HOST_COMMANDS="vboxmanage kpartx qemu-img qemu-nbd"
+  REQUIRED_PACKAGES="virtualbox kpartx qemu-utils"
   INSTALL_GRUB="yes"
   PARTSEP="p"
 

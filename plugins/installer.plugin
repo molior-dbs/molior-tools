@@ -21,6 +21,9 @@ preinit_deployment_installer()
 {
   REQUIRED_HOST_COMMANDS="isohybrid genisoimage xorriso mcopy mmd"
   REQUIRED_PACKAGES="genisoimage xorriso syslinux-utils mtools"
+  if [ "$INSTALLER_BOOTTYPE" = "efi" ]; then
+    REQUIRED_HOST_COMMANDS="$REQUIRED_HOST_COMMANDS mkfs.msdos"
+  fi
   # FIXME: check /usr/lib/ISOLINUX/isolinux.bin
 }
 
