@@ -167,7 +167,7 @@ search --file --set=root /image.cpio$INSTALLER_COMPRESSION_EXT
 insmod all_video
 set gfxpayload=keep
 set linux_gfx_mode=1024x768x32
-linux /vmlinuz
+linux /vmlinuz quiet
 initrd /initrd.img
 boot
 EOF
