@@ -256,7 +256,6 @@ finalize_deployment_installer()
         -c boot.cat \
         -boot-load-size 4 -boot-info-table -no-emul-boot \
         -eltorito-alt-boot \
-        -e --interval:appended_partition_2:all:: \
         -append_partition 2 0xef $WORK_DIR/efi.img \
         -no-emul-boot -isohybrid-gpt-basdat -isohybrid-apm-hfsplus \
         $WORK_DIR/out/
