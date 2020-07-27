@@ -837,13 +837,18 @@ path-include=/usr/share/locale/locale.alias
 path-exclude=/usr/share/man/*
 path-exclude=/usr/share/doc/*
 path-exclude=/usr/share/info/*
+path-exclude=/usr/share/common-licenses/*
 EOF
       # Clenup already existing locales and docs
       if [ -e $target/usr/share/locale/locale.alias ]; then
         mv $target/usr/share/locale/locale.alias $WORK_DIR
       fi
 
-      rm -rf $target/usr/share/locale/* $target/usr/share/man/* $target/usr/share/doc/*
+      rm -rf $target/usr/share/locale/* \
+             $target/usr/share/man/* \
+             $target/usr/share/doc/* \
+             $target/usr/share/info/* \
+             $target/usr/share/common-licenses/*
 
       if [ -e $WORK_DIR/locale.alias ]; then
         mv $WORK_DIR/locale.alias $target/usr/share/locale/
