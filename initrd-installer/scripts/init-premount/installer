@@ -377,7 +377,7 @@ fi
 if [ -n "$LINUX_CMDLINE" ]; then
   sed -i "s%^GRUB_CMDLINE_LINUX=.*$%GRUB_CMDLINE_LINUX=\"$LINUX_CMDLINE\"%" /mnt/target/etc/default/grub
 fi
-if [ "$INSTALLER_BOOTTYPE" = "efi" ]; then
+if [ "$TARGET_BOOTTYPE" = "efi" ]; then
   modprobe efivars
   chroot /mnt/target grub-install --recheck --force
 else

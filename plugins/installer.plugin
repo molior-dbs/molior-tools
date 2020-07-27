@@ -21,10 +21,14 @@ preinit_deployment_installer()
 {
   REQUIRED_HOST_COMMANDS="isohybrid genisoimage xorriso mcopy mmd"
   REQUIRED_PACKAGES="genisoimage xorriso syslinux-utils mtools"
-  if [ "$INSTALLER_BOOTTYPE" = "efi" ]; then
+  if [ "$TARGET_BOOTTYPE" = "efi" ]; then
     REQUIRED_HOST_COMMANDS="$REQUIRED_HOST_COMMANDS mkfs.msdos"
   fi
   # FIXME: check /usr/lib/ISOLINUX/isolinux.bin
+#
+  if [ -z "$TARGET_BOOTTYPE" -a -n "$INSTALLER_BOOTTYPE" ]; then
+    TARGET_BOOTTYPE=$INSTALLER_BOOTTYPE
+  fi
 }
 
 init_deployment_installer()
@@ -73,7 +77,7 @@ prepare_initrd_deployment()
     KERNEL_ARCH="686"
   fi
 
-  if [ "$INSTALLER_BOOTTYPE" = "efi" ]; then
+  if [ "$TARGET_BOOTTYPE" = "efi" ]; then
     INSTALLER_EXTRA_PACKAGES="$INSTALLER_EXTRA_PACKAGES grub-efi-$ARCH-bin dosfstools"
     if [ "$ARCH" = "amd64" ]; then
       EFIFILE=bootx64.efi
@@ -126,7 +130,7 @@ prepare_initrd_deployment()
     echo dm_crypt >> $initrd/modules
   fi
 
-  if [ "$INSTALLER_BOOTTYPE" = "efi" ]; then
+  if [ "$TARGET_BOOTTYPE" = "efi" ]; then
     echo i915 >> $initrd/modules
     cat >$initrd/hooks/mkfs.vfat <<'EOF'
 #!/bin/sh
@@ -159,7 +163,7 @@ EOF
   chroot $WORK_DIR/instroot update-initramfs -u >/dev/null
   exit_on_error "Error updating installer initrd"
 
-  if [ "$INSTALLER_BOOTTYPE" = "efi" ]; then
+  if [ "$TARGET_BOOTTYPE" = "efi" ]; then
     mkdir -p $WORK_DIR/out/boot/grub/$GRUBEFITYPE/
     cp $WORK_DIR/instroot/usr/lib/grub/$GRUBEFITYPE/* $WORK_DIR/out/boot/grub/$GRUBEFITYPE/
     cat >$WORK_DIR/out/boot/grub/grub.cfg <<EOF
@@ -245,7 +249,7 @@ finalize_deployment_installer()
   rm -f $deployment
   VOLID=`printf "%.32s" "MLR:${PROJECT}"`
   if [ "$ARCH" = "amd64" -o "$ARCH" = "i386" ]; then
-    if [ "$INSTALLER_BOOTTYPE" = "efi" ]; then
+    if [ "$TARGET_BOOTTYPE" = "efi" ]; then
       xorriso -as mkisofs -quiet \
         -r -V $VOLID \
         -A "${PROJECT}_${REVISION}" \
