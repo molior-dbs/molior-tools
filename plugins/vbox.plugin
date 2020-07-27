@@ -120,6 +120,9 @@ finalize_deployment_vbox()
   vboxmanage storageattach $vmname --storagectl "SATA Controller" --port 1 --device 0 --type dvddrive --medium emptydrive >&2
   vboxmanage modifyvm $vmname --ioapic on >&2
   vboxmanage modifyvm $vmname --boot1 disk --boot2 none --boot3 none --boot4 none >&2
+  if [ "$TARGET_BOOTTYPE" = "efi" ]; then
+    vboxmanage modifyvm $vmname --firmware efi
+  fi
   vboxmanage modifyvm $vmname --cpus $VMCPUS >&2
   exit_on_error "Error setting number of VirtualBox CPUS to '$VMCPUS'"
   vboxmanage modifyvm $vmname --memory $VMRAM --vram $VMVRAM >&2
