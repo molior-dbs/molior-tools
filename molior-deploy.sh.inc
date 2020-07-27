@@ -464,42 +464,7 @@ umount_fs()
   fi
   sync
 
-  mountpoints=""
-  if [ -n "$SFDISK" ]; then
-    for p in `seq 1 $MAXPART`
-    do
-      eval s=\$PART${p}_MNT
-      if [ -n "$s" ]; then
-        mountpoints="$mountpoints$target$s\n"
-      fi
-      # FIXME: umount luks
-    done
-  fi
-
-  if [ -n "$LVM_VG" ]; then
-    for p in `seq 1 $MAXPART`
-    do
-      eval s=\$LVM_LV${p}_MNT
-      if [ -n "$s" ]; then
-        mountpoints="$mountpoints$target$s\n"
-      fi
-      eval t=\$LVM_LV${p}_FS
-      if [ "$t" = "encrypted-swap" ]; then
-        continue
-      elif [ "$t" = "luks" ]; then
-        eval u=\$LVM_LV${p}_NAME
-        if [ -n "$u" ]; then
-          eval v=\$LUKS_${u}_MNT
-          if [ -z "$v" ]; then
-            continue
-          fi
-          mountpoints="$mountpoints$target$v\n"
-        fi
-      fi
-    done
-  fi
-
-  for m in `/bin/echo -e "$mountpoints" | sort -r`
+  for m in `grep $target /proc/mounts | cut -d ' ' -f 2 | sort -r`
   do
     umount $m
   done

@@ -358,7 +358,6 @@ log_warn()
 
 log_error()
 {
-  set +x
   LIST_ONLY=0
   /bin/echo -e "${color_error}E: $@ $color_reset"
   if [ -n "$target" -a "$user_abort" -eq 0 -a "$ask_cleanup" -eq 1 ]; then
@@ -487,7 +486,7 @@ umount_bootstrap()
     CHROOTIGNORE=/usr/lib/molior-deploy/chroot-ignore
     for ignore in $CHROOTIGNORE/*
     do
-      rm $target/usr/local/bin/$(basename "$ignore")
+      rm -f $target/usr/local/bin/$(basename "$ignore")
     done
     rm -f $target/usr/sbin/policy-rc.d
 
@@ -982,10 +981,18 @@ install_grub_bootloader()
   if [ -z "$target" ]; then
     log_error "Error: \$target not set"
   fi
+
   mount_fs_devices
+
   log "grub-install"
-  chroot $target grub-install --modules part_msdos --recheck --force --no-floppy ${disk} >&2
-  exit_on_error "installing grub failed"
+  if [ "$INSTALLER_BOOTTYPE" = "efi" ]; then
+    modprobe efivars
+    chroot $target grub-install --recheck --force --no-floppy --target x86_64-efi >&2
+    exit_on_error "installing grub failed"
+  else
+    chroot $target grub-install --modules part_msdos --recheck --force --no-floppy ${disk} >&2
+    exit_on_error "installing grub failed"
+  fi
 
   if [ -z "$rootpart" ]; then
     log_error "Error updating grub: no rootpart defined"
