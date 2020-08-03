@@ -215,6 +215,14 @@ if [ -n "$INSTALLER_PASSWD_USERS" ]; then
 fi
 
 found=0
+if [ -n "$INSTALLER_INSTALL_DISK" ]; then
+  disk=`readlink -f $INSTALLER_INSTALL_DISK`
+  if [ -b "$disk" ]; then
+    found=1
+  else
+    log_error "Error: disk $disk not found, aborting installation."
+  fi
+fi
 while [ $found -ne 1 ]; do
   idx=0
   echo
