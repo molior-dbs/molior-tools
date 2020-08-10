@@ -1090,6 +1090,11 @@ install_docker()
   dockerpid=$!
   sleep 5
 
+  mkdir $target/tmp/docker-compose
+  if [ -e $target/opt/roche/etc/docker-compose.env ]; then
+    cp $target/opt/roche/etc/docker-compose.env $target/tmp/docker-compose/.env
+  fi
+
   # pull containers
   total_docker_images=`echo "$docker_containers" | wc -l`
   i=1
@@ -1102,7 +1107,7 @@ install_docker()
       continue
     fi
     log "docker pull $container ($i/$total_docker_images)"
-    chroot $target docker pull "$container" >&2
+    chroot $target sh -c "test -e /tmp/docker-compose/.env && . /tmp/docker-compose/.env; docker pull $container" >&2
     RET=$?
     if [ "$RET" -ne 0 ]; then
         exit $RET
@@ -1116,7 +1121,7 @@ install_docker()
 
   if [ -n "$DOCKER_COMPOSE_FILE" ]; then
     log "running docker compose up"
-    chroot $target docker-compose --no-ansi -f $DOCKER_COMPOSE_FILE up --no-start >&2
+    chroot $target sh -c "cd /tmp/docker-compose; docker-compose --no-ansi -f $DOCKER_COMPOSE_FILE up --no-start" >&2
     if [ "$?" -ne 0 ]; then
       docker_install_cleanup
       log_error "Error running docker-compose up"
@@ -1133,6 +1138,7 @@ install_docker()
 
 docker_install_cleanup()
 {
+  rm -rf $target/tmp/docker-compose
   # stop docker
   kill $dockerpid
   if [ "$?" -ne 0 ]; then
