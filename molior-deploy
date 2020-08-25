@@ -966,14 +966,10 @@ cleanup_deployment()
   echo -n > $target/etc/machine-id
   rm -f $target/var/lib/dbus/machine-id
 
-  if [ -n "$MINIMIZE" ]; then
-    if [ "$MINIMIZE" -eq 1 ]; then
-      rm -f $target/var/lib/apt/lists/*Packages* $target/var/lib/apt/lists/*Release*
-      rm -f $target/var/log/alternatives.log $target/var/log/bootstrap.log \
-            $target/var/log/dpkg.log $target/var/log/faillog $target/var/log/lastlog \
-            $target/var/log/apt/*
-    fi
-  fi
+  rm -f $target/var/lib/apt/lists/*Packages* $target/var/lib/apt/lists/*Release*
+  rm -f $target/var/log/alternatives.log $target/var/log/bootstrap.log \
+        $target/var/log/dpkg.log $target/var/log/faillog $target/var/log/lastlog \
+        $target/var/log/apt/*
 }
 
 install_grub_bootloader()
