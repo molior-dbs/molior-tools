@@ -21,3 +21,5 @@ build/
 
 debian/manpages
 .manpages/
+
+debian/python3-molior-tools/
