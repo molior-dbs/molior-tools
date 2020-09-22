@@ -1072,8 +1072,8 @@ install_docker()
   sleep 5
 
   mkdir $target/tmp/docker-compose
-  if [ -e $target/opt/roche/etc/docker-compose.env ]; then
-    cp $target/opt/roche/etc/docker-compose.env $target/tmp/docker-compose/.env
+  if [ -e $target/$DOCKER_COMPOSE_ENV_FILE ]; then
+    cp $target/$DOCKER_COMPOSE_ENV_FILE $target/tmp/docker-compose/.env
   fi
 
   # pull containers
@@ -1087,8 +1087,11 @@ install_docker()
     if echo "$container" | grep -q "^[\t ]*$"; then
       continue
     fi
+    if [ -f $target/tmp/docker-compose/.env ]; then
+        container=`. $target/tmp/docker-compose/.env; eval echo $container`
+    fi
     log "docker pull $container ($i/$total_docker_images)"
-    chroot $target sh -c "test -e /tmp/docker-compose/.env && . /tmp/docker-compose/.env; docker pull $container" >&2
+    chroot $target sh -c "docker pull $container" >&2
     RET=$?
     if [ "$RET" -ne 0 ]; then
         exit $RET

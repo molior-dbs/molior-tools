@@ -4,6 +4,9 @@
 preinit_deployment_upgrade()
 {
   REQUIRED_HOST_COMMANDS="apt-ftparchive"
+  if [ -n "$DOCKER_COMPOSE_FILE" ]; then
+      REQUIRED_HOST_COMMANDS="$REQUIRED_HOST_COMMANDS rdfind"
+  fi
 }
 
 init_deployment_upgrade()
@@ -43,6 +46,25 @@ init_deployment_upgrade()
 
 postinst_deployment_upgrade()
 {
+  # write base version / release version
+  echo $PROJECT/$UPGRADE_BASE > $WORK_DIR/upgrade-package/baseversion
+  echo $REVISION > $WORK_DIR/upgrade-package/releaseversion
+
+
+  if [ -n "$DOCKER_COMPOSE_FILE" ]; then
+    # remember pre upgrade docker images
+    log_info "Installing $VERSION docker containers ..."
+    cp $target/$DOCKER_COMPOSE_FILE $WORK_DIR/docker-compose.yml.old
+    oldimages=`grep -v -P '^[ \t]*#' $target/$DOCKER_COMPOSE_FILE | grep "image:" | awk '{ print $2 }' | sort`
+    if [ -f $target/$DOCKER_COMPOSE_ENV_PATH/.env ]; then
+        oldimages=`. $target/$DOCKER_COMPOSE_ENV_PATH/.env; for i in $oldimages; do eval echo $i; done`
+    fi
+    echo "$oldimages" > $WORK_DIR/upgrade-package/docker.old
+
+    echo "$DOCKER_UPGRADE_DEDUP_IGNORE" | sort > $WORK_DIR/upgrade-package/docker.nodedup
+    install_docker
+  fi
+
   if type pre_upgrade_deployment >/dev/null; then
     pre_upgrade_deployment
   fi
@@ -84,6 +106,46 @@ postinst_deployment_upgrade()
   if type post_upgrade_deployment >/dev/null; then
     post_upgrade_deployment
   fi
+}
+
+postinst_docker()
+{
+    if [ -z "$DOCKER_COMPOSE_FILE" ]; then
+      return
+    fi
+
+    if [ ! -f $WORK_DIR/upgrade-package/docker-containers.old.tar ]; then
+        # first pass, save the previous docker images
+        chroot $target docker save `comm -23 $WORK_DIR/upgrade-package/docker.old $WORK_DIR/upgrade-package/docker.nodedup` > $WORK_DIR/upgrade-package/docker-containers.old.tar
+        rm -f $WORK_DIR/upgrade-package/docker.nodedup
+    else
+        # second pass, save the changed docker images
+        newimages=`grep -v -P '^[ \t]*#' $target/$DOCKER_COMPOSE_FILE | grep "image:" | awk '{ print $2 }' | sort`
+        if [ -f $target/$DOCKER_COMPOSE_ENV_PATH/.env ]; then
+            newimages=`. $target/$DOCKER_COMPOSE_ENV_PATH/.env; for i in $newimages; do eval echo $i; done`
+        fi
+        echo "$newimages" > $WORK_DIR/upgrade-package/docker.new
+        docker_containers=`comm -23 $WORK_DIR/upgrade-package/docker.new $WORK_DIR/upgrade-package/docker.old`
+        if [ -n "$docker_containers" ]; then
+          log "saving docker containers"
+          chroot $target docker save $docker_containers > $WORK_DIR/upgrade-package/docker-containers.tar
+          exit_on_error "Error saving docker containers"
+
+          log "deduplicating docker images"
+          chroot $target docker save `cat $WORK_DIR/upgrade-package/docker.new` > $WORK_DIR/upgrade-package/docker-containers.tar
+          exit_on_error "Error saving docker containers"
+          . /usr/lib/molior-deploy/docker-utils.sh.inc
+          docker_deduplicate $WORK_DIR/upgrade-package/docker-containers.old.tar \
+                             $WORK_DIR/upgrade-package/docker-containers.tar \
+                             $WORK_DIR/upgrade-package/docker-containers.dedup.tar
+          exit_on_error "Error deduplicating docker containers"
+          cd $WORK_DIR/upgrade-package
+          rm -f docker-containers.tar docker-containers.old.tar
+          cd - > /dev/null
+        else
+          log "docker: no image changes in docker-compose.yml"
+        fi
+    fi
 }
 
 finalize_deployment_upgrade()
@@ -146,6 +208,20 @@ EOF
     cp -ar $SOURCE_DIR/$UPGRADE_EXTRA_DIR/* $WORK_DIR/upgrade-package/
     exit_on_error "Error copying $WORK_DIR/$PROJECT/$UPGRADE_EXTRA_DIR/* to upgrade-package"
   fi
+
+  # set new project version
+  echo "$PROJECT/$VERSION" > $WORK_DIR/upgrade-package/projectversion
+
+  log "creating checksum file"
+  cd $WORK_DIR/upgrade-package
+  echo "UPGRADE_DURATION=$UPGRADE_DURATION" > upgrade.info
+  echo "UPGRADE_MINFREE=$UPGRADE_MINFREE" >> upgrade.info
+  find -type f -exec stat -c "%n %s" {} \; | LC_ALL=C sort > ../file.list
+  find . -type f | xargs sha256sum > $WORK_DIR/sha256.sums
+  exit_on_error "Error generating checksum file"
+  mv -f $WORK_DIR/sha256.sums .
+  mv -f ../file.list .
+  cd - >/dev/null
 
   # hook for signing, ...
   if type prepack_upgrade >/dev/null; then

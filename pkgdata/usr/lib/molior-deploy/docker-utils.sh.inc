@@ -61,7 +61,7 @@ docker_deduplicate()
         exit_on_error "Error finding duplicate files in docker image"
 
         # remove duplicates
-        rdfind -outputname deduplicated.files -removeidentinode false -deleteduplicates true dedupwork/old dedupwork/new
+        rdfind -outputname deduplicated.files -removeidentinode false -deleteduplicates true dedupwork/old dedupwork/new >/dev/null
         exit_on_error "Error finding duplicate files in docker image"
         grep -v '^#' deduplicated.files | sed -e 's/DUPTYPE_FIRST_OCCURRENCE[0-9 -]*/I/' \
                                               -e 's/DUPTYPE_OUTSIDE_TREE[0-9 -]*/O/' \
