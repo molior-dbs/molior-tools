@@ -982,7 +982,11 @@ install_grub_bootloader()
   mount_fs_devices
 
   uuid=`blkid  -o value -s UUID $rootpart`
-  log "grub-install"
+  t="bios"
+  if [ -n "$TARGET_BOOTTYPE" ]; then
+      t=$TARGET_BOOTTYPE
+  fi
+  log "grub-install ($t)"
   if [ "$TARGET_BOOTTYPE" = "efi" ]; then
     chroot $target grub-install --recheck --force --no-floppy --target x86_64-efi >&2
     exit_on_error "installing grub failed"
