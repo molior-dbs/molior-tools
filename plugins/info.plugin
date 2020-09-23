@@ -50,7 +50,7 @@ postinst_internal_deployment_info()
   cp $target/etc/apt/sources.list $WORK_DIR/info/apt-sources.list
 
   cd $target/usr/share/doc
-  find -name copyright | cpio -p --make-directories $WORK_DIR/info/licenses
+  find -name copyright | cpio -p --make-directories $WORK_DIR/info/copyrights
   find -name changelog* | cpio -p --make-directories $WORK_DIR/info/changelogs
   cd - >/dev/null
 
