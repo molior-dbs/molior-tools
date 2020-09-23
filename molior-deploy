@@ -1075,8 +1075,9 @@ install_docker()
   dockerpid=$!
   sleep 5
 
+  # prepare docker compose env dir
   mkdir $target/tmp/docker-compose
-  if [ -e $target/$DOCKER_COMPOSE_ENV_FILE ]; then
+  if [ -n "$DOCKER_COMPOSE_ENV_FILE" -a -e $target/$DOCKER_COMPOSE_ENV_FILE ]; then
     cp $target/$DOCKER_COMPOSE_ENV_FILE $target/tmp/docker-compose/.env
   fi
 
