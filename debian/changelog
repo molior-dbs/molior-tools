@@ -1,3 +1,15 @@
+molior-tools (1.4.0~alpha4) stretch; urgency=medium
+
+  * molior-deploy: run docker with default env
+  * molior-deploy: fix efi boot for images
+  * molior-deploy: rename INSTALLER_BOOTTYPE
+  * molior-deploy: support efi boot for images
+  * installer: fix xorriso invocation
+  * build for molior 1.4
+  * build for 1.4.0
+
+ -- André Roth <neolynx@gmail.com>  Sat, 26 Sep 2020 18:10:42 +0000
+
 molior-tools (1.4.0~alpha3) stretch; urgency=medium
 
   * bump version 1.4.0~alpha3
