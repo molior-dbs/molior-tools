@@ -47,7 +47,7 @@ postinst_internal_deployment_info()
   chroot $target apt-mark showmanual > $WORK_DIR/info/$manual_packages_file
   exit_on_error "Error running apt-mark showmanual"
 
-  itest -f $target/etc/os-release && cp $target/etc/os-release $WORK_DIR/info/os-release
+  test -f $target/etc/os-release && cp $target/etc/os-release $WORK_DIR/info/os-release
   cp $target/etc/apt/sources.list $WORK_DIR/info/apt-sources.list
 
   cd $target/usr/share/doc
