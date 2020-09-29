@@ -386,8 +386,12 @@ if [ -n "$LINUX_CMDLINE" ]; then
   sed -i "s%^GRUB_CMDLINE_LINUX=.*$%GRUB_CMDLINE_LINUX=\"$LINUX_CMDLINE\"%" /mnt/target/etc/default/grub
 fi
 if [ "$TARGET_BOOTTYPE" = "efi" ]; then
-  modprobe efivars
-  chroot /mnt/target grub-install --recheck --force
+  if modprobe efivars; then
+    chroot /mnt/target grub-install --recheck --force
+  else # no EFI support in current boot mode
+    mkdir -p /mnt/target/boot/efi/EFI/BOOT
+    mv /mnt/target/boot/efi/EFI/DEBIAN/grubx64.efi /mnt/target/boot/efi/EFI/BOOT/bootx64.efi
+  fi
 else
   chroot /mnt/target grub-install --modules part_msdos --recheck --force --no-floppy $disk >/dev/null 2>&1
 fi
