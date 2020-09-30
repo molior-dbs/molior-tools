@@ -131,7 +131,6 @@ prepare_initrd_deployment()
   fi
 
   if [ "$TARGET_BOOTTYPE" = "efi" ]; then
-    echo i915 >> $initrd/modules
     cat >$initrd/hooks/mkfs.vfat <<'EOF'
 #!/bin/sh
 
@@ -153,6 +152,7 @@ esac
 . /usr/share/initramfs-tools/hook-functions
 
 manual_add_modules efivars
+manual_add_modules i915
 copy_exec      /sbin/mkfs.fat  /sbin/
 copy_file link /sbin/mkfs.vfat /sbin/
 EOF
