@@ -389,8 +389,9 @@ if [ "$TARGET_BOOTTYPE" = "efi" ]; then
   if modprobe efivars; then
     chroot /mnt/target grub-install --recheck --force
   else # no EFI support in current boot mode
+    chroot /mnt/target grub-install --recheck --force --target x86_64-efi
     mkdir -p /mnt/target/boot/efi/EFI/BOOT
-    mv /mnt/target/boot/efi/EFI/DEBIAN/grubx64.efi /mnt/target/boot/efi/EFI/BOOT/bootx64.efi
+    mv /mnt/target/boot/efi/efi/debian/grubx64.efi /mnt/target/boot/efi/EFI/BOOT/bootx64.efi
   fi
 else
   chroot /mnt/target grub-install --modules part_msdos --recheck --force --no-floppy $disk >/dev/null 2>&1
