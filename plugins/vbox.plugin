@@ -128,7 +128,11 @@ finalize_deployment_vbox()
   vboxmanage modifyvm $vmname --memory $VMRAM --vram $VMVRAM >&2
   exit_on_error "Error setting VirtualBox RAM to '$VMVRAM'"
   vboxmanage modifyvm $vmname --nic1 nat --nictype1 Am79C973 >&2
-  vboxmanage modifyvm $vmname --accelerate3d on >&2
+  if [ -n "$VBOX_3D" ]; then
+    if [ "$VBOX_3D" = "1" ]; then
+      vboxmanage modifyvm $vmname --accelerate3d on >&2
+    fi
+  fi
   vboxmanage modifyvm $vmname --rtcuseutc on >&2
   vboxmanage modifyvm $vmname --clipboard bidirectional >&2
   vboxmanage modifyvm $vmname --description "${PROJECT}_${REVISION}
