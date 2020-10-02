@@ -8,10 +8,9 @@ Standards-Version: 3.9.3
 Package: molior-tools
 Section: misc
 Architecture: all
-Suggests: docker, virtualbox
-Recommends: syslinux-utils, genisoimage, qemu-user-static
+Suggests: docker, virtualbox, syslinux-utils, genisoimage
 Depends: ${perl:Depends}, ${misc:Depends}, ${python3:Depends},
-  libapt-pkg-perl, libparse-debian-packages-perl, wget, qemu-utils,
+  libapt-pkg-perl, libparse-debian-packages-perl, wget,
   debootstrap, xz-utils, devscripts, equivs, curl, lsb-release,
   python3, python3-yaml, python3-click, jq, pxz | xz-utils (>= 5.2.4-1)
 Conflicts: debrilis, rlx3-devtools, molior-deploy
