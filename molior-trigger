@@ -37,9 +37,10 @@ molior_session_call()
 }
 
 # login to the molior session
-molior_session_call "$MOLIOR_URL/plogin" \
-  --data-urlencode "username=$MOLIOR_USER" \
-  --data-urlencode "password=$MOLIOR_PASSWORD" \
+molior_session_call "$MOLIOR_URL/api/login" \
+  --header "Content-Type: application/json" \
+  --request POST \
+  --data "{\"username\": \"$MOLIOR_USER\", \"password\": \"$MOLIOR_PASSWORD\"}" \
   --location > /dev/null
 
 response=`molior_session_call --header "Content-Type: application/json" --request POST \
