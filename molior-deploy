@@ -654,6 +654,7 @@ setup_deployment()
     log_error "No deploy/ directory found in $SOURCE_DIR"
   fi
 
+  VARIANT=`echo $VARIANT | sed s/\.conf$//`
   variants=""
   count=0
   found_variant=0
