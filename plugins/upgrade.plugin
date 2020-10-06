@@ -214,7 +214,7 @@ EOF
 
   log "creating checksum file"
   cd $WORK_DIR/upgrade-package
-  echo "UPGRADE_DURATION=$UPGRADE_DURATION" > upgrade.info
+  echo "UPGRADE_DURATION=$UPGRADE_DURATION" >> upgrade.info
   echo "UPGRADE_MINFREE=$UPGRADE_MINFREE" >> upgrade.info
   find -type f -exec stat -c "%n %s" {} \; | LC_ALL=C sort > ../file.list
   find . -type f | xargs sha256sum > $WORK_DIR/sha256.sums
