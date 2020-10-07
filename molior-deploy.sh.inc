@@ -1,6 +1,5 @@
 # vim: syntax=sh
 
-PARTSEP=""
 MAXPART=16
 
 fs_has_partitions=0
@@ -639,5 +638,6 @@ get_deploy_config()
   echo "INSTALLER_DISK_MIN=\"$INSTALLER_DISK_MIN\""
   echo "INSTALLER_PXE_IMAGE_URL=\"$INSTALLER_PXE_IMAGE_URL\""
   echo "INSTALLER_INSTALL_DISK=\"$INSTALLER_INSTALL_DISK\""
+  echo "PARTSEP=\"$PARTSEP\""
 }
 
