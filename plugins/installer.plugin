@@ -130,8 +130,37 @@ prepare_initrd_deployment()
     echo dm_crypt >> $initrd/modules
   fi
 
+  if [ -n "$INSTALLER_EXTRA_MODULES" ]; then
+    cat > $initrd/hooks/installer-extra-modules <<'EOF'
+#!/bin/sh
+
+PREREQ=""
+
+# Output pre-requisites
+prereqs()
+{
+  echo "$PREREQ"
+}
+
+case "$1" in
+  prereqs)
+    prereqs
+    exit 0
+    ;;
+esac
+
+. /usr/share/initramfs-tools/hook-functions
+
+EOF
+    for mod in $INSTALLER_EXTRA_MODULES
+    do
+        echo "manual_add_modules $mod" >> $initrd/hooks/installer-extra-modules
+    done
+    chmod +x $initrd/hooks/installer-extra-modules
+  fi
+
   if [ "$TARGET_BOOTTYPE" = "efi" ]; then
-    cat >$initrd/hooks/mkfs.vfat <<'EOF'
+    cat > $initrd/hooks/mkfs.vfat <<'EOF'
 #!/bin/sh
 
 PREREQ=""
@@ -152,7 +181,6 @@ esac
 . /usr/share/initramfs-tools/hook-functions
 
 manual_add_modules efivars
-manual_add_modules i915
 copy_exec      /sbin/mkfs.fat  /sbin/
 copy_file link /sbin/mkfs.vfat /sbin/
 EOF
