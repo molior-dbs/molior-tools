@@ -193,6 +193,7 @@ EOF
       touch $WORK_DIR/out/.disk/info
     else # not arm64
       create_efi_image
+      cp $WORK_DIR/efi.img $WORK_DIR/out/
       cp $WORK_DIR/instroot/usr/lib/ISOLINUX/isohdpfx.bin $WORK_DIR/out/
       cp $WORK_DIR/instroot/usr/lib/ISOLINUX/isolinux.bin $WORK_DIR/out/
     fi
@@ -250,17 +251,15 @@ finalize_deployment_installer()
   VOLID=`printf "%.32s" "MLR:${PROJECT}"`
   if [ "$ARCH" = "amd64" -o "$ARCH" = "i386" ]; then
     if [ "$TARGET_BOOTTYPE" = "efi" ]; then
-      xorriso -as mkisofs -quiet \
+      xorriso -as mkisofs -quiet -o $WORK_DIR/$deployment \
         -r -V $VOLID \
-        -A "${PROJECT}_${REVISION}" \
-        -o  $WORK_DIR/$deployment\
-        -J -J -joliet-long -cache-inodes \
+        -J -joliet-long -cache-inodes \
         -isohybrid-mbr  $WORK_DIR/out/isohdpfx.bin \
         -b isolinux.bin \
         -c boot.cat \
         -boot-load-size 4 -boot-info-table -no-emul-boot \
         -eltorito-alt-boot \
-        -append_partition 2 0xef $WORK_DIR/efi.img \
+        -e efi.img \
         -no-emul-boot -isohybrid-gpt-basdat -isohybrid-apm-hfsplus \
         $WORK_DIR/out/
       exit_on_error "Error running xorriso"
