@@ -133,6 +133,11 @@ finalize_deployment_vbox()
       vboxmanage modifyvm $vmname --accelerate3d on >&2
     fi
   fi
+  if [ -n "$VBOX_USB" ]; then
+    if [ "$VBOX_USB" = "1" ]; then
+      vboxmanage modifyvm $vmname --usb on --usbehci on >&2
+    fi
+  fi
   vboxmanage modifyvm $vmname --rtcuseutc on >&2
   vboxmanage modifyvm $vmname --clipboard bidirectional >&2
   vboxmanage modifyvm $vmname --description "${PROJECT}_${REVISION}
