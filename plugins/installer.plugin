@@ -20,7 +20,7 @@ create_efi_image()
 preinit_deployment_installer()
 {
   REQUIRED_HOST_COMMANDS="isohybrid genisoimage xorriso mcopy mmd"
-  REQUIRED_PACKAGES="genisoimage xorriso syslinux-utils mtools"
+  REQUIRED_PACKAGES="genisoimage xorriso syslinux-utils mtools dosfstools"
   if [ "$TARGET_BOOTTYPE" = "efi" ]; then
     REQUIRED_HOST_COMMANDS="$REQUIRED_HOST_COMMANDS mkfs.msdos"
   fi
