@@ -203,11 +203,16 @@ linux /vmlinuz quiet
 initrd /initrd.img
 boot
 EOF
+    if echo $ARCH | grep -q arm; then
+      video_mod=""
+    else
+      video_mod="efi_uga"
+    fi
     chroot $WORK_DIR/instroot grub-mkimage -O $GRUBEFITYPE -p /boot/grub -o /boot/$EFIFILE \
                                             boot linux search normal configfile \
                                             part_gpt btrfs fat iso9660 loopback \
                                             test keystatus gfxmenu regexp probe \
-                                            efi_gop efi_uga all_video gfxterm font \
+                                            efi_gop $video_mod all_video gfxterm font \
                                             read ls cat png jpeg halt reboot echo sleep
     exit_on_error "Error creating grub image"
     mv $WORK_DIR/instroot/boot/$EFIFILE $WORK_DIR/
