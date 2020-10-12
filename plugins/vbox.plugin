@@ -136,8 +136,8 @@ finalize_deployment_vbox()
   vboxmanage modifyvm $vmname --rtcuseutc on >&2
   vboxmanage modifyvm $vmname --clipboard bidirectional >&2
   vboxmanage modifyvm $vmname --description "${PROJECT}_${REVISION}
-Date: `date -R`
-Installed Packages: `wc -l $WORK_DIR/packages.txt`
+Creation Date: `date -R`
+Installed Packages: `cat $WORK_DIR/packages.txt | wc -l`
 APT sources:
 $APT_SOURCES
 " >&2
