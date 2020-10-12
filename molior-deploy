@@ -1072,7 +1072,7 @@ install_docker()
   chroot $target cgroupfs-mount >&2
 
   # start docker
-  chroot $target sh -c '. /etc/default/docker; exec /usr/sbin/dockerd -H unix:// $DOCKER_OPTS' >&2 &
+  chroot $target sh -c '. /etc/default/docker; TZ=UTC exec /usr/sbin/dockerd -H unix:// $DOCKER_OPTS' >&2 &
   dockerpid=$!
   sleep 5
 
