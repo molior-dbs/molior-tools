@@ -319,8 +319,8 @@ finalize_deployment_installer()
   elif [ "$ARCH" = "arm64" ]; then
     xorriso -as mkisofs -quiet -o $WORK_DIR/$deployment \
       -J -joliet-long -cache-inodes -l \
-      -e boot/grub/efi.img -no-emul-boot \
-      -append_partition 2 0xef $WORK_DIR/out/boot/grub/efi.img \
+      -e efi.img -no-emul-boot \
+      -append_partition 2 0xef $WORK_DIR/out/efi.img \
       -partition_cyl_align all \
       -V $VOLID \
       -A "${PROJECT}_${REVISION}" \
