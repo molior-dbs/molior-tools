@@ -217,19 +217,19 @@ EOF
     exit_on_error "Error creating grub image"
     mv $WORK_DIR/instroot/boot/$EFIFILE $WORK_DIR/
 
-    if [ "$ARCH" = "arm64" ]; then
-      create_efi_image
+    create_efi_image
+    cp $WORK_DIR/efi.img $WORK_DIR/out/
 
+    if [ "$ARCH" = "arm64" ]; then
       # for stretch
       cp $WORK_DIR/out/boot/grub/grub.cfg $WORK_DIR/out/boot/grub/arm64-efi/
       mkdir $WORK_DIR/out/.disk
       touch $WORK_DIR/out/.disk/info
     else # not arm64
-      create_efi_image
-      cp $WORK_DIR/efi.img $WORK_DIR/out/
       cp $WORK_DIR/instroot/usr/lib/ISOLINUX/isohdpfx.bin $WORK_DIR/out/
       cp $WORK_DIR/instroot/usr/lib/ISOLINUX/isolinux.bin $WORK_DIR/out/
     fi
+
   elif [ "$INSTALLER_USE_PXE" != "yes" ]; then # not EFI and not PXE (= ISO)
     cp $WORK_DIR/instroot/usr/lib/ISOLINUX/isolinux.bin $WORK_DIR/out/
     cp $WORK_DIR/instroot/usr/lib/syslinux/modules/bios/menu.c32 $WORK_DIR/out/
