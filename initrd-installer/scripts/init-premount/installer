@@ -47,6 +47,11 @@ logo()
 . /scripts/molior-deploy.sh.inc
 . /scripts/install.conf
 
+# include installer hooks if provided
+if [ -f /scripts/installer-hooks.sh.inc ]; then
+  . /scripts/installer-hooks.sh.inc
+fi
+
 logo
 echo -n -e '\033[9;0]\033[14;0]' > /dev/console
 
@@ -140,6 +145,11 @@ if [ -n "$SOURCEDISK" ]; then
 else
   disks=`ls /sys/block/ | sed s_^_/dev/_`
 fi
+
+if type installer_preinst >/dev/null 2>&1; then
+  installer_preinst
+fi
+
 if [ -z "$disks" ]; then
   log_error "No installable disks found, aborting installation."
 fi
@@ -212,6 +222,10 @@ if [ -n "$INSTALLER_PASSWD_USERS" ]; then
     fi
     password=""
   done
+fi
+
+if type installer_configure >/dev/null 2>&1; then
+  installer_configure
 fi
 
 found=0
@@ -397,6 +411,10 @@ else
   chroot /mnt/target grub-install --modules part_msdos --recheck --force --no-floppy $disk >/dev/null 2>&1
 fi
 chroot /mnt/target update-grub
+
+if type installer_postinst >/dev/null 2>&1; then
+  installer_postinst
+fi
 
 umount /mnt/target/run/udev
 umount /mnt/target/dev
