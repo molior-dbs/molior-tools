@@ -96,6 +96,15 @@ OPTIONAL PARAMETERS
 
  EXTRA_BIND_MOUNTS  Set extra fstab entries for bind mounts, colon separated destination:source (i.e. "/tmp:/var/tmp")
 
+DOCKER PARAMETERS
+
+ DOCKER_CONTAINERS              Docker image URLs to be pulled into the deployment (separated by new lines)
+ DOCKER_COMPOSE_FILE            Docker compose file location withing the deploymens. Docker images will be pulled into the deployment
+ DOCKER_COMPOSE_ENV_FILE        Docker default env file within the deployment, will be provided to the docker compose operations
+ DOCKER_COMPOSE_ENV_PATH        Docker runtime env path (containing .env file) for upgrading to new default env settings
+ DOCKER_UPGRADE_DEDUP_IGNORE    Do not deduplicate newline separated list of docker images when creating a upgrade deployment
+
+
 NOTE
  Do not interrupt molior-deploy with Ctrl-C, this might cause an inconsistent system state, since fileystems might be still mounted.
 
