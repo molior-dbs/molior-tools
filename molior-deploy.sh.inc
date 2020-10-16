@@ -290,7 +290,7 @@ make_fs()
 
   else # normal filesystems
     echo " * mkfs $part"
-    eval mkfs $opts -t $s $part >/dev/null
+    eval mkfs -t $s $opts $part >/dev/null
     exit_on_error "Error formatting partition $part as $s"
   fi
 }
