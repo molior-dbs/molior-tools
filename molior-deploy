@@ -297,6 +297,12 @@ finish ()
   if [ -n "$deployment" ]; then
       size=`ls -lh $CUR_DIR/$deployment | cut -d ' ' -f5`
       log_notice "Deployment created in $((diff / 60))m$((diff % 60))s: $deployment ($size)"
+
+      if type notify_deployment >/dev/null; then
+        echo
+        notify_deployment
+        echo
+      fi
   fi
 }
 
