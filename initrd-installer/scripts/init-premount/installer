@@ -310,7 +310,7 @@ if [ -n "$LVM_VG" ]; then
     vgremove -f "$vg" >&2
   done
 fi
-dd if=/dev/zero of=$disk bs=512 count=1 2>/dev/null
+wipefs -a $disk
 blockdev --rereadpt $disk
 
 create_partitions
