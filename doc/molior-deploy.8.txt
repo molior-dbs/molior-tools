@@ -82,6 +82,14 @@ FILESYSTEM PARAMETERS
  LVM_LV#_OPTS       LVM logical volume # fstab options (i.e. "defaults,noatime")
  LVM_LV#_MKFSOPTS   Options for mkfs (i.e. "-O ^64bit,^metadata_csum")
 
+RAID PARAMETERS
+ Software RAID via the 'mdadm' may be created by defining the following parameters.
+ During the raid setup, all existing software raid devices are removed !
+
+ RAID_NAME          Set the raid device name (e.g. "/dev/md0")
+ RAID_DEVICES       List all physical drives/partitions for raid setup (e.g. "/dev/sda /dev/sdb")
+ RAID_OPTS          Specify all required options for the 'mdadm --create' command (e.g. "--level=1 --raid-devices=2 --metadata=1.0")
+
 BOOT PARAMETERS
  LINUX_CMDLINE      Set Linux command line options (i.e. "biosdevname=0 net.ifnames=0 init=/lib/systemd/systemd)
 
