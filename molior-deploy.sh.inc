@@ -5,6 +5,7 @@ MAXPART=16
 fs_has_partitions=0
 fs_has_lvm=0
 fs_has_luks=0
+fs_on_raid=0
 
 exit_on_error()
 {
@@ -268,6 +269,45 @@ create_luks()
   exit_on_error "Error opening LUKS partition $part"
 }
 
+create_raid()
+{
+  if [ -n "$RAID_NAME" ]; then
+    if [ -z "$RAID_DEVICES" ]; then
+      log_error "Error: RAID devices not definded, please set \$SRAID_DEVICES"
+    fi
+
+    # remove all existing md raids
+    raids=$(grep raid /proc/mdstat | grep -v "Personalities" | tr -d " " | cut -d":" -f1)
+    for raid in $raids; do
+      echo "removing old raid $raid"
+      mdadm --stop $raid
+      mdadm --remove $raid || true
+    done
+
+    # cleanup disks
+    for rd in $RAID_DEVICES; do
+      wipefs -a $rd
+    done
+
+    # setup raid
+    echo "creating raid $RAID_NAME"
+    mdadm --create $RAID_OPTS $RAID_NAME $RAID_DEVICES
+
+    # wait for disk sync
+    echo "syncing raid disks"
+    while true; do
+      p=$(grep "resync" /proc/mdstat)
+      printf "\r %s" "$p"
+      if grep -q "resync" /proc/mdstat; then
+        sleep 1
+      else
+        break
+      fi
+    done
+    echo
+  fi
+}
+
 make_fs()
 {
   s=$1
@@ -377,6 +417,10 @@ get_fsinfo()
         break
       fi
     done
+  fi
+
+  if [ -n "$RAID_NAME" ]; then
+    fs_on_raid=1
   fi
 }
 
@@ -640,5 +684,8 @@ get_deploy_config()
   echo "INSTALLER_INSTALL_DISK=\"$INSTALLER_INSTALL_DISK\""
   echo "INSTALLER_EXTRA_MODULES=\"$INSTALLER_EXTRA_MODULES\""
   echo "PARTSEP=\"$PARTSEP\""
+  echo "RAID_NAME=\"$RAID_NAME\""
+  echo "RAID_DEVICES=\"$RAID_DEVICES\""
+  echo "RAID_OPTS=\"$RAID_OPTS\""
 }
 

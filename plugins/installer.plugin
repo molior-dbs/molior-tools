@@ -96,6 +96,9 @@ prepare_initrd_deployment()
   if [ "$fs_has_luks" -eq 1 ]; then
     INSTALLER_EXTRA_PACKAGES="$INSTALLER_EXTRA_PACKAGES cryptsetup"
   fi
+  if [ "$fs_on_raid" -eq 1 ]; then
+    INSTALLER_EXTRA_PACKAGES="$INSTALLER_EXTRA_PACKAGES mdadm"
+  fi
 
   if [ ! -d $WORK_DIR/instroot ]; then
     # in case of using a base roots, there is no instroot debootstrap left,

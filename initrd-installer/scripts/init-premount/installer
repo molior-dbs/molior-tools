@@ -92,6 +92,8 @@ if [ -z "$SFDISK" ]; then
   log_error "Error: partitions not definded, please set \$SFDISK"
 fi
 
+create_raid
+
 if [ "$INSTALLER_USE_PXE" != "yes" ]; then
 
   # we are booting from usb, find the disk
@@ -310,7 +312,9 @@ if [ -n "$LVM_VG" ]; then
     vgremove -f "$vg" >&2
   done
 fi
-wipefs -a $disk
+if [ -z "$RAID_NAME" ]; then
+  wipefs -a $disk
+fi
 blockdev --rereadpt $disk
 
 create_partitions
@@ -381,6 +385,11 @@ echo -n -e "\033[1;m"
 
 create_fstab
 
+if [ -n "$RAID_NAME" ];then
+  # store raid configuration
+  mdadm --detail --scan >> /mnt/target/etc/mdadm/mdadm.conf
+fi
+
 mount --bind /dev /mnt/target/dev
 mount --bind /sys /mnt/target/sys
 mount proc -t proc /mnt/target/proc
@@ -401,7 +410,12 @@ if [ -n "$LINUX_CMDLINE" ]; then
 fi
 if [ "$TARGET_BOOTTYPE" = "efi" ]; then
   if modprobe efivars; then
-    chroot /mnt/target grub-install --recheck --force
+    if [ -n "$RAID_NAME" ]; then
+      # fix for grub-install error where efibootmgr complains about missing -d (disk) parameter
+      chroot /mnt/target grub-install --modules mdraid1x --recheck --force --removable
+    else
+      chroot /mnt/target grub-install --recheck --force
+    fi
   else # no EFI support in current boot mode
     chroot /mnt/target grub-install --recheck --force --target x86_64-efi
     mkdir -p /mnt/target/boot/efi/EFI/BOOT
