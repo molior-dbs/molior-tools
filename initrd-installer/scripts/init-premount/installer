@@ -285,6 +285,13 @@ if [ "$INSTALLER_ASK_CONFIRM" != "no" ]; then
   echo -e "\033[1;m"
   echo -n "Press 'Enter' to confirm, Ctrl-Alt-Delete to reboot"
   read x
+  if [ "$x" = "shell" ]; then
+    exec 4>&2 # backup logfile
+    exec 2>&3
+    busybox sh
+    exec 2>&4 4>&- # restore logfile
+    exit 0
+  fi
 fi
 
 logo
@@ -324,7 +331,7 @@ mount_fs
 echo -n -e "\033[1;32m"
 echo Copying system ...
 echo -n -e "\033[1;m"
-cd /mnt/target
+cd $target
 
 case $INSTALLER_COMPRESSION in
    none)
@@ -367,12 +374,12 @@ if [ "$INSTALLER_USE_PXE" != "yes" ]; then
 fi
 
 if [ -n "$hostname" ]; then
-  echo "$hostname" > /mnt/target/etc/hostname
-  sed -i "s/127\.0\.1\.1 .*/127\.0\.1\.1 $hostname/" /mnt/target/etc/hosts
+  echo "$hostname" > $target/etc/hostname
+  sed -i "s/127\.0\.1\.1 .*/127\.0\.1\.1 $hostname/" $target/etc/hosts
 fi
 
 if [ -n "$CHPASSWD" ]; then
-  echo "$CHPASSWD" | chroot /mnt/target chpasswd
+  echo "$CHPASSWD" | chroot $target chpasswd
 fi
 
 echo -n -e "\033[1;32m"
@@ -381,45 +388,45 @@ echo -n -e "\033[1;m"
 
 create_fstab
 
-mount --bind /dev /mnt/target/dev
-mount --bind /sys /mnt/target/sys
-mount proc -t proc /mnt/target/proc
-mkdir -p /mnt/target/run/udev
+mount --bind /dev $target/dev
+mount --bind /sys $target/sys
+mount proc -t proc $target/proc
+mkdir -p $target/run/udev
 mount --bind /run/udev/ $target/run/udev
 
 echo " * installing boot loader"
 
 # ensure root=UUID= boot parameter
 rootuuid=`blkid  -o value -s UUID $rootpart`
-if [ ! -L /mnt/target/dev/disk/by-uuid/$rootuuid ]; then
-  mkdir -p /mnt/target/dev/disk/by-uuid
-  ln -s $rootpart /mnt/target/dev/disk/by-uuid/$rootuuid
+if [ ! -L $target/dev/disk/by-uuid/$rootuuid ]; then
+  mkdir -p $target/dev/disk/by-uuid
+  ln -s $rootpart $target/dev/disk/by-uuid/$rootuuid
 fi
 
 if [ -n "$LINUX_CMDLINE" ]; then
-  sed -i "s%^GRUB_CMDLINE_LINUX=.*$%GRUB_CMDLINE_LINUX=\"$LINUX_CMDLINE\"%" /mnt/target/etc/default/grub
+  sed -i "s%^GRUB_CMDLINE_LINUX=.*$%GRUB_CMDLINE_LINUX=\"$LINUX_CMDLINE\"%" $target/etc/default/grub
 fi
 if [ "$TARGET_BOOTTYPE" = "efi" ]; then
   if modprobe efivars; then
-    chroot /mnt/target grub-install --recheck --force
+    chroot $target grub-install --recheck --force
   else # no EFI support in current boot mode
-    chroot /mnt/target grub-install --recheck --force --target x86_64-efi
-    mkdir -p /mnt/target/boot/efi/EFI/BOOT
-    mv /mnt/target/boot/efi/efi/debian/grubx64.efi /mnt/target/boot/efi/EFI/BOOT/bootx64.efi
+    chroot $target grub-install --recheck --force --target x86_64-efi
+    mkdir -p $target/boot/efi/EFI/BOOT
+    mv $target/boot/efi/efi/debian/grubx64.efi $target/boot/efi/EFI/BOOT/bootx64.efi
   fi
 else
-  chroot /mnt/target grub-install --modules part_msdos --recheck --force --no-floppy $disk >/dev/null 2>&1
+  chroot $target grub-install --modules part_msdos --recheck --force --no-floppy $disk >/dev/null 2>&1
 fi
-chroot /mnt/target update-grub
+chroot $target update-grub
 
 if type installer_postinst >/dev/null 2>&1; then
   installer_postinst
 fi
 
-umount /mnt/target/run/udev
-umount /mnt/target/dev
-umount /mnt/target/sys
-umount /mnt/target/proc
+umount $target/run/udev
+umount $target/dev
+umount $target/sys
+umount $target/proc
 
 SUCCESS=1
 set +e
@@ -431,7 +438,7 @@ echo -n -e "\033[1;32m"
 echo -n "Done ! "
 echo -e "\033[1;m"
 
-cp $errlog /mnt/target/var/log
+cp $errlog $target/var/log
 umount_fs >/dev/null 2>&1
 
 if [ -n "$SOURCEDISK" ]; then
