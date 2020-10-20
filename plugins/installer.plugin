@@ -152,6 +152,11 @@ esac
 . /usr/share/initramfs-tools/hook-functions
 
 EOF
+    if ! echo $ARCH | grep -q arm; then
+      # load the intel graphics module when we run on an
+      # intel system
+      echo "manual_add_modules i915" >> $initrd/hooks/installer-extra-modules
+    fi
     for mod in $INSTALLER_EXTRA_MODULES
     do
         echo "manual_add_modules $mod" >> $initrd/hooks/installer-extra-modules
