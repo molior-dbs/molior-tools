@@ -422,7 +422,12 @@ if [ "$TARGET_BOOTTYPE" = "efi" ]; then
     mv /mnt/target/boot/efi/efi/debian/grubx64.efi /mnt/target/boot/efi/EFI/BOOT/bootx64.efi
   fi
 else
-  chroot /mnt/target grub-install --modules part_msdos --recheck --force --no-floppy $disk >/dev/null 2>&1
+  if [ -n "$RAID_NAME" ]; then
+    echo "$(chroot /mnt/target grub-probe -t drive -d $RAID_NAME) $RAID_NAME" > /mnt/target/boot/grub/device.map
+    chroot /mnt/target grub-install --modules part_msdos --force --no-floppy $disk >/dev/null 2>&1
+  else
+    chroot /mnt/target grub-install --modules part_msdos --recheck --force --no-floppy $disk >/dev/null 2>&1
+  fi
 fi
 chroot /mnt/target update-grub
 
