@@ -5,6 +5,7 @@ MAXPART=16
 fs_has_partitions=0
 fs_has_lvm=0
 fs_has_luks=0
+fs_on_raid=0
 
 exit_on_error()
 {
@@ -177,6 +178,11 @@ create_fstab()
     done
     IFS=$old_IFS
   fi
+
+  if [ -n "$RAID_NAME" ];then
+    # store raid configuration
+    mdadm --detail --scan >> $target/etc/mdadm/mdadm.conf
+  fi
 }
 
 create_partitions()
@@ -184,6 +190,13 @@ create_partitions()
   if [ -z "$disk" ]; then
     log_error "Error: \$disk not set"
   fi
+
+  if [ -n "$RAID_NAME" ]; then
+    echo " * creating raid $RAID_NAME"
+    echo y | mdadm --create --verbose $RAID_OPTS $RAID_NAME $disk missing
+    disk=`mdadm --detail --scan | cut -d" " -f2`
+  fi
+
   if [ -n "$SFDISK" ]; then
     echo " * creating partitions"
     sfdiskversion=`dpkg -s util-linux | grep ^Version: | sed 's/^Version: //'`
@@ -290,7 +303,7 @@ make_fs()
 
   else # normal filesystems
     echo " * mkfs $part"
-    eval mkfs $opts -t $s $part >/dev/null
+    eval mkfs -t $s $opts $part >/dev/null
     exit_on_error "Error formatting partition $part as $s"
   fi
 }
@@ -377,6 +390,10 @@ get_fsinfo()
         break
       fi
     done
+  fi
+
+  if [ -n "$RAID_NAME" ]; then
+    fs_on_raid=1
   fi
 }
 
@@ -640,5 +657,8 @@ get_deploy_config()
   echo "INSTALLER_INSTALL_DISK=\"$INSTALLER_INSTALL_DISK\""
   echo "INSTALLER_EXTRA_MODULES=\"$INSTALLER_EXTRA_MODULES\""
   echo "PARTSEP=\"$PARTSEP\""
+  echo "RAID_NAME=\"$RAID_NAME\""
+  echo "RAID_DEVICES=\"$RAID_DEVICES\""
+  echo "RAID_OPTS=\"$RAID_OPTS\""
 }
 
