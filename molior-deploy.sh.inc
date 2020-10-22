@@ -272,10 +272,6 @@ create_luks()
 create_raid()
 {
   if [ -n "$RAID_NAME" ]; then
-    if [ -z "$RAID_DEVICES" ]; then
-      log_error "Error: RAID devices not definded, please set \$SRAID_DEVICES"
-    fi
-
     # remove all existing md raids
     raids=$(grep raid /proc/mdstat | grep -v "Personalities" | tr -d " " | cut -d":" -f1)
     for raid in $raids; do
@@ -420,6 +416,9 @@ get_fsinfo()
   fi
 
   if [ -n "$RAID_NAME" ]; then
+    if [ -z "$RAID_DEVICES" ]; then
+      log_error "Error: RAID devices not definded, please set \$SRAID_DEVICES"
+    fi
     fs_on_raid=1
   fi
 }
