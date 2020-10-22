@@ -237,6 +237,18 @@ if [ -n "$INSTALLER_INSTALL_DISK" ]; then
     log_error "Error: disk $disk not found, aborting installation."
   fi
 fi
+
+if [ -n "$RAID_NAME" ]; then
+  for d in $RAID_DEVICES;
+  do
+    if [ ! -b "$d" ]; then
+      log_error "Error: disk $d not found, aborting installation."
+    fi
+  done
+  disk=`echo "$RAID_DEVICES" | cut -d" " -f1`
+  found=1
+fi
+
 while [ $found -ne 1 ]; do
   idx=0
   echo
@@ -317,7 +329,17 @@ if [ -n "$LVM_VG" ]; then
     vgremove -f "$vg" >&2
   done
 fi
-dd if=/dev/zero of=$disk bs=512 count=1 2>/dev/null
+
+if [ -n "$RAID_NAME" ]; then
+  for raid in `mdadm --detail --scan | cut -d " " -f2`;
+  do
+    mdadm --stop $raid
+    mdadm --remove $raid || true
+  done
+fi
+
+wipefs -af $disk >/dev/null 2>&1
+
 blockdev --rereadpt $disk
 
 create_partitions
@@ -408,19 +430,58 @@ if [ -n "$LINUX_CMDLINE" ]; then
 fi
 if [ "$TARGET_BOOTTYPE" = "efi" ]; then
   if modprobe efivars; then
-    chroot $target grub-install --recheck --force
+    if [ -n "$RAID_NAME" ]; then
+      # fix for grub-install error where efibootmgr complains about missing -d (disk) parameter
+      chroot $target grub-install --modules mdraid1x --recheck --force --removable
+    else
+      chroot $target grub-install --recheck --force
+    fi
   else # no EFI support in current boot mode
     chroot $target grub-install --recheck --force --target x86_64-efi
     mkdir -p $target/boot/efi/EFI/BOOT
     mv $target/boot/efi/efi/debian/grubx64.efi $target/boot/efi/EFI/BOOT/bootx64.efi
   fi
 else
-  chroot $target grub-install --modules part_msdos --recheck --force --no-floppy $disk >/dev/null 2>&1
+  if [ -n "$RAID_NAME" ]; then
+    echo "`chroot $target grub-probe -t drive -d $RAID_NAME` $RAID_NAME" > $target/boot/grub/device.map
+    chroot $target grub-install --modules part_msdos --force --no-floppy $disk >/dev/null 2>&1
+  else
+    chroot $target grub-install --modules part_msdos --force --no-floppy --recheck $disk >/dev/null 2>&1
+  fi
 fi
 chroot $target update-grub
 
 if type installer_postinst >/dev/null 2>&1; then
   installer_postinst
+fi
+
+if [ -n "$RAID_NAME" ]; then
+  echo -n -e "\033[1;32m"
+  echo Finalize raid setup
+  echo -n -e "\033[1;m"
+
+  mdadm $RAID_NAME --add `echo "$RAID_DEVICES" | cut -d" " -f2-`
+
+  # wait for sync starts
+  while true; do
+    if grep -q "recovery" /proc/mdstat; then
+      break
+    else
+      sleep 1
+    fi
+  done
+
+  # wait for sync ends
+  while true; do
+    if grep -q "recovery" /proc/mdstat; then
+      sleep 1
+      p=`grep "recovery" /proc/mdstat | tr -s " " | cut -d" " -f5,7-`
+      echo -ne "\r * syncing raid disks: $p"
+    else
+      break
+    fi
+  done
+  echo
 fi
 
 umount $target/run/udev
