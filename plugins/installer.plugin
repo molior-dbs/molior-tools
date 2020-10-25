@@ -83,7 +83,7 @@ prepare_initrd_deployment()
       EFIFILE=bootx64.efi
       GRUBEFITYPE=x86_64-efi
     elif [ "$ARCH" = "arm64" ]; then
-      EFIFILE=grubaa64.efi
+      EFIFILE=bootaa64.efi
       GRUBEFITYPE=arm64-efi
     else
       log_error "boottype EFI not supported on $ARCH"
