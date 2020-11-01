@@ -28,7 +28,7 @@ finalize_deployment_docker()
   docker import $WORK_DIR/root.tar $PROJECT-$VARIANT:$CONTAINER_VERSION >&2
   exit_on_error "Error running docker import"
 
-  deployment=$(get_deployment_filename "docker")
+  deployment=$(get_deployment_filename "tar")
   docker save  -o $WORK_DIR/$deployment $PROJECT-$VARIANT:$CONTAINER_VERSION >&2
   exit_on_error "Error running docker save"
 
