@@ -51,8 +51,10 @@ postinst_internal_deployment_info()
   cp $target/etc/apt/sources.list $WORK_DIR/info/apt-sources.list
 
   cd $target/usr/share/doc
-  find -name copyright | cpio -p --make-directories $WORK_DIR/info/copyrights
-  find -name changelog* | cpio -p --make-directories $WORK_DIR/info/changelogs
+  find -maxdepth 2 -name copyright | cpio -p --make-directories $WORK_DIR/info/copyrights
+  # copy linked packages
+  find -maxdepth 1 -type l | cpio -p $WORK_DIR/info/copyrights
+  find -maxdepth 2 -name changelog* | cpio -Lp --make-directories $WORK_DIR/info/changelogs
   cd - >/dev/null
 
   test -z "$kernel_config_file" || cp $target/boot/$kernel_config_file $WORK_DIR/info
