@@ -47,6 +47,8 @@ OPTIONS
   -r                Create rootfs only, do not create final deployment (to be used for -b)
   -b ROOTFS_TAR     Use existing rootfs (tar) as base for deployment (separately created with -r)
   -L                Keep log file for successful runs
+  -U                Use unstable APT sources (CI Builds)
+  -u                Use unstable top level package (INSTALL_PACKAGE in deploy file)
 
 COMMON PARAMETERS
 
