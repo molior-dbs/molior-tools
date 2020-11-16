@@ -2,7 +2,6 @@
 
 . /usr/lib/molior-tools/molior.sh.inc
 
-DIST=stable
 APTLY_OVERRIDE=0
 LIST_ONLY=0
 ask_cleanup=1
@@ -11,6 +10,8 @@ deploy_all=0
 keep_log=0
 no_color=0
 base_only=0
+unstable_sources=0
+dist=stable
 deployment_only=0
 DEPLOYMENT_SHA256=0
 OVERLAY_VERSION=""
@@ -45,6 +46,8 @@ usage()
   echo "  -r                Create rootfs only, do not create final deployment (to be used for -b)"
   echo "  -b ROOTFS_TAR     Use existing rootfs (tar) as base for deployment (separately created with -r)"
   echo "  -L                Keep log file"
+  echo "  -U                Use unstable APT sources (CI Builds)"
+  echo "  -u                Use unstable top level package (INSTALL_PACKAGE in deploy file)"
   echo
   if [ -n "$1" ]; then
     echo $1
@@ -54,7 +57,7 @@ usage()
 }
 
 origopts=$@
-while getopts "n:s:v:p:m:a:V:o:F:b:rtAlcfdOL" opt; do
+while getopts "n:s:v:p:m:a:V:o:F:b:rtAlcfdOLUu" opt; do
   case $opt in
     n)
       PACKAGE_NAME=$OPTARG
@@ -118,6 +121,14 @@ while getopts "n:s:v:p:m:a:V:o:F:b:rtAlcfdOL" opt; do
       ;;
     L)
       keep_log=1
+      shift 1
+      ;;
+    U)
+      unstable_sources=1
+      shift 1
+      ;;
+    u)
+      dist=unstable
       shift 1
       ;;
     t)
@@ -557,11 +568,19 @@ setup_deployment()
   log "logfile: $WORK_DIR/output.log"
 
   if [ -z "$MOLIOR_PROJECTSOURCES_FILE" ]; then
+    param=""
+    if [ $unstable_sources -eq 1 ]; then
+      param="?unstable=true"
+    fi
     log_info "Getting deployment information ..."
-    SOURCESURL=$MOLIOR_SERVER/api/projectsources/$PROJECT/$VERSION
-    APT_SOURCES_ORIG=`wget -q -O- $SOURCESURL`
+    SOURCESURL=$MOLIOR_SERVER/api2/$PROJECT/$VERSION/aptsources
+    APT_SOURCES_ORIG=`wget -q -O- $SOURCESURL$param`
     if [ -z "$APT_SOURCES_ORIG" ]; then
-      log_error "Error downloading $SOURCESURL"
+      SOURCESURL=$MOLIOR_SERVER/api/projectsources/$PROJECT/$VERSION
+      APT_SOURCES_ORIG=`wget -q -O- $SOURCESURL`
+      if [ -z "$APT_SOURCES_ORIG" ]; then
+        log_error "Error downloading $SOURCESURL"
+      fi
     fi
   else
     log_info "Reading deployment information from $MOLIOR_PROJECTSOURCES_FILE ..."
@@ -608,7 +627,7 @@ setup_deployment()
       do
         SOURCES_VERSION=`basename $baseurl`
         log "trying to download package source from $SOURCES_VERSION"
-        wget -q -O $WORK_DIR/Sources $MIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$DIST/main/source/Sources
+        wget -q -O $WORK_DIR/Sources $MIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$dist/main/source/Sources
         if [ `wc -l $WORK_DIR/Sources 2>/dev/null` -eq 0 ]; then
           # try next baseurl
           continue
@@ -626,14 +645,14 @@ setup_deployment()
         fi
       done
       if [ -z "$FILENAME" ]; then
-        log_error "No filename found for $PACKAGE_NAME in $MIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$DIST/main/source/Sources"
+        log_error "No filename found for $PACKAGE_NAME in $MIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$dist/main/source/Sources"
       fi
       log "using package source: $SOURCES_VERSION"
     else
-      wget -q -O $WORK_DIR/Sources $MIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$DIST/main/source/Sources
+      wget -q -O $WORK_DIR/Sources $MIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$dist/main/source/Sources
       # FIXME: check if exists...
       if [ `wc -l $WORK_DIR/Sources 2>/dev/null | cut -d' ' -f1` -eq 0 ]; then
-        log_error "Could not download $MIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$DIST/main/source/Sources"
+        log_error "Could not download $MIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$dist/main/source/Sources"
       fi
       srcinfo=`/usr/lib/molior-tools/find-latest-version.pl $PACKAGE_NAME $PACKAGE_VERSION < $WORK_DIR/Sources`
       exit_on_error "Error searching $PACKAGE_NAME revision"
@@ -641,7 +660,7 @@ setup_deployment()
       FILENAME=`echo $srcinfo | cut -d ' ' -f 1`/`echo $srcinfo | cut -d ' ' -f 2`
       REVISION=`echo $srcinfo | cut -d ' ' -f 3`
       if [ -z "$FILENAME" ]; then
-        log_error "No filename found for $PACKAGE_NAME in $MIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$DIST/main/source/Sources"
+        log_error "No filename found for $PACKAGE_NAME in $MIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$dist/main/source/Sources"
       fi
     fi
 
