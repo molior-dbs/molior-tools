@@ -7,6 +7,7 @@ preinit_deployment_upgrade()
   if [ -n "$DOCKER_COMPOSE_FILE" ]; then
       REQUIRED_HOST_COMMANDS="$REQUIRED_HOST_COMMANDS rdfind"
   fi
+  REQUIRED_PACKAGES="apt-utils"
 }
 
 init_deployment_upgrade()
@@ -79,6 +80,39 @@ postinst_deployment_upgrade()
   APT_SOURCES_ORIG=`wget -q -O- $SOURCESURL`
   echo "$APT_SOURCES_ORIG" > $target/etc/apt/sources.list
   exit_on_error "Error downloading APT sources"
+
+    if [ -n "$UPGRADE_APT_SOURCES_EXTRA" ]; then
+        log "adding new extra APT sources"
+        echo "$UPGRADE_APT_SOURCES_EXTRA" > $target/etc/apt/sources.list.d/extra.list
+    fi
+
+    if [ -n "$UPGRADE_APT_KEYS_EXTRA" ]; then
+        APT_KEYS_EXTRA=$UPGRADE_APT_KEYS_EXTRA
+        log "downloading new extra APT keys"
+
+        # FIXME: use function everywhere
+        i=0
+        for url in $KEY_URL $APT_KEYS_EXTRA
+        do
+          if [ -z "$url" ]; then
+            continue
+          fi
+          if [ $i -ne 0 ]; then
+            postfix=".$i"
+          else
+            postfix=""
+          fi
+          i=$((i + 1))
+          wget -q $url -O $WORK_DIR/repo.asc$postfix
+          exit_on_error "Error downloading $url"
+        done
+
+        for key in $WORK_DIR/repo.asc*
+        do
+          chroot $target apt-key add - >/dev/null < $key
+          exit_on_error "Error adding apt key"
+        done
+    fi
 
   log "updating APT database"
   chroot $target apt-get update >&2
