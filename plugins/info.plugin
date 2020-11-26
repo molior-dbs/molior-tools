@@ -73,6 +73,13 @@ postinst_internal_deployment_info()
     chroot $target apt-get -y install debsums >&2
     exit_on_error "Error installing: debsums"
   fi
+  chroot $target debsums -ac > $WORK_DIR/info/$debsums_file
+  # debsums will return error, no checking
+  if ! grep -qw debsums $WORK_DIR/info/$packages_file; then
+    chroot $target apt-get -y purge debsums >&2
+    exit_on_error "Error removing: debsums"
+  fi
+
   chroot $target apt-get -y install debsecan >&2
   exit_on_error "Error installing: debsecan"
 
@@ -83,31 +90,6 @@ postinst_internal_deployment_info()
   chroot $target debsecan --only-fixed --suite $SUITE > $WORK_DIR/info/$debsecan_file
   exit_on_error "Error running debsecan"
 
-  chroot $target debsums -ac > $WORK_DIR/info/$debsums_file
-  # debsums will return error, no checking
-  if ! grep -qw debsums $WORK_DIR/info/$packages_file; then
-    chroot $target apt-get -y purge debsums >&2
-    exit_on_error "Error removing: debsums"
-  fi
-  chroot $target apt-get -y purge debsecan >&2
-  exit_on_error "Error removing: debsecan"
-
-  chroot $target apt-get -y autoremove --purge >&2
-  exit_on_error "Error running autoremove"
-
-  export SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
-  chroot $target debsecan > $WORK_DIR/info/$debsecan_complete_file
-  exit_on_error "Error running debsecan"
-
-  chroot $target debsecan --only-fixed --suite $SUITE > $WORK_DIR/info/$debsecan_file
-  exit_on_error "Error running debsecan"
-
-  chroot $target debsums -ac > $WORK_DIR/info/$debsums_file
-  # debsums will return error, no checking
-  if ! grep -qw debsums $WORK_DIR/info/$packages_file; then
-    chroot $target apt-get -y purge debsums >&2
-    exit_on_error "Error removing: debsums"
-  fi
   chroot $target apt-get -y purge debsecan >&2
   exit_on_error "Error removing: debsecan"
 
