@@ -1072,7 +1072,7 @@ install_docker()
       fi
       # only pull DOCKER_CONTAINERS
   elif [ -z "$DOCKER_CONTAINERS" ]; then
-    docker_containers=`grep -v -P '^[ \t]*#' $target/$DOCKER_COMPOSE_FILE | grep "image:" | awk '{ print $2 }'`
+    docker_containers=`grep -v -P '^[ \t]*#' $target/$DOCKER_COMPOSE_FILE | grep "image:" | awk '{ print $2 }' | sort | uniq`
     if [ -z "$docker_containers" ]; then
       log_error "Cannot find images in DOCKER_COMPOSE_FILE $target/$DOCKER_COMPOSE_FILE"
     fi

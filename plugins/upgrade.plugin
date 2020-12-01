@@ -29,6 +29,9 @@ init_deployment_upgrade()
   if [ -z "$APT_SOURCES" ]; then
     log_error "Error downloading $SOURCESURL"
   fi
+  if [ -z "$DOCKER_UPGRADE_NO_DEDUP" ]; then
+    DOCKER_UPGRADE_NO_DEDUP=0
+  fi
   APT_SOURCES=`echo "$APT_SOURCES_ORIG" | sed '/^#/d'`
   MIRROR=`echo "$APT_SOURCES" | head -n 1 | cut -d' ' -f 2`
   SUITE=`dirname $MIRROR`
@@ -51,12 +54,11 @@ postinst_deployment_upgrade()
   echo $PROJECT/$UPGRADE_BASE > $WORK_DIR/upgrade-package/baseversion
   echo $REVISION > $WORK_DIR/upgrade-package/releaseversion
 
-
-  if [ -n "$DOCKER_COMPOSE_FILE" ]; then
+  if [ -n "$DOCKER_COMPOSE_FILE" -a "$DOCKER_UPGRADE_NO_DEDUP" -ne 1 ]; then
     # remember pre upgrade docker images
     log_info "Installing $VERSION docker containers ..."
     cp $target/$DOCKER_COMPOSE_FILE $WORK_DIR/docker-compose.yml.old
-    oldimages=`grep -v -P '^[ \t]*#' $target/$DOCKER_COMPOSE_FILE | grep "image:" | awk '{ print $2 }' | sort`
+    oldimages=`grep -v -P '^[ \t]*#' $target/$DOCKER_COMPOSE_FILE | grep "image:" | awk '{ print $2 }' | sort | uniq`
     if [ -f $target/$DOCKER_COMPOSE_ENV_PATH/.env ]; then
         oldimages=`. $target/$DOCKER_COMPOSE_ENV_PATH/.env; for i in $oldimages; do eval echo $i; done`
     fi
@@ -148,36 +150,40 @@ postinst_docker()
       return
     fi
 
-    if [ ! -f $WORK_DIR/upgrade-package/docker-containers.old.tar ]; then
+    if [ ! -f $WORK_DIR/upgrade-package/docker-containers.old.tar -a -f $WORK_DIR/upgrade-package/docker.old -a -f $WORK_DIR/upgrade-package/docker.nodedup ]; then
         # first pass, save the previous docker images
-        chroot $target docker save `comm -23 $WORK_DIR/upgrade-package/docker.old $WORK_DIR/upgrade-package/docker.nodedup` > $WORK_DIR/upgrade-package/docker-containers.old.tar
+        dockers=`comm -23 $WORK_DIR/upgrade-package/docker.old $WORK_DIR/upgrade-package/docker.nodedup`
         rm -f $WORK_DIR/upgrade-package/docker.nodedup
+        if [ -n "$dockers" ]; then
+            chroot $target docker save $dockers > $WORK_DIR/upgrade-package/docker-containers.old.tar
+        fi
     else
         # second pass, save the changed docker images
-        newimages=`grep -v -P '^[ \t]*#' $target/$DOCKER_COMPOSE_FILE | grep "image:" | awk '{ print $2 }' | sort`
+        newimages=`grep -v -P '^[ \t]*#' $target/$DOCKER_COMPOSE_FILE | grep "image:" | awk '{ print $2 }' | sort | uniq`
         if [ -f $target/$DOCKER_COMPOSE_ENV_PATH/.env ]; then
             newimages=`. $target/$DOCKER_COMPOSE_ENV_PATH/.env; for i in $newimages; do eval echo $i; done`
         fi
-        echo "$newimages" > $WORK_DIR/upgrade-package/docker.new
-        docker_containers=`comm -23 $WORK_DIR/upgrade-package/docker.new $WORK_DIR/upgrade-package/docker.old`
-        if [ -n "$docker_containers" ]; then
-          log "saving docker containers"
-          chroot $target docker save $docker_containers > $WORK_DIR/upgrade-package/docker-containers.tar
-          exit_on_error "Error saving docker containers"
 
-          log "deduplicating docker images"
-          chroot $target docker save `cat $WORK_DIR/upgrade-package/docker.new` > $WORK_DIR/upgrade-package/docker-containers.tar
-          exit_on_error "Error saving docker containers"
-          . /usr/lib/molior-deploy/docker-utils.sh.inc
-          docker_deduplicate $WORK_DIR/upgrade-package/docker-containers.old.tar \
-                             $WORK_DIR/upgrade-package/docker-containers.tar \
-                             $WORK_DIR/upgrade-package/docker-containers.dedup.tar
-          exit_on_error "Error deduplicating docker containers"
-          cd $WORK_DIR/upgrade-package
-          rm -f docker-containers.tar docker-containers.old.tar
-          cd - > /dev/null
+        if [ -f $WORK_DIR/upgrade-package/docker-containers.old.tar ]; then
+            echo "$newimages" > $WORK_DIR/upgrade-package/docker.new
+            docker_containers=`comm -23 $WORK_DIR/upgrade-package/docker.new $WORK_DIR/upgrade-package/docker.old`
+            if [ -n "$docker_containers" ]; then
+                log "deduplicating docker images"
+                chroot $target docker save $docker_containers > $WORK_DIR/upgrade-package/docker-containers.tar
+                exit_on_error "Error saving docker containers"
+                . /usr/lib/molior-deploy/docker-utils.sh.inc
+                docker_deduplicate $WORK_DIR/upgrade-package/docker-containers.old.tar \
+                                   $WORK_DIR/upgrade-package/docker-containers.tar \
+                                   $WORK_DIR/upgrade-package/docker-containers.dedup.tar
+                exit_on_error "Error deduplicating docker containers"
+                rm -f $WORK_DIR/upgrade-package/docker-containers.tar $WORK_DIR/upgrade-package/docker-containers.old.tar
+            else
+              log "docker: no image changes in docker-compose.yml"
+            fi
         else
-          log "docker: no image changes in docker-compose.yml"
+            log "saving docker containers"
+            chroot $target docker save $newimages > $WORK_DIR/upgrade-package/docker-containers.tar
+            exit_on_error "Error saving docker containers"
         fi
     fi
 }
