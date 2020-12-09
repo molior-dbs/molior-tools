@@ -10,7 +10,6 @@ finalize_deployment_dir()
   umount_bootstrap
   umount_fs
 
-  cwd=`pwd`
   cd $target
   tar -cf ../$deployment .
   cd - >/dev/null

@@ -20,9 +20,9 @@ esac
 # molior busybox override binaries
 export PATH=/mbin:$PATH
 
-ln -s mke2fs /mbin/mkfs.ext2
-ln -s mke2fs /mbin/mkfs.ext3
-ln -s mke2fs /mbin/mkfs.ext4
+ln -sf mke2fs /mbin/mkfs.ext2
+ln -sf mke2fs /mbin/mkfs.ext3
+ln -sf mke2fs /mbin/mkfs.ext4
 
 # disable dmesg to console
 cat /proc/sys/kernel/printk > /tmp/printk.bak
@@ -32,6 +32,11 @@ sleep 1
 
 logo()
 {
+  if type installer_logo >/dev/null 2>&1; then
+    installer_logo
+    return
+  fi
+
   clear
   echo -en "\033[1;32m"
   echo "                   _ _            "
@@ -82,7 +87,7 @@ finish()
 }
 trap finish EXIT
 
-mkdir /var/log
+mkdir -p /var/log
 errlog=/var/log/installer.log
 exec 3>&2
 exec 2>$errlog
@@ -92,7 +97,7 @@ if [ -z "$SFDISK" ]; then
   log_error "Error: partitions not definded, please set \$SFDISK"
 fi
 
-if [ "$INSTALLER_USE_PXE" != "yes" ]; then
+if [ "$INSTALLER_USE_PXE" != "yes" -a -z "$INSTALLER_DOWNLOAD_URL" ]; then
 
   # we are booting from usb, find the disk
   echo -n "Searching installation media ..."
@@ -130,11 +135,22 @@ if [ "$INSTALLER_USE_PXE" != "yes" ]; then
 else
 
   # we are booting from pxe, download the image
-  echo -n "Downloading install medium ..."
+  echo "Downloading install medium ..."
 
   configure_networking
-  if [ -n "$INSTALLER_PXE_IMAGE_URL" ]; then
-    wget -q -O /mnt/source/image.cpio$INSTALLER_COMPRESSION_EXT $INSTALLER_PXE_IMAGE_URL/image.cpio$INSTALLER_COMPRESSION_EXT
+
+  if [ -n "$INSTALLER_DOWNLOAD_URL" ]; then
+    # allow progress bar to be displayed
+    set +x
+    exec 4>&2 # backup logfile
+    exec 2>&3
+    wget -O /mnt/source/image.cpio$INSTALLER_COMPRESSION_EXT $INSTALLER_DOWNLOAD_URL/image.cpio$INSTALLER_COMPRESSION_EXT
+    ret=$?
+    exec 2>&4 4>&- # restore logfile
+    set -x
+    if [ $ret -ne 0 ]; then
+        log_error "Error downloading image, aborting installation."
+    fi
   else
     tftp -g -l /mnt/source/image.cpio$INSTALLER_COMPRESSION_EXT -r image.cpio$INSTALLER_COMPRESSION_EXT -b 16384 "$ROOTSERVER"
   fi
@@ -391,7 +407,7 @@ set -x
 
 cd /
 
-if [ "$INSTALLER_USE_PXE" != "yes" ]; then
+if [ "$INSTALLER_USE_PXE" != "yes" -a -z "$INSTALLER_DOWNLOAD_URL" ]; then
   umount /mnt/source
 fi
 
