@@ -567,6 +567,8 @@ configure_networking()
     busybox sh
   fi
 
+  # FIXME: check $IP, use dhcp if empty
+
   CLIENT_IP=$(echo $IP | cut -d: -f1)
   ROOTSERVER=$(echo $IP | cut -d: -f2)
   GATEWAY=$(echo $IP | cut -d: -f3)
@@ -653,7 +655,7 @@ get_deploy_config()
   echo "INSTALLER_COMPRESSION=\"$INSTALLER_COMPRESSION\""
   echo "INSTALLER_COMPRESSION_EXT=\"$INSTALLER_COMPRESSION_EXT\""
   echo "INSTALLER_DISK_MIN=\"$INSTALLER_DISK_MIN\""
-  echo "INSTALLER_PXE_IMAGE_URL=\"$INSTALLER_PXE_IMAGE_URL\""
+  echo "INSTALLER_DOWNLOAD_URL=\"$INSTALLER_DOWNLOAD_URL\""
   echo "INSTALLER_INSTALL_DISK=\"$INSTALLER_INSTALL_DISK\""
   echo "INSTALLER_EXTRA_MODULES=\"$INSTALLER_EXTRA_MODULES\""
   echo "PARTSEP=\"$PARTSEP\""
