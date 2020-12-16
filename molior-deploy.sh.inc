@@ -90,6 +90,9 @@ create_fstab()
       if [ "$t" = "/" ]; then
         continue
       fi
+      if [ -z "$t" ]; then
+        break
+      fi
       eval s=\$PART${p}_FS
       if [ -z "$s" ]; then
         break
@@ -117,6 +120,9 @@ create_fstab()
       eval t=\$LVM_LV${p}_MNT
       if [ "$t" = "/" ]; then
         continue
+      fi
+      if [ -z "$t" ]; then
+        break
       fi
       eval s=\$LVM_LV${p}_FS
       if [ -z "$s" ]; then
