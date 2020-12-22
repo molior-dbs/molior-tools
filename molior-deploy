@@ -224,6 +224,7 @@ errlog=$WORK_DIR/output.log
 
 do_fstab=1
 do_compress=1
+do_installation=1
 starttime="0"
 endtime="0"
 target=""
@@ -1267,51 +1268,53 @@ workflow_base()
     tar xf $BASE_ROOTFS -C $target
     exit_on_error "Error extracting '$BASE_ROOTFS'"
   else  # if [ $deployment_only -eq 0 ]; then
-    log_info "Installing base OS ..."
-    bootstrap_deployment
+    if [ $do_installation -eq 1 ]; then
+      log_info "Installing base OS ..."
+      bootstrap_deployment
 
-    # run preinst_deployment
-    if type preinst_deployment >/dev/null; then
-      preinst_deployment
-    elif type preinst_deployment_$DEPLOYMENT_TYPE >/dev/null; then
-      preinst_deployment_$DEPLOYMENT_TYPE
-    fi
+      # run preinst_deployment
+      if type preinst_deployment >/dev/null; then
+        preinst_deployment
+      elif type preinst_deployment_$DEPLOYMENT_TYPE >/dev/null; then
+        preinst_deployment_$DEPLOYMENT_TYPE
+      fi
 
-    log_info "Installing software ..."
-    install_deployment
+      log_info "Installing software ..."
+      install_deployment
 
-    # enable DNS in chroot for postinst
-    if [ -e $target/etc/resolv.conf -o -h $target/etc/resolv.conf ]; then
-      mv $target/etc/resolv.conf $target/etc/resolv.conf.molior-deploy.bak
-    fi
-    cp -L /etc/resolv.conf $target/etc/resolv.conf
+      # enable DNS in chroot for postinst
+      if [ -e $target/etc/resolv.conf -o -h $target/etc/resolv.conf ]; then
+        mv $target/etc/resolv.conf $target/etc/resolv.conf.molior-deploy.bak
+      fi
+      cp -L /etc/resolv.conf $target/etc/resolv.conf
 
-    # run postinst_deployment
-    if type postinst_deployment >/dev/null; then
-      postinst_deployment
-    elif type postinst_deployment_$DEPLOYMENT_TYPE >/dev/null; then
-      postinst_deployment_$DEPLOYMENT_TYPE
-    fi
+      # run postinst_deployment
+      if type postinst_deployment >/dev/null; then
+        postinst_deployment
+      elif type postinst_deployment_$DEPLOYMENT_TYPE >/dev/null; then
+        postinst_deployment_$DEPLOYMENT_TYPE
+      fi
 
-    # ensure DNS is still enabled
-    rm -f $target/etc/resolv.conf
-    cp -L /etc/resolv.conf $target/etc/resolv.conf
+      # ensure DNS is still enabled
+      rm -f $target/etc/resolv.conf
+      cp -L /etc/resolv.conf $target/etc/resolv.conf
 
-    # install docker containers
-    if [ -n "$DOCKER_CONTAINERS" -o -n "$DOCKER_COMPOSE_FILE" ]; then
-      log_info "Installing docker containers ..."
-      install_docker
-    fi
+      # install docker containers
+      if [ -n "$DOCKER_CONTAINERS" -o -n "$DOCKER_COMPOSE_FILE" ]; then
+        log_info "Installing docker containers ..."
+        install_docker
+      fi
 
-    # run postinst_internal_deployment
-    if type postinst_internal_deployment_$DEPLOYMENT_TYPE >/dev/null; then
-      postinst_internal_deployment_$DEPLOYMENT_TYPE
-    fi
+      # run postinst_internal_deployment
+      if type postinst_internal_deployment_$DEPLOYMENT_TYPE >/dev/null; then
+        postinst_internal_deployment_$DEPLOYMENT_TYPE
+      fi
 
-    # restore resolv.conf
-    rm -f $target/etc/resolv.conf
-    if [ -e $target/etc/resolv.conf.molior-deploy.bak -o -h $target/etc/resolv.conf.molior-deploy.bak ]; then
-      mv $target/etc/resolv.conf.molior-deploy.bak $target/etc/resolv.conf
+      # restore resolv.conf
+      rm -f $target/etc/resolv.conf
+      if [ -e $target/etc/resolv.conf.molior-deploy.bak -o -h $target/etc/resolv.conf.molior-deploy.bak ]; then
+        mv $target/etc/resolv.conf.molior-deploy.bak $target/etc/resolv.conf
+      fi
     fi
 
     if [ -n "$MOLIOR_PROJECTINFO_FILE" ]; then
