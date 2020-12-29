@@ -1,0 +1,25 @@
+NAME
+ molior-deploy - srcarchive deployment type
+
+DESCRIPTION
+ The srcarchive plugin allows to create a tarball with source files, including dependencies.
+
+OPTIONS
+ The deployment configuration (deploy/*.conf file) recognizes the following variables:
+
+ DEPLOYMENT_TYPE    Specify 'srcarchive to use the srcarchive plugin
+
+EXAMPLE
+
+ deploy/srcarchive.conf:
+
+   DEPLOYMENT_TYPE=srcarchive
+
+AUTHORS
+ Please see the AUTHORS file in the source repositories.
+
+ The project homepage is <https://github.com/molior-dbs>
+
+SEE ALSO
+ create-release(1), molior-archive-sources(1), molior-deploy(8), molior-sbuild(1), molior-trigger(1), add-molior-repo(8)
+
