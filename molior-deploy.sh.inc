@@ -91,11 +91,11 @@ create_fstab()
         continue
       fi
       if [ -z "$t" ]; then
-        break
+        continue
       fi
       eval s=\$PART${p}_FS
       if [ -z "$s" ]; then
-        break
+        continue
       fi
       eval o=\$PART${p}_OPTS
       if [ -z "$o" ]; then
@@ -122,11 +122,11 @@ create_fstab()
         continue
       fi
       if [ -z "$t" ]; then
-        break
+        continue
       fi
       eval s=\$LVM_LV${p}_FS
       if [ -z "$s" ]; then
-        break
+        continue
       fi
       eval o=\$LVM_LV${p}_OPTS
       if [ -z "$o" ]; then
