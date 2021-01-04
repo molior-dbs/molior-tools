@@ -574,7 +574,7 @@ setup_deployment()
       param="?unstable=true"
     fi
     log_info "Getting deployment information ..."
-    SOURCESURL=$MOLIOR_SERVER/api2/$PROJECT/$VERSION/aptsources
+    SOURCESURL=$MOLIOR_SERVER/api2/project/$PROJECT/$VERSION/aptsources
     APT_SOURCES_ORIG=`wget -q -O- $SOURCESURL$param`
     if [ -z "$APT_SOURCES_ORIG" ]; then
       SOURCESURL=$MOLIOR_SERVER/api/projectsources/$PROJECT/$VERSION
