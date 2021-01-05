@@ -358,6 +358,8 @@ wipefs -af $disk >/dev/null 2>&1
 
 blockdev --rereadpt $disk
 
+detect_partname_scheme
+
 create_partitions
 
 create_fs   # this will set rootpart used below

@@ -14,6 +14,15 @@ exit_on_error()
   fi
 }
 
+detect_partname_scheme()
+{
+  if [ -z "$PARTSEP" ]; then
+    if echo $disk | grep -q "[0-9]$"; then
+      PARTSEP="p"
+    fi
+  fi
+}
+
 create_fstab()
 {
   if [ -z "$target" ]; then
