@@ -90,7 +90,7 @@ create_fstab()
       if [ "$t" = "/" ]; then
         continue
       fi
-      if [ -z "$t" ]; then
+      if [ -z "$t" -a "$s" != "swap" ]; then
         continue
       fi
       eval s=\$PART${p}_FS
@@ -121,7 +121,7 @@ create_fstab()
       if [ "$t" = "/" ]; then
         continue
       fi
-      if [ -z "$t" ]; then
+      if [ -z "$t" -a "$s" != "swap" ]; then
         continue
       fi
       eval s=\$LVM_LV${p}_FS
