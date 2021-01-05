@@ -4,7 +4,6 @@ This repository provides the following molior-tools:
 
 - add-molior-repo
 - create-release
-- molior-archive-sources
 - molior-create
 - molior-deploy
 - molior-parseconfig
@@ -22,15 +21,12 @@ Release a debian package including modifying the debian/changelog.
 This is done by creating an anotated tag in the git
 repository and adding to the debian changelog.
 
-## molior-archive-sources
-
-Archive all the source code of a given molior project/version
-
 ## molior-create
 
 ## molior-deploy
 
 Create deployments of a project
+
 ## molior-parseconfig
 
 Simple tool to read/edit the molior.yml config file.

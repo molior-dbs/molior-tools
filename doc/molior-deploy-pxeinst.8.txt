@@ -27,5 +27,5 @@ AUTHORS
  The project homepage is <https://github.com/molior-dbs>
 
 SEE ALSO
- molior-deploy-installer(8), create-release(1), molior-archive-sources(1), molior-deploy(8), molior-sbuild(1), molior-trigger(1), add-molior-repo(8)
+ molior-deploy-installer(8), create-release(1), molior-deploy(8), molior-sbuild(1), molior-trigger(1), add-molior-repo(8)
 
