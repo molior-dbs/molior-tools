@@ -891,7 +891,7 @@ setup_deployment()
           DEPLOYMENT_COMPRESSION_EXT=".gz"
       ;;
       *)
-          log_error "Unsupported deployment compressions: '$DEPLOYMENT_COMPRESSION'"
+          log_error "Unsupported deployment compression: '$DEPLOYMENT_COMPRESSION' (use: none, gz, xz)"
       ;;
   esac
 
