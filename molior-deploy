@@ -743,8 +743,8 @@ setup_deployment()
     . /usr/lib/molior-deploy/plugins/$DEPLOYMENT_TYPE.plugin
   fi
 
-  if [ "$ROOTPART" ]; then
-    log_warn "Warning: ROOTPART is depreciated, please use PART${ROOTPART}_MNT=/"
+  if [ -n "$ROOTPART" ]; then
+    log_warn "Warning: ROOTPART is deprecated, please use PART${ROOTPART}_MNT=/"
     eval PART${ROOTPART}_MNT=/
   fi
 

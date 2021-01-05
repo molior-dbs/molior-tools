@@ -210,7 +210,7 @@ create_partitions()
     if dpkg --compare-versions "$sfdiskversion" gt "2.27.1"; then
       wipearg="--wipe=always"
     fi
-    echo "$SFDISK" | sfdisk --force $wiparg $disk >/dev/null
+    echo "$SFDISK" | sfdisk --force $wipearg $disk >/dev/null
     exit_on_error "Error creating partitions"
   fi
 }
