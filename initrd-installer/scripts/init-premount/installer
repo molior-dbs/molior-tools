@@ -279,14 +279,14 @@ while [ $found -ne 1 ]; do
       # FIXME: verify deployment size
       if [ "$size" -ge $INSTALLER_DISK_MIN ]; then
         let idx++ || true
-        echo "  $idx) $d    Size: ${size}Gb"
+        echo "  $idx) $d    Size: ${size}GiB"
         eval "disk${idx}=$d"
       fi
     fi
   done
 
   if [ "$idx" -eq 0 ]; then
-    log_error "Error: no disk >= 4G found, aborting installation."
+    log_error "Error: no disk >= ${INSTALLER_DISK_MIN}GiB found, aborting installation."
   elif [ "$idx" -gt 1 ]; then
     echo -n "Enter disk number to install: "
     read input
