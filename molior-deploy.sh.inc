@@ -99,10 +99,10 @@ create_fstab()
       if [ "$t" = "/" ]; then
         continue
       fi
+      eval s=\$PART${p}_FS
       if [ -z "$t" -a "$s" != "swap" ]; then
         continue
       fi
-      eval s=\$PART${p}_FS
       if [ -z "$s" ]; then
         continue
       fi
@@ -130,10 +130,10 @@ create_fstab()
       if [ "$t" = "/" ]; then
         continue
       fi
+      eval s=\$LVM_LV${p}_FS
       if [ -z "$t" -a "$s" != "swap" ]; then
         continue
       fi
-      eval s=\$LVM_LV${p}_FS
       if [ -z "$s" ]; then
         continue
       fi
