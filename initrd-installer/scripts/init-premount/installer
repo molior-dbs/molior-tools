@@ -57,6 +57,10 @@ if [ -f /scripts/installer-hooks.sh.inc ]; then
   . /scripts/installer-hooks.sh.inc
 fi
 
+if type installer_init >/dev/null 2>&1; then
+  installer_init
+fi
+
 logo
 echo -n -e '\033[9;0]\033[14;0]' > /dev/console
 
