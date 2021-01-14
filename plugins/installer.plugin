@@ -42,6 +42,9 @@ preinst_deployment_installer()
 {
   APT_INSTALL_EXTRA="$APT_INSTALL_EXTRA cpio"
   cp -ar $target $WORK_DIR/instroot
+  if [ -z "$INSTALLER_LINUX_CMDLINE" ]; then
+    INSTALLER_LINUX_CMDLINE="quiet"
+  fi
 }
 
 prepare_initrd_deployment()
@@ -202,7 +205,7 @@ search --file --set=root /image.cpio$INSTALLER_COMPRESSION_EXT
 insmod all_video
 set gfxpayload=keep
 set linux_gfx_mode=1024x768x32
-linux /vmlinuz quiet
+linux /vmlinuz $INSTALLER_LINUX_CMDLINE
 initrd /initrd.img
 boot
 EOF
