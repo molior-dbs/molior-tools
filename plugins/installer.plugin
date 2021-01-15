@@ -61,7 +61,7 @@ prepare_initrd_deployment()
       xz)
         INSTALLER_COMPRESSION_EXT=".xz"
       ;;
-      gzip)
+      gz|gzip)
         INSTALLER_COMPRESSION_EXT=".gz"
       ;;
       *)
@@ -270,7 +270,7 @@ EOF
         $PXZ_CMD -T `nproc --ignore 1` $WORK_DIR/out/image.cpio 2>&1
         exit_on_error "Error compressing $WORK_DIR/out/image.cpio$INSTALLER_COMPRESSION_EXT"
       ;;
-      gzip)
+      gz|gzip)
         gzip $WORK_DIR/out/image.cpio 2>&1
         exit_on_error "Error compressing $WORK_DIR/out/image.cpio$INSTALLER_COMPRESSION_EXT"
       ;;

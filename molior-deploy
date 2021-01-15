@@ -773,7 +773,7 @@ setup_deployment()
       xz)
           DEPLOYMENT_COMPRESSION_EXT=".xz"
       ;;
-      gzip)
+      gz|gzip)
           DEPLOYMENT_COMPRESSION_EXT=".gz"
       ;;
       *)
@@ -1361,7 +1361,7 @@ workflow_deployment()
            exit_on_error "Error compressing $deployment"
            deployment=$deployment.xz
         ;;
-        gzip)
+        gz|gzip)
            gzip $WORK_DIR/$deployment >&2
            exit_on_error "Error compressing $deployment"
            deployment=$deployment.gz

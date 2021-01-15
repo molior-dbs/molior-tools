@@ -9,7 +9,7 @@ OPTIONS
 
  DEPLOYMENT_TYPE            Specify 'installer' to use the installer plugin
  INSTALLER_DISK_MIN         Minimum required disk size in GB (default 3GB)
- INSTALLER_COMPRESSION      Compression method to be used for the installer image (xz, gzip, none)
+ INSTALLER_COMPRESSION      Compression method to be used for the installer image (xz, gz/gzip, none)
  INSTALLER_EXTRA_PACKAGES   Add additional packages to the installer (may need hooks in initrd)
  TARGET_BOOTTYPE            For EFI bootable ISOs, specify 'efi' (default: bios)
  INSTALLER_EXTRA_INITRD     Add the contents of the specified directory (in source package) to the /etc/initramfs-tools/ in the installer

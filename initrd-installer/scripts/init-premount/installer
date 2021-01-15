@@ -383,7 +383,7 @@ case $INSTALLER_COMPRESSION in
    xz)
        bytes=`xz --robot --list /mnt/source/image.cpio$INSTALLER_COMPRESSION_EXT 2>/dev/null | grep totals | awk '{ print $5 }'`
    ;;
-   gzip)
+   gz|gzip)
        bytes=`gzip -l /mnt/source/image.cpio$INSTALLER_COMPRESSION_EXT | grep /mnt/source/image.cpio | awk '{ print $2 }'`
    ;;
 esac
@@ -400,7 +400,7 @@ case $INSTALLER_COMPRESSION in
    xz)
        xz -dc /mnt/source/image.cpio$INSTALLER_COMPRESSION_EXT | pv -s $bytes | cpio -B -H newc -imd --no-absolute-filenames 2>/dev/null
    ;;
-   gzip)
+   gz|gzip)
        gzip -dc /mnt/source/image.cpio$INSTALLER_COMPRESSION_EXT | pv -s $bytes | cpio -B -H newc -imd --no-absolute-filenames 2>/dev/null
    ;;
    *)
