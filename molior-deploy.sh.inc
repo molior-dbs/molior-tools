@@ -594,88 +594,98 @@ configure_networking()
   ip route add default via $GATEWAY dev $DEVICE
 }
 
+echovar()
+{
+    name="$1"
+    value="$2"
+    if [ -z "$value" ]; then
+        value=`eval echo \"\\${$name}\" | sed -e 's/\`/\\\\\`/g' -e 's/\\\$/\\\\$/g'`
+    fi
+    echo "$name=\"$value\""
+}
+
 get_deploy_config()
 {
-  echo "MOLIOR_TOOLS_VERSION=\"$MOLIOR_TOOLS_VERSION\""
-  echo "DEPLOYMENT_TIMESTAMP=\"$DEPLOYMENT_TIMESTAMP\""
-  echo "PROJECT=\"$PROJECT\""
-  echo "VERSION=\"$VERSION\""
-  echo "REVISION=\"$REVISION\""
-  echo "VARIANT=\"$VARIANT\""
-  echo "SUITE=\"$SUITE\""
-  echo "SFDISK=\"$SFDISK\""
-  echo "LVM_VG=\"$LVM_VG\""
-  echo "ROOTDEVICE=\"$ROOTDEVICE\""
-  echo "ROOTFS=\"$ROOTFS\""
-  echo "ROOTFSOPTS=\"$ROOTFSOPTS\""
+  echovar MOLIOR_TOOLS_VERSION
+  echovar DEPLOYMENT_TIMESTAMP
+  echovar PROJECT
+  echovar VERSION
+  echovar REVISION
+  echovar VARIANT
+  echovar SUITE
+  echovar SFDISK
+  echovar LVM_VG
+  echovar ROOTDEVICE
+  echovar ROOTFS
+  echovar ROOTFSOPTS
   for p in `seq 1 $MAXPART`
   do
     eval s=\$PART${p}_FS
-    test -n "$s" && echo "PART${p}_FS=\"$s\""
+    test -n "$s" && echovar PART${p}_FS $s
     eval s=\$PART${p}_MNT
-    test -n "$s" && echo "PART${p}_MNT=\"$s\""
+    test -n "$s" && echovar PART${p}_MNT $s
     eval s=\$PART${p}_OPTS
-    test -n "$s" && echo "PART${p}_OPTS=\"$s\""
+    test -n "$s" && echovar PART${p}_OPTS $s
     eval s=\$PART${p}_MKFSOPTS
-    test -n "$s" && echo "PART${p}_MKFSOPTS=\"$s\""
+    test -n "$s" && echovar PART${p}_MKFSOPTS $s
 
     eval s=\$PART${p}_LUKSNAME
     if [ -n "$s" ]; then
-      echo "PART${p}_LUKSNAME=\"$s\""
+      echovar PART${p}_LUKSNAME $s
       luks_name=$s
       eval s=\$LUKS_${luks_name}_FS
-      test -n "$s" && echo "LUKS_${luks_name}_FS=\"$s\""
+      test -n "$s" && echovar LUKS_${luks_name}_FS $s
       eval s=\$LUKS_${luks_name}_MNT
-      test -n "$s" && echo "LUKS_${luks_name}_MNT=\"$s\""
+      test -n "$s" && echovar LUKS_${luks_name}_MNT $s
       # FIXME: LUKS_${luks_name}_MKFSOPTS
     fi
 
     eval s=\$LVM_LV${p}_FS
-    test -n "$s" && echo "LVM_LV${p}_FS=\"$s\""
+    test -n "$s" && echovar LVM_LV${p}_FS $s
     lvm_fs=$s
     eval s=\$LVM_LV${p}_MNT
-    test -n "$s" && echo "LVM_LV${p}_MNT=\"$s\""
+    test -n "$s" && echovar LVM_LV${p}_MNT $s
     eval s=\$LVM_LV${p}_NAME
-    test -n "$s" && echo "LVM_LV${p}_NAME=\"$s\""
+    test -n "$s" && echovar LVM_LV${p}_NAME $s
     eval s=\$LVM_LV${p}_OPTS
-    test -n "$s" && echo "LVM_LV${p}_OPTS=\"$s\""
+    test -n "$s" && echovar LVM_LV${p}_OPTS $s
     eval s=\$LVM_LV${p}_CRYPTTAB
-    test -n "$s" && echo "LVM_LV${p}_CRYPTTAB=\"$s\""
+    test -n "$s" && echovar LVM_LV${p}_CRYPTTAB $s
     if [ "$lvm_fs" = "luks" ]; then
       luks_name=$s
       eval s=\$LUKS_${luks_name}_FS
-      test -n "$s" && echo "LUKS_${luks_name}_FS=\"$s\""
+      test -n "$s" && echovar LUKS_${luks_name}_FS $s
       eval s=\$LUKS_${luks_name}_MNT
-      test -n "$s" && echo "LUKS_${luks_name}_MNT=\"$s\""
+      test -n "$s" && echovar LUKS_${luks_name}_MNT $s
     fi
     eval s=\$LVM_LV${p}_SIZE
-    test -n "$s" && echo "LVM_LV${p}_SIZE=\"$s\""
+    test -n "$s" && echovar LVM_LV${p}_SIZE $s
     eval s=\$LVM_LV${p}_MKFSOPTS
-    test -n "$s" && echo "LVM_LV${p}_MKFSOPTS=\"$s\""
+    test -n "$s" && echovar LVM_LV${p}_MKFSOPTS $s
   done
-  echo "BIND_MOUNTS=\"${BIND_MOUNTS}\""
-  echo "EXTRA_BIND_MOUNTS=\"${EXTRA_BIND_MOUNTS}\""
+  echovar BIND_MOUNTS
+  echovar EXTRA_BIND_MOUNTS
 
   if [ -n "$TARGET_HOSTNAME" ]; then
-    echo "HOSTNAME=\"$TARGET_HOSTNAME\""
+    echovar HOSTNAME $TARGET_HOSTNAME
   fi
-  echo "LINUX_CMDLINE=\"$LINUX_CMDLINE\""
-  echo "INSTALLER_PASSWD_USERS=\"$INSTALLER_PASSWD_USERS\""
-  echo "INSTALLER_ASK_HOSTNAME=\"$INSTALLER_ASK_HOSTNAME\""
-  echo "INSTALLER_ASK_CONFIRM=\"$INSTALLER_ASK_CONFIRM\""
-  echo "INSTALLER_ASK_REBOOT=\"$INSTALLER_ASK_REBOOT\""
-  echo "INSTALLER_USE_PXE=\"$INSTALLER_USE_PXE\""
-  echo "INSTALLER_EXTRA_INITRD=\"$INSTALLER_EXTRA_INITRD\""
-  echo "TARGET_BOOTTYPE=\"$TARGET_BOOTTYPE\""
-  echo "INSTALLER_COMPRESSION=\"$INSTALLER_COMPRESSION\""
-  echo "INSTALLER_COMPRESSION_EXT=\"$INSTALLER_COMPRESSION_EXT\""
-  echo "INSTALLER_DISK_MIN=\"$INSTALLER_DISK_MIN\""
-  echo "INSTALLER_DOWNLOAD_URL=\"$INSTALLER_DOWNLOAD_URL\""
-  echo "INSTALLER_INSTALL_DISK=\"$INSTALLER_INSTALL_DISK\""
-  echo "INSTALLER_EXTRA_MODULES=\"$INSTALLER_EXTRA_MODULES\""
-  echo "PARTSEP=\"$PARTSEP\""
-  echo "RAID_NAME=\"$RAID_NAME\""
-  echo "RAID_DEVICES=\"$RAID_DEVICES\""
-  echo "RAID_OPTS=\"$RAID_OPTS\""
+  echovar LINUX_CMDLINE
+  echovar INSTALLER_PASSWD_USERS
+  echovar INSTALLER_ASK_HOSTNAME
+  echovar INSTALLER_ASK_CONFIRM
+  echovar INSTALLER_ASK_REBOOT
+  echovar INSTALLER_USE_PXE
+  echovar INSTALLER_EXTRA_INITRD
+  echovar TARGET_BOOTTYPE
+  echovar INSTALLER_COMPRESSION
+  echovar INSTALLER_COMPRESSION_EXT
+  echovar INSTALLER_DISK_MIN
+  echovar INSTALLER_DOWNLOAD_URL
+  echovar INSTALLER_INSTALL_DISK
+  echovar INSTALLER_EXTRA_MODULES
+  echovar PARTSEP
+  echovar RAID_NAME
+  echovar RAID_DEVICES
+  echovar RAID_OPTS
 }
 
