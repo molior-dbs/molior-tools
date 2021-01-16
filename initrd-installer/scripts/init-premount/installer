@@ -447,31 +447,35 @@ if [ ! -L $target/dev/disk/by-uuid/$rootuuid ]; then
   ln -s $rootpart $target/dev/disk/by-uuid/$rootuuid
 fi
 
-if [ -n "$LINUX_CMDLINE" ]; then
-  sed -i "s%^GRUB_CMDLINE_LINUX=.*$%GRUB_CMDLINE_LINUX=\"$LINUX_CMDLINE\"%" $target/etc/default/grub
-fi
-if [ "$TARGET_BOOTTYPE" = "efi" ]; then
-  if modprobe efivars; then
-    if [ -n "$RAID_NAME" ]; then
-      # fix for grub-install error where efibootmgr complains about missing -d (disk) parameter
-      chroot $target grub-install --modules mdraid1x --recheck --force --removable
-    else
-      chroot $target grub-install --recheck --force
-    fi
-  else # no EFI support in current boot mode
-    chroot $target grub-install --recheck --force --target x86_64-efi
-    mkdir -p $target/boot/efi/EFI/BOOT
-    mv $target/boot/efi/efi/debian/grubx64.efi $target/boot/efi/EFI/BOOT/bootx64.efi
-  fi
+if type installer_setup_bootloader >/dev/null 2>&1; then
+  installer_setup_bootloader
 else
-  if [ -n "$RAID_NAME" ]; then
-    echo "`chroot $target grub-probe -t drive -d $RAID_NAME` $RAID_NAME" > $target/boot/grub/device.map
-    chroot $target grub-install --modules part_msdos --force --no-floppy $disk >/dev/null 2>&1
-  else
-    chroot $target grub-install --modules part_msdos --force --no-floppy --recheck $disk >/dev/null 2>&1
+  if [ -n "$LINUX_CMDLINE" ]; then
+    sed -i "s%^GRUB_CMDLINE_LINUX=.*$%GRUB_CMDLINE_LINUX=\"$LINUX_CMDLINE\"%" $target/etc/default/grub
   fi
+  if [ "$TARGET_BOOTTYPE" = "efi" ]; then
+    if modprobe efivars; then
+      if [ -n "$RAID_NAME" ]; then
+        # fix for grub-install error where efibootmgr complains about missing -d (disk) parameter
+        chroot $target grub-install --modules mdraid1x --recheck --force --removable
+      else
+        chroot $target grub-install --recheck --force
+      fi
+    else # no EFI support in current boot mode
+      chroot $target grub-install --recheck --force --target x86_64-efi
+      mkdir -p $target/boot/efi/EFI/BOOT
+      mv $target/boot/efi/efi/debian/grubx64.efi $target/boot/efi/EFI/BOOT/bootx64.efi
+    fi
+  else
+    if [ -n "$RAID_NAME" ]; then
+      echo "`chroot $target grub-probe -t drive -d $RAID_NAME` $RAID_NAME" > $target/boot/grub/device.map
+      chroot $target grub-install --modules part_msdos --force --no-floppy $disk >/dev/null 2>&1
+    else
+      chroot $target grub-install --modules part_msdos --force --no-floppy --recheck $disk >/dev/null 2>&1
+    fi
+  fi
+  chroot $target update-grub
 fi
-chroot $target update-grub
 
 if type installer_postinst >/dev/null 2>&1; then
   installer_postinst
