@@ -427,6 +427,10 @@ mount_fs()
   if [ -n "$SFDISK" ]; then
     for p in `seq 1 $MAXPART`
     do
+      eval fs=\$PART${p}_FS
+      if [ -z "$fs" ]; then
+        continue
+      fi
       eval t=\$PART${p}_MNT
       if [ -z "$t" ]; then
         continue
@@ -437,7 +441,7 @@ mount_fs()
       part=${disk}$PARTSEP$p
       echo " * mount $t"
       mkdir -p $target/$t
-      mount $part $target/$t
+      mount -t $fs $part $target/$t
       exit_on_error "Error mounting filesystem $part to $target$t"
       # FIXME: mount luks
     done
@@ -467,6 +471,7 @@ mount_fs()
         fi
         continue
       fi
+
       if [ "$t" = "/" ]; then
         continue
       fi

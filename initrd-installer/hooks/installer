@@ -32,3 +32,6 @@ copy_exec /bin/gzip          /mbin/
 copy_exec /bin/umount        /mbin/
 copy_exec /sbin/mke2fs       /mbin/
 
+# kernel modules
+manual_add_modules efivarfs
+manual_add_modules nls-ascii

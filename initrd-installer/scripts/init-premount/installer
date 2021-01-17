@@ -447,12 +447,13 @@ if [ ! -L $target/dev/disk/by-uuid/$rootuuid ]; then
   ln -s $rootpart $target/dev/disk/by-uuid/$rootuuid
 fi
 
+if [ -n "$LINUX_CMDLINE" ]; then
+  sed -i "s%^GRUB_CMDLINE_LINUX=.*$%GRUB_CMDLINE_LINUX=\"$LINUX_CMDLINE\"%" $target/etc/default/grub
+fi
+
 if type installer_setup_bootloader >/dev/null 2>&1; then
   installer_setup_bootloader
 else
-  if [ -n "$LINUX_CMDLINE" ]; then
-    sed -i "s%^GRUB_CMDLINE_LINUX=.*$%GRUB_CMDLINE_LINUX=\"$LINUX_CMDLINE\"%" $target/etc/default/grub
-  fi
   if [ "$TARGET_BOOTTYPE" = "efi" ]; then
     if modprobe efivars; then
       if [ -n "$RAID_NAME" ]; then
