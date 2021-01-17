@@ -490,14 +490,11 @@ umount_bootstrap()
   sync
 
   if [ -n "$BIND_MOUNTS" ]; then
-    old_IFS=$IFS
-    IFS=","
     for m in $BIND_MOUNTS
     do
       to=`echo $m | cut -d: -f2`
       unmount $target/$to
     done
-    IFS=$old_IFS
   fi
 
   if [ -d "$target" ]; then
@@ -935,17 +932,18 @@ EOF
 
   if [ $base_only -eq 0 ]; then
     if [ -n "$BIND_MOUNTS" ]; then
-      old_IFS=$IFS
-      IFS=","
       for m in $BIND_MOUNTS
       do
         from=`echo $m | cut -d: -f1`
         to=`echo $m | cut -d: -f2`
+        opts=`echo $m | cut -d: -f3`
+        if [ -z "$opts" ]; then
+          opts="rw,noexec,nosuid,nodev"
+        fi
         mkdir -p $target/$from $target/$to
         log "bind mount $target/$from $target/$to"
-        mount -o rw,noexec,nosuid,nodev,bind $target/$from $target/$to
+        mount -o $opts,bind $target/$from $target/$to
       done
-      IFS=$old_IFS
     fi
   fi
 }
@@ -1416,18 +1414,18 @@ elif [ $deployment_only -eq 1 ]; then
   fi
 
   if [ -n "$BIND_MOUNTS" ]; then
-    old_IFS=$IFS
-    IFS=","
     for m in $BIND_MOUNTS
     do
       from=`echo $m | cut -d: -f1`
       to=`echo $m | cut -d: -f2`
+      opts=`echo $m | cut -d: -f3`
+      if [ -z "$opts" ]; then
+        opts="rw,noexec,nosuid,nodev"
+      fi
       mkdir -p $target/$from $target/$to
       log "bind mount $target/$from $target/$to"
-      mount -o rw,noexec,nosuid,nodev,bind $target/$from $target/$to
+      mount -o $opts,bind $target/$from $target/$to
     done
-    IFS=$old_IFS
-
   fi
 
   # install grub if requested

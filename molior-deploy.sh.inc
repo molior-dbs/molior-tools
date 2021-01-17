@@ -170,28 +170,30 @@ create_fstab()
 
   if [ -n "$BIND_MOUNTS" ]; then
     echo >> $target/etc/fstab
-    old_IFS=$IFS
-    IFS=","
     for m in $BIND_MOUNTS
     do
       from=`echo $m | cut -d: -f1`
       to=`echo $m | cut -d: -f2`
-      echo "$to $from none rw,noexec,nosuid,nodev,bind 0 0" >>$target/etc/fstab
+      opts=`echo $m | cut -d: -f3`
+      if [ -z "$opts" ]; then
+        opts="rw,noexec,nosuid,nodev"
+      fi
+      echo "$to $from none $opts,bind 0 0" >>$target/etc/fstab
     done
-    IFS=$old_IFS
   fi
 
   if [ -n "$EXTRA_BIND_MOUNTS" ]; then
     echo >> $target/etc/fstab
-    old_IFS=$IFS
-    IFS=","
     for m in $EXTRA_BIND_MOUNTS
     do
       from=`echo $m | cut -d: -f1`
       to=`echo $m | cut -d: -f2`
-      echo "$to $from none rw,noexec,nosuid,nodev,bind 0 0" >>$target/etc/fstab
+      opts=`echo $m | cut -d: -f3`
+      if [ -z "$opts" ]; then
+        opts="rw,noexec,nosuid,nodev"
+      fi
+      echo "$to $from none $opts,bind 0 0" >>$target/etc/fstab
     done
-    IFS=$old_IFS
   fi
 
   if [ -n "$RAID_NAME" ];then
