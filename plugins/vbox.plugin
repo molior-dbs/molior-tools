@@ -23,7 +23,8 @@ init_deployment_vbox()
 {
   do_compress=0 # ova is already compressed
   vmname=$(get_deployment_filename "")
-  #FIXME check VMSIZE
+
+  # FIXME check VMSIZE
   echo " * creating ${VMSIZE}MB virtual disk"
   if [ "$OLD_KERNEL" -eq 1 ]; then
     VMDISK=$WORK_DIR/disk.vdi
@@ -107,6 +108,12 @@ finalize_deployment_vbox()
   if [ -z "$VMCPUS" ]; then
     VMCPUS=2
   fi
+  if [ -z "$VBOX_NAME" ]; then
+      VBOX_NAME=$vmname
+  fi
+  if [ -z "$VBOX_DESCRIPTION" ]; then
+    VBOX_DESCRIPTION="${PROJECT}_${REVISION}"
+  fi
   vboxmanage createvm --name $vmname --ostype=$ostype --register >&2
   exit_on_error "Error creating VirtualBox VM"
   vboxmanage storagectl $vmname --name "SATA Controller" --add sata --controller IntelAHCI --portcount 2 >&2
@@ -140,7 +147,8 @@ finalize_deployment_vbox()
   fi
   vboxmanage modifyvm $vmname --rtcuseutc on >&2
   vboxmanage modifyvm $vmname --clipboard bidirectional >&2
-  vboxmanage modifyvm $vmname --description "${PROJECT}_${REVISION}
+
+  vboxmanage modifyvm $vmname --description "$VBOX_DESCRIPTION
 Creation Date: `date -R`
 Installed Packages: `cat $WORK_DIR/packages.txt | wc -l`
 APT sources:
