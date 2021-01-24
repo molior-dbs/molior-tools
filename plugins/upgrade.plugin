@@ -122,11 +122,12 @@ postinst_deployment_upgrade()
 
   log "upgrading from $UPGRADE_BASE to $UPGRADE_VERSION"
   chroot $target apt-get clean >&2
-  DEBIAN_FRONTEND=noninteractive chroot $target apt-get -y -f dist-upgrade > $WORK_DIR/upgrade.log 2>&1
+  DEBIAN_FRONTEND=noninteractive chroot $target apt-get -y -f dist-upgrade 2>&1 | tee $WORK_DIR/upgrade.log >&2
   if [ $? -ne 0 ]; then
-    cat $WORK_DIR/upgrade.log >&2
     log_error "Error upgrading from $UPGRADE_BASE to $UPGRADE_VERSION"
   fi
+
+  # TODO: check if "0 not upgraded" in upgrade.log
 
   grep "^Get:" $WORK_DIR/upgrade.log | cut -d ' ' -f 2,5 | sed 's#.*/\(.\+/.\+\) \(.\+\)#\1 \2#' | sort > $WORK_DIR/dpkgs.list
   log "copying `wc -l < $WORK_DIR/dpkgs.list` debian packages to APT repository"
