@@ -216,9 +216,12 @@ create_partitions()
 
   if [ -n "$SFDISK" ]; then
     echo " * creating partitions"
-    sfdiskversion=`dpkg -s util-linux | grep ^Version: | sed 's/^Version: //'`
+    # check if sfdisk supports wipearg, i.e. > 2.27.1
+    sfdiskversion=`sfdisk -v | cut -d ' ' -f4`
+    sfdiskmajor=`echo $sfdiskversion | cut -d. -f1`
+    sfdiskminor=`echo $sfdiskversion | cut -d. -f2`
     wipearg=""
-    if dpkg --compare-versions "$sfdiskversion" gt "2.27.1"; then
+    if [ "$sfdiskmajor" -ge 2 -o "$sfdiskminor" -gt 27 ]; then
       wipearg="--wipe=always"
     fi
     echo "$SFDISK" | sfdisk --force $wipearg $disk >/dev/null
