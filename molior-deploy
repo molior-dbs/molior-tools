@@ -1147,6 +1147,8 @@ install_docker()
 
   if type postinst_docker >/dev/null; then
       postinst_docker
+  elif type postinst_docker_$DEPLOYMENT_TYPE >/dev/null; then
+      postinst_docker_$DEPLOYMENT_TYPE
   fi
 
   docker_install_cleanup

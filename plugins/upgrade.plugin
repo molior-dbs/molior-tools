@@ -146,7 +146,7 @@ postinst_deployment_upgrade()
   fi
 }
 
-postinst_docker()
+postinst_docker_upgrade()
 {
     if [ -z "$DOCKER_COMPOSE_FILE" ]; then
       return
