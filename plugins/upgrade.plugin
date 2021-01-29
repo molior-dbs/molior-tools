@@ -179,7 +179,7 @@ postinst_docker_upgrade()
                                    $WORK_DIR/upgrade-package/docker-containers.dedup.tar
                 exit_on_error "Error deduplicating docker containers"
                 rm -f $WORK_DIR/upgrade-package/docker-containers.tar $WORK_DIR/upgrade-package/docker-containers.old.tar
-                chroot $target docker image prune -a -f
+                chroot $target docker image prune -a -f >&2
             else
               log "docker: no image changes in docker-compose.yml"
             fi
