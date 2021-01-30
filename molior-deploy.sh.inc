@@ -42,6 +42,7 @@ create_fstab()
     echo "$ROOTDEVICE / $ROOTFS $o 0 1" >> $target/etc/fstab
 
   else
+    set +x
     for p in `seq 1 $MAXPART`
     do
       if [ -n "$SFDISK" ]; then
@@ -60,7 +61,9 @@ create_fstab()
           if [ -z "$uuid" ]; then
             log_error "Error rootfs uuid is empty for '$part'"
           fi
+          set -x
           echo "UUID=$uuid $t $s $o 0 1" >> $target/etc/fstab
+          set +x
           break
         fi
       fi
@@ -85,14 +88,18 @@ create_fstab()
           if [ -z "$uuid" ]; then
             log_error "Error rootfs uuid is empty for '$part'"
           fi
+          set -x
           echo "UUID=$uuid $t $s $o 0 1" >> $target/etc/fstab
+          set +x
           break
         fi
       fi
     done
+    set -x
   fi
 
   if [ -n "$SFDISK" ]; then
+    set +x
     for p in `seq 1 $MAXPART`
     do
       eval t=\$PART${p}_MNT
@@ -115,15 +122,19 @@ create_fstab()
       if [ -z "$uuid" ]; then
         log_error "Error: empty uuid for '$part'"
       fi
+      set -x
       if [ "$s" = "swap" ]; then
         echo "UUID=$uuid none swap sw 0 0" >> $target/etc/fstab
       elif [ "$s" != "lvm" ]; then
         echo "UUID=$uuid $t $s $o 0 2" >> $target/etc/fstab
       fi
+      set +x
     done
+    set -x
   fi
 
   if [ -n "$LVM_VG" ]; then
+    set +x
     for p in `seq 1 $MAXPART`
     do
       eval t=\$LVM_LV${p}_MNT
@@ -152,20 +163,27 @@ create_fstab()
         if [ -z "$uuid" ]; then
           log_error "Error: empty uuid for '$part'"
         fi
+        set -x
         if [ "$s" = "swap" ]; then
-        echo "UUID=$uuid none swap sw 0 0" >> $target/etc/fstab
+          echo "UUID=$uuid none swap sw 0 0" >> $target/etc/fstab
         else
           echo "UUID=$uuid $t $s $o 0 2" >> $target/etc/fstab
         fi
+        set +x
       else
+        set -x
         echo "/dev/mapper/${u}-open none swap sw 0 0" >> $target/etc/fstab
+        set +x
       fi
 
       eval c=\$LVM_LV${p}_CRYPTTAB
       if [ -n "$c" ]; then
+        set -x
         echo "${u}-open	${part}	$c" >> $target/etc/crypttab
+        set +x
       fi
     done
+    set -x
   fi
 
   if [ -n "$BIND_MOUNTS" ]; then
@@ -331,6 +349,7 @@ make_fs()
 create_fs()
 {
   if [ -n "$SFDISK" ]; then
+    set +x
     for p in `seq 1 $MAXPART`
     do
       part=${disk}$PARTSEP$p
@@ -344,14 +363,18 @@ create_fs()
       fi
       eval u=\$PART${p}_LUKSNAME
       eval opts=\$PART${p}_MKFSOPTS
+      set -x
       make_fs "$s" "$part" "$u" "$opts"
+      set +x
     done
+    set -x
   fi
 
   if [ -n "$LVM_VG" ]; then
     if [ "$LVM_PV" = "disk" ]; then
       create_lvm $disk
     fi
+    set +x
     for p in `seq 1 $MAXPART`
     do
       eval t=\$LVM_LV${p}_NAME
@@ -373,16 +396,21 @@ create_fs()
         rootpart=$part
       fi
       eval opts=\$LVM_LV${p}_MKFSOPTS
+      set -x
       make_fs "$s" "$part" "$t" "$opts"
+      set +x
 
       if [ "$s" = "luks" ]; then
         eval v=\$LUKS_${t}_FS
         if [ -z "$v" ]; then
           continue
         fi
+        set -x
         make_fs "$v" "/dev/mapper/$t-decrypted" "" ""
+        set +x
       fi
     done
+    set -x
   fi
 }
 
@@ -390,26 +418,34 @@ get_fsinfo()
 {
   if [ -n "$SFDISK" ]; then
     fs_has_partitions=1
+    set +x
     for p in `seq 1 $MAXPART`
     do
       eval s=\$PART${p}_FS
       if [ "$s" = "luks" ]; then
+        set -x
         fs_has_luks=1
+        set +x
         break
       fi
     done
+    set -x
   fi
 
   if [ -n "$LVM_VG" ]; then
     fs_has_lvm=1
+    set +x
     for p in `seq 1 $MAXPART`
     do
       eval s=\$LVM_LV${p}_FS
       if [ "$s" = "luks" ]; then
+        set -x
         fs_has_luks=1
+        set +x
         break
       fi
     done
+    set -x
   fi
 
   if [ -n "$RAID_NAME" ]; then
@@ -430,6 +466,7 @@ mount_fs()
   fi
 
   if [ -n "$SFDISK" ]; then
+    set +x
     for p in `seq 1 $MAXPART`
     do
       eval fs=\$PART${p}_FS
@@ -446,13 +483,17 @@ mount_fs()
       part=${disk}$PARTSEP$p
       echo " * mount $t"
       mkdir -p $target/$t
+      set -x
       mount -t $fs $part $target/$t
       exit_on_error "Error mounting filesystem $part to $target$t"
+      set +x
       # FIXME: mount luks
     done
+    set -x
   fi
 
   if [ -n "$LVM_VG" ]; then
+    set +x
     for p in `seq 1 $MAXPART`
     do
       eval s=\$LVM_LV${p}_NAME
@@ -472,7 +513,10 @@ mount_fs()
           fi
           echo " * mount $v"
           mkdir -p $target/$v
+          set -x
           mount /dev/mapper/$s-decrypted $target/$v
+          exit_on_error "Error mounting filesystem $s-decrypted to $target$v"
+          set +x
         fi
         continue
       fi
@@ -484,8 +528,12 @@ mount_fs()
       part=/dev/mapper/$(echo ${LVM_VG} | sed -r 's/-/--/g')-$(echo $s | sed -r 's/-/--/g')
       echo " * mount $t"
       mkdir -p $target/$t
+      set -x
       mount $part $target/$t
+      exit_on_error "Error mounting filesystem $part to $target$t"
+      set +x
     done
+    set -x
   fi
 }
 
@@ -503,7 +551,6 @@ umount_fs()
   if [ -z "$target" ]; then
     return
   fi
-  sync
 
   for m in `grep $target /proc/mounts | cut -d ' ' -f 2 | sort -r`
   do
@@ -512,6 +559,7 @@ umount_fs()
 
   # close LUKS devices
   if [ -n "$SFDISK" ]; then
+    set +x
     for p in `seq 1 $MAXPART`
     do
       eval t=\$PART${p}_FS
@@ -523,12 +571,16 @@ umount_fs()
         if [ -z "$u" ]; then
           continue
         fi
+        set +x
         cryptsetup luksClose /dev/mapper/$u-decrypted
+        set -x
       fi
     done
+    set -x
   fi
 
   if [ -n "$LVM_VG" ]; then
+    set +x
     for p in `seq 1 $MAXPART`
     do
       eval s=\$LVM_LV${p}_FS
@@ -542,9 +594,12 @@ umount_fs()
         if [ -z "$t" ]; then
           continue
         fi
+        set -x
         cryptsetup luksClose /dev/mapper/$t-decrypted
+        set +x
       fi
     done
+    set -x
   fi
 }
 
@@ -611,11 +666,14 @@ echovar()
     if [ -z "$value" ]; then
         value=`eval echo \"\\${$name}\" | sed -e 's/\`/\\\\\`/g' -e 's/\\\$/\\\\$/g'`
     fi
+    set -x
     echo "$name=\"$value\""
+    set +x
 }
 
 get_deploy_config()
 {
+  set +x
   echovar MOLIOR_TOOLS_VERSION
   echovar DEPLOYMENT_TIMESTAMP
   echovar PROJECT
@@ -697,5 +755,6 @@ get_deploy_config()
   echovar RAID_NAME
   echovar RAID_DEVICES
   echovar RAID_OPTS
+  set -x
 }
 
