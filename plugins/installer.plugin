@@ -110,7 +110,7 @@ prepare_initrd_deployment()
     chroot $WORK_DIR/instroot apt-get update >&2
   fi
 
-  chroot $WORK_DIR/instroot apt-get install --no-install-recommends --yes \
+  DEBIAN_FRONTEND=noninteractive chroot $WORK_DIR/instroot apt-get install --no-install-recommends --yes \
     $INSTALLER_EXTRA_PACKAGES linux-image-$KERNEL_ARCH \
     busybox initramfs-tools isolinux syslinux-common \
     xz-utils pv util-linux eject >&2
@@ -123,7 +123,7 @@ prepare_initrd_deployment()
   cp -ar $INITRDINST $initrd
   if [ -n "$INSTALLER_EXTRA_INITRD" ]; then
     if [ -d "$SOURCE_DIR/$INSTALLER_EXTRA_INITRD" ]; then
-      cp -ar $SOURCE_DIR/$INSTALLER_EXTRA_INITRD/* $initrd
+      cp -r $SOURCE_DIR/$INSTALLER_EXTRA_INITRD/* $initrd/
     fi
   fi
 
