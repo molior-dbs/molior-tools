@@ -11,12 +11,22 @@ preinit_deployment_vhd()
 
 init_deployment_vhd()
 {
-  vmname=$(get_deployment_filename "vhd")
-  deployment=$vmname
+  VHD_EXTENSION=vhd
+
+  if [ -z "$VHD_FORMAT" ]; then
+     VHD_FORMAT=vpc
+  fi
+
+  if [ "$VHD_FORMAT" = "vhdx" ]; then
+      VHD_EXTENSION=vhdx
+  fi
 
   if [ -z "$VHD_SUBFORMAT" ]; then
      VHD_SUBFORMAT=dynamic
   fi
+
+  vmname=$(get_deployment_filename $VHD_EXTENSION)
+  deployment=$vmname
 
   # FIXME check VMSIZE
   if [ -z "$VHD_SIZE" ]; then
@@ -29,7 +39,7 @@ init_deployment_vhd()
 
   echo " * creating VHD disk of $VHD_SIZE ($VHD_SUBFORMAT)"
   VMDISK=$WORK_DIR/$deployment
-  qemu-img create -f vpc -o subformat=$VHD_SUBFORMAT $VMDISK $VHD_SIZE >&2
+  qemu-img create -f $VHD_FORMAT -o subformat=$VHD_SUBFORMAT $VMDISK $VHD_SIZE >&2
   exit_on_error "Error creating $VMDISK"
 
   if ! grep -q "^nbd " /proc/modules; then
@@ -52,7 +62,7 @@ init_deployment_vhd()
   fi
 
   nbd=/dev/$nb
-  qemu-nbd -c $nbd -f vpc $VMDISK >&2
+  qemu-nbd -c $nbd -f $VHD_FORMAT $VMDISK >&2
   exit_on_error "Error running qemu-nbd"
 
   disk=$nbd
