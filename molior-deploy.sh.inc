@@ -239,7 +239,7 @@ create_partitions()
     sfdiskmajor=`echo $sfdiskversion | cut -d. -f1`
     sfdiskminor=`echo $sfdiskversion | cut -d. -f2`
     wipearg=""
-    if [ "$sfdiskmajor" -ge 2 -o "$sfdiskminor" -gt 27 ]; then
+    if [ "$sfdiskmajor" -ge 2 -a "$sfdiskminor" -gt 27 ]; then
       wipearg="--wipe=always"
     fi
     echo "$SFDISK" | sfdisk --force $wipearg $disk >/dev/null
