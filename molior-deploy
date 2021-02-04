@@ -13,6 +13,7 @@ base_only=0
 unstable_sources=0
 dist=stable
 deployment_only=0
+lvm_rename_existing=0
 DEPLOYMENT_SHA256=0
 OVERLAY_VERSION=""
 OVERLAY_AUTO=0
@@ -1243,7 +1244,7 @@ workflow_base()
 
   if [ $base_only -eq 0 -o $deployment_only -eq 1 ]; then
     # if we intent to create LVM VG with the same name as on the host, rename the host one
-    if [ -n "$LVM_VG" ]; then
+    if [ -n "$LVM_VG" -a $lvm_rename_existing -eq 1 ]; then
       if vgs ${LVM_VG} >/dev/null 2>&1; then
         log_warn "Warning: renaming locally existing LVM VG $LVM_VG to ${LVM_VG}_molior_renamed"
         vgrename -A y $LVM_VG ${LVM_VG}_molior_renamed >&2

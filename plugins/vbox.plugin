@@ -22,6 +22,7 @@ preinit_deployment_vbox()
 init_deployment_vbox()
 {
   do_compress=0 # ova is already compressed
+  lvm_rename_existing=1
   vmname=$(get_deployment_filename "")
 
   # FIXME check VMSIZE

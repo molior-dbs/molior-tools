@@ -11,6 +11,7 @@ preinit_deployment_vhd()
 
 init_deployment_vhd()
 {
+  lvm_rename_existing=1
   VHD_EXTENSION=vhd
 
   if [ -z "$VHD_FORMAT" ]; then
