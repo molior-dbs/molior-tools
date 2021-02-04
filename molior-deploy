@@ -752,8 +752,8 @@ setup_deployment()
   fi
 
   if echo $ARCH | grep -q arm; then
-    if ! which /usr/bin/qemu-arm-static >/dev/null; then
-      log_error "Please install the qemu-user-static package"
+    if ! which /usr/bin/qemu-arm-static >/dev/null || ! which /usr/sbin/update-binfmts >/dev/null; then
+      log_error "Error: qemu arm support is missing, run apt-get install binfmt-support qemu-user-static"
     fi
   fi
 
