@@ -605,6 +605,10 @@ setup_deployment()
   BASEMIRROR=`basename $tmp`
   BASEVERSION=`basename $MIRROR`
   log "mirror: $MIRROR"
+  SOURCEMIRROR=`echo "$APT_SOURCES" | head -n 2 | tail -n 1 | cut -d' ' -f 2`
+  SOURCEMIRROR=`dirname $SOURCEMIRROR` # cut projectversion
+  SOURCEMIRROR=`dirname $SOURCEMIRROR` # cut project
+  SOURCEMIRROR=`dirname $SOURCEMIRROR` # cut /repos
 
   log_info "Getting source package ..."
   if [ -n "$SOURCE_DIR" ]; then
@@ -621,12 +625,12 @@ setup_deployment()
       log "using overlay source: $SOURCES_VERSION"
     fi
     if [ "$OVERLAY_AUTO" -eq 1 ]; then
-      baseurls=`echo "$APT_SOURCES" | grep $MIRROR/repos/$PROJECT | awk '{print $2}'`
+      baseurls=`echo "$APT_SOURCES" | grep $SOURCEMIRROR/repos/$PROJECT | awk '{print $2}'`
       for baseurl in $baseurls
       do
         SOURCES_VERSION=`basename $baseurl`
         log "trying to download package source from $SOURCES_VERSION"
-        wget -q -O $WORK_DIR/Sources $MIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$dist/main/source/Sources
+        wget -q -O $WORK_DIR/Sources $SOURCEMIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$dist/main/source/Sources
         if [ `wc -l $WORK_DIR/Sources 2>/dev/null` -eq 0 ]; then
           # try next baseurl
           continue
@@ -644,14 +648,14 @@ setup_deployment()
         fi
       done
       if [ -z "$FILENAME" ]; then
-        log_error "No filename found for $PACKAGE_NAME in $MIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$dist/main/source/Sources"
+        log_error "No filename found for $PACKAGE_NAME in $SOURCEMIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$dist/main/source/Sources"
       fi
       log "using package source: $SOURCES_VERSION"
     else
-      wget -q -O $WORK_DIR/Sources $MIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$dist/main/source/Sources
+      wget -q -O $WORK_DIR/Sources $SOURCEMIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$dist/main/source/Sources
       # FIXME: check if exists...
       if [ `wc -l $WORK_DIR/Sources 2>/dev/null | cut -d' ' -f1` -eq 0 ]; then
-        log_error "Could not download $MIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$dist/main/source/Sources"
+        log_error "Could not download $SOURCEMIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$dist/main/source/Sources"
       fi
       srcinfo=`/usr/lib/molior-tools/find-latest-version.pl $PACKAGE_NAME $PACKAGE_VERSION < $WORK_DIR/Sources`
       exit_on_error "Error searching $PACKAGE_NAME revision"
@@ -659,14 +663,14 @@ setup_deployment()
       FILENAME=`echo $srcinfo | cut -d ' ' -f 1`/`echo $srcinfo | cut -d ' ' -f 2`
       REVISION=`echo $srcinfo | cut -d ' ' -f 3`
       if [ -z "$FILENAME" ]; then
-        log_error "No filename found for $PACKAGE_NAME in $MIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$dist/main/source/Sources"
+        log_error "No filename found for $PACKAGE_NAME in $SOURCEMIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$dist/main/source/Sources"
       fi
     fi
 
-    log "downloading source: $MIRROR/repos/$PROJECT/$SOURCES_VERSION/$FILENAME"
+    log "downloading source: $SOURCEMIRROR/repos/$PROJECT/$SOURCES_VERSION/$FILENAME"
     cd $WORK_DIR
-    wget -q $MIRROR/repos/$PROJECT/$SOURCES_VERSION/$FILENAME
-    exit_on_error "Error downloading $MIRROR/repos/$PROJECT/$SOURCES_VERSION/$FILENAME"
+    wget -q $SOURCEMIRROR/repos/$PROJECT/$SOURCES_VERSION/$FILENAME
+    exit_on_error "Error downloading $SOURCEMIRROR/repos/$PROJECT/$SOURCES_VERSION/$FILENAME"
 
     tar xf `basename $FILENAME`
     rm -f `basename $FILENAME`
