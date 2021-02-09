@@ -197,7 +197,9 @@ while ! $hostnameok; do
   if [ "$hostname" = "shell" ]; then
     exec 4>&2 # backup logfile
     exec 2>&3
+    stty echo
     busybox sh
+    stty -echo
     exec 2>&4 4>&- # restore logfile
     logo
     continue
@@ -326,6 +328,7 @@ if [ "$INSTALLER_ASK_CONFIRM" != "no" ]; then
   if [ "$x" = "shell" ]; then
     exec 4>&2 # backup logfile
     exec 2>&3
+    stty echo
     busybox sh
     exec 2>&4 4>&- # restore logfile
     exit 0
