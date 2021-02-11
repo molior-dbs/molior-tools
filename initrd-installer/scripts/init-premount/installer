@@ -427,6 +427,11 @@ if [ "$INSTALLER_USE_PXE" != "yes" -a -z "$INSTALLER_DOWNLOAD_URL" ]; then
 fi
 
 if [ -n "$hostname" ]; then
+  if [ -n "$INSTALLER_HOSTNAME_APPEND_MAC_IFACE" ]; then
+      mac=`tr -d : < /sys/class/net/$INSTALLER_HOSTNAME_APPEND_MAC_IFACE/address`
+      hostname="$hostname-$mac"
+  fi
+
   echo "$hostname" > $target/etc/hostname
   sed -i "s/127\.0\.1\.1 .*/127\.0\.1\.1 $hostname/" $target/etc/hosts
 fi
