@@ -29,9 +29,11 @@ postinst_internal_deployment_info()
   du_file=${PROJECT}_${REVISION}_disk_usage.txt
   deploy_file=${PROJECT}_${REVISION}_deploy.conf
 
-  cd $target
-  tar $TAR_PXZ --one-file-system -cf $WORK_DIR/info/rootfs.tar.xz .
-  cd - >/dev/null
+  if [ "$INCLUDE_ROOTFS" -eq 1 ]; then
+      cd $target
+      tar $TAR_PXZ --one-file-system -cf $WORK_DIR/info/rootfs.tar.xz .
+      cd - >/dev/null
+  fi
 
   kernel_config_file=""
   if [ -L $target/vmlinuz ]; then
