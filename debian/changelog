@@ -1,3 +1,26 @@
+molior-tools (1.4.0) stretch; urgency=medium
+
+  * molior-deploy: run docker with default env
+  * molior-deploy: fix efi boot for images
+  * molior-deploy: rename INSTALLER_BOOTTYPE
+  * molior-deploy: support efi boot for images
+  * installer: fix xorriso invocation
+  * molior-deploy: create missing directory for projectinfo file
+  * molior-deploy: info use ca certificates for debsecan
+  * molior-deploy: vhd: support setting subformat
+  * molior-deploy: support sha256 sums
+  * molior-deploy: pxe: support wgetting image
+  * molior-deploy: check MOLIOR_TOOLS_VERSION against required version
+  * molior-project-manager: remove all old targets
+  * create-release: simplify auto-increment
+  * molior-deploy: upgrade: force removing of packages
+  * molior-deploy: fix resolv.conf handling
+  * molior-deploy: simplify exit_on_error
+  * molior-deploy: support MOLIOR_PROJECTINFO_FILE
+  * ...
+
+ -- André Roth <neolynx@gmail.com>  Sun, 28 Feb 2021 20:12:17 +0000
+
 molior-tools (1.3.3) stretch; urgency=medium
 
   * molior-deploy: fix LVM vg rename
