@@ -37,22 +37,23 @@ molior_session_call()
 }
 
 # login to the molior session
-molior_session_call "$MOLIOR_URL/plogin" \
-  --data-urlencode "username=$MOLIOR_USER" \
-  --data-urlencode "password=$MOLIOR_PASSWORD" \
+molior_session_call "$MOLIOR_URL/api/login" \
+  --header "Content-Type: application/json" \
+  --request POST \
+  --data "{\"username\": \"$MOLIOR_USER\", \"password\": \"$MOLIOR_PASSWORD\"}" \
   --location > /dev/null
 
 response=`molior_session_call --header "Content-Type: application/json" --request POST \
   --data "{\"repository\": \"$REPO\", \"git_ref\": \"$GIT_REF\", \"git_branch\": \"$GIT_BRANCH\"}" $MOLIOR_URL/api/build`
 
-token=`echo $response | jq -r '.build_token'`
-if [ -z "$token" ]; then
+ID=`echo $response | jq -r '.build_id'`
+if [ -z "$ID" ]; then
   echo Error triggering build
   exit 1
 fi
 
-echo "Build triggered: token=$token"
+echo "Build triggered: $ID"
 echo
 echo "Query build state with: "
-echo "curl -s $MOLIOR_URL/api/build/$token | json_pp"
+echo "curl -s $MOLIOR_URL/api/build/$ID | json_pp"
 echo

@@ -1,22 +1,19 @@
 NAME
- molior-deploy - directory deployment type
+ molior-deploy - srcarchive deployment type
 
 DESCRIPTION
- The directory plugin allows to create a deployment into a directory in the form of a tar archive.
+ The srcarchive plugin allows to create a tarball with source files, including dependencies.
 
 OPTIONS
  The deployment configuration (deploy/*.conf file) recognizes the following variables:
 
- DEPLOYMENT_TYPE    Specify 'dir' to use the directory plugin
+ DEPLOYMENT_TYPE    Specify 'srcarchive to use the srcarchive plugin
 
 EXAMPLE
 
- deploy/rootfs.conf:
+ deploy/srcarchive.conf:
 
-   DEPLOYMENT_TYPE=dir
-   ARCH=amd64
-   TARGET_HOSTNAME=roofs1
-   INSTALL_PACKAGE=toplevel-package
+   DEPLOYMENT_TYPE=srcarchive
 
 AUTHORS
  Please see the AUTHORS file in the source repositories.

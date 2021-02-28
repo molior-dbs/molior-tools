@@ -23,6 +23,7 @@ copy_exec /sbin/sfdisk       /sbin/
 copy_exec /sbin/mkfs         /sbin/
 copy_exec /usr/sbin/chpasswd /sbin/
 copy_exec /usr/bin/eject     /sbin/
+copy_exec /sbin/wipefs       /sbin/
 
 # overwrite busybox binaries
 copy_exec /bin/cpio          /mbin/
@@ -31,3 +32,6 @@ copy_exec /bin/gzip          /mbin/
 copy_exec /bin/umount        /mbin/
 copy_exec /sbin/mke2fs       /mbin/
 
+# kernel modules
+manual_add_modules efivarfs
+manual_add_modules nls-ascii

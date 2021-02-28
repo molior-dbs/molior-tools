@@ -20,8 +20,15 @@ create_efi_image()
 preinit_deployment_installer()
 {
   REQUIRED_HOST_COMMANDS="isohybrid genisoimage xorriso mcopy mmd"
-  REQUIRED_PACKAGES="genisoimage xorriso syslinux-utils mtools"
+  REQUIRED_PACKAGES="genisoimage xorriso syslinux-utils mtools dosfstools"
+  if [ "$TARGET_BOOTTYPE" = "efi" ]; then
+    REQUIRED_HOST_COMMANDS="$REQUIRED_HOST_COMMANDS mkfs.msdos"
+  fi
   # FIXME: check /usr/lib/ISOLINUX/isolinux.bin
+#
+  if [ -z "$TARGET_BOOTTYPE" -a -n "$INSTALLER_BOOTTYPE" ]; then
+    TARGET_BOOTTYPE=$INSTALLER_BOOTTYPE
+  fi
 }
 
 init_deployment_installer()
@@ -35,6 +42,9 @@ preinst_deployment_installer()
 {
   APT_INSTALL_EXTRA="$APT_INSTALL_EXTRA cpio"
   cp -ar $target $WORK_DIR/instroot
+  if [ -z "$INSTALLER_LINUX_CMDLINE" ]; then
+    INSTALLER_LINUX_CMDLINE="quiet"
+  fi
 }
 
 prepare_initrd_deployment()
@@ -54,7 +64,7 @@ prepare_initrd_deployment()
       xz)
         INSTALLER_COMPRESSION_EXT=".xz"
       ;;
-      gzip)
+      gz|gzip)
         INSTALLER_COMPRESSION_EXT=".gz"
       ;;
       *)
@@ -70,13 +80,13 @@ prepare_initrd_deployment()
     KERNEL_ARCH="686"
   fi
 
-  if [ "$INSTALLER_BOOTTYPE" = "efi" ]; then
+  if [ "$TARGET_BOOTTYPE" = "efi" ]; then
     INSTALLER_EXTRA_PACKAGES="$INSTALLER_EXTRA_PACKAGES grub-efi-$ARCH-bin dosfstools"
     if [ "$ARCH" = "amd64" ]; then
       EFIFILE=bootx64.efi
       GRUBEFITYPE=x86_64-efi
     elif [ "$ARCH" = "arm64" ]; then
-      EFIFILE=grubaa64.efi
+      EFIFILE=bootaa64.efi
       GRUBEFITYPE=arm64-efi
     else
       log_error "boottype EFI not supported on $ARCH"
@@ -89,6 +99,9 @@ prepare_initrd_deployment()
   if [ "$fs_has_luks" -eq 1 ]; then
     INSTALLER_EXTRA_PACKAGES="$INSTALLER_EXTRA_PACKAGES cryptsetup"
   fi
+  if [ "$fs_on_raid" -eq 1 ]; then
+    INSTALLER_EXTRA_PACKAGES="$INSTALLER_EXTRA_PACKAGES mdadm"
+  fi
 
   if [ ! -d $WORK_DIR/instroot ]; then
     # in case of using a base roots, there is no instroot debootstrap left,
@@ -97,7 +110,7 @@ prepare_initrd_deployment()
     chroot $WORK_DIR/instroot apt-get update >&2
   fi
 
-  chroot $WORK_DIR/instroot apt-get install --no-install-recommends --yes \
+  DEBIAN_FRONTEND=noninteractive chroot $WORK_DIR/instroot apt-get install --no-install-recommends --yes \
     $INSTALLER_EXTRA_PACKAGES linux-image-$KERNEL_ARCH \
     busybox initramfs-tools isolinux syslinux-common \
     xz-utils pv util-linux eject >&2
@@ -110,7 +123,7 @@ prepare_initrd_deployment()
   cp -ar $INITRDINST $initrd
   if [ -n "$INSTALLER_EXTRA_INITRD" ]; then
     if [ -d "$SOURCE_DIR/$INSTALLER_EXTRA_INITRD" ]; then
-      cp -ar $SOURCE_DIR/$INSTALLER_EXTRA_INITRD/* $initrd
+      cp -r $SOURCE_DIR/$INSTALLER_EXTRA_INITRD/* $initrd/
     fi
   fi
 
@@ -123,9 +136,37 @@ prepare_initrd_deployment()
     echo dm_crypt >> $initrd/modules
   fi
 
-  if [ "$INSTALLER_BOOTTYPE" = "efi" ]; then
-    echo i915 >> $initrd/modules
-    cat >$initrd/hooks/mkfs.vfat <<'EOF'
+  if [ -n "$INSTALLER_EXTRA_MODULES" ]; then
+    cat > $initrd/hooks/installer-extra-modules <<'EOF'
+#!/bin/sh
+
+PREREQ=""
+
+# Output pre-requisites
+prereqs()
+{
+  echo "$PREREQ"
+}
+
+case "$1" in
+  prereqs)
+    prereqs
+    exit 0
+    ;;
+esac
+
+. /usr/share/initramfs-tools/hook-functions
+
+EOF
+    for mod in $INSTALLER_EXTRA_MODULES
+    do
+        echo "manual_add_modules $mod" >> $initrd/hooks/installer-extra-modules
+    done
+    chmod +x $initrd/hooks/installer-extra-modules
+  fi
+
+  if [ "$TARGET_BOOTTYPE" = "efi" ]; then
+    cat > $initrd/hooks/mkfs.vfat <<'EOF'
 #!/bin/sh
 
 PREREQ=""
@@ -156,7 +197,7 @@ EOF
   chroot $WORK_DIR/instroot update-initramfs -u >/dev/null
   exit_on_error "Error updating installer initrd"
 
-  if [ "$INSTALLER_BOOTTYPE" = "efi" ]; then
+  if [ "$TARGET_BOOTTYPE" = "efi" ]; then
     mkdir -p $WORK_DIR/out/boot/grub/$GRUBEFITYPE/
     cp $WORK_DIR/instroot/usr/lib/grub/$GRUBEFITYPE/* $WORK_DIR/out/boot/grub/$GRUBEFITYPE/
     cat >$WORK_DIR/out/boot/grub/grub.cfg <<EOF
@@ -164,31 +205,37 @@ search --file --set=root /image.cpio$INSTALLER_COMPRESSION_EXT
 insmod all_video
 set gfxpayload=keep
 set linux_gfx_mode=1024x768x32
-linux /vmlinuz
+linux /vmlinuz $INSTALLER_LINUX_CMDLINE
 initrd /initrd.img
 boot
 EOF
+    if echo $ARCH | grep -q arm; then
+      video_mod=""
+    else
+      video_mod="efi_uga"
+    fi
     chroot $WORK_DIR/instroot grub-mkimage -O $GRUBEFITYPE -p /boot/grub -o /boot/$EFIFILE \
                                             boot linux search normal configfile \
                                             part_gpt btrfs fat iso9660 loopback \
                                             test keystatus gfxmenu regexp probe \
-                                            efi_gop efi_uga all_video gfxterm font \
+                                            efi_gop $video_mod all_video gfxterm font \
                                             read ls cat png jpeg halt reboot echo sleep
     exit_on_error "Error creating grub image"
     mv $WORK_DIR/instroot/boot/$EFIFILE $WORK_DIR/
 
-    if [ "$ARCH" = "arm64" ]; then
-      create_efi_image
+    create_efi_image
+    cp $WORK_DIR/efi.img $WORK_DIR/out/
 
+    if [ "$ARCH" = "arm64" ]; then
       # for stretch
       cp $WORK_DIR/out/boot/grub/grub.cfg $WORK_DIR/out/boot/grub/arm64-efi/
       mkdir $WORK_DIR/out/.disk
       touch $WORK_DIR/out/.disk/info
     else # not arm64
-      create_efi_image
       cp $WORK_DIR/instroot/usr/lib/ISOLINUX/isohdpfx.bin $WORK_DIR/out/
       cp $WORK_DIR/instroot/usr/lib/ISOLINUX/isolinux.bin $WORK_DIR/out/
     fi
+
   elif [ "$INSTALLER_USE_PXE" != "yes" ]; then # not EFI and not PXE (= ISO)
     cp $WORK_DIR/instroot/usr/lib/ISOLINUX/isolinux.bin $WORK_DIR/out/
     cp $WORK_DIR/instroot/usr/lib/syslinux/modules/bios/menu.c32 $WORK_DIR/out/
@@ -226,7 +273,7 @@ EOF
         $PXZ_CMD -T `nproc --ignore 1` $WORK_DIR/out/image.cpio 2>&1
         exit_on_error "Error compressing $WORK_DIR/out/image.cpio$INSTALLER_COMPRESSION_EXT"
       ;;
-      gzip)
+      gz|gzip)
         gzip $WORK_DIR/out/image.cpio 2>&1
         exit_on_error "Error compressing $WORK_DIR/out/image.cpio$INSTALLER_COMPRESSION_EXT"
       ;;
@@ -242,19 +289,16 @@ finalize_deployment_installer()
   rm -f $deployment
   VOLID=`printf "%.32s" "MLR:${PROJECT}"`
   if [ "$ARCH" = "amd64" -o "$ARCH" = "i386" ]; then
-    if [ "$INSTALLER_BOOTTYPE" = "efi" ]; then
-      xorriso -as mkisofs -quiet \
+    if [ "$TARGET_BOOTTYPE" = "efi" ]; then
+      xorriso -as mkisofs -quiet -o $WORK_DIR/$deployment \
         -r -V $VOLID \
-        -A "${PROJECT}_${REVISION}" \
-        -o  $WORK_DIR/$deployment\
-        -J -J -joliet-long -cache-inodes \
+        -J -joliet-long -cache-inodes \
         -isohybrid-mbr  $WORK_DIR/out/isohdpfx.bin \
         -b isolinux.bin \
         -c boot.cat \
         -boot-load-size 4 -boot-info-table -no-emul-boot \
         -eltorito-alt-boot \
-        -e --interval:appended_partition_2:all:: \
-        -append_partition 2 0xef $WORK_DIR/efi.img \
+        -e efi.img \
         -no-emul-boot -isohybrid-gpt-basdat -isohybrid-apm-hfsplus \
         $WORK_DIR/out/
       exit_on_error "Error running xorriso"
@@ -281,8 +325,8 @@ finalize_deployment_installer()
   elif [ "$ARCH" = "arm64" ]; then
     xorriso -as mkisofs -quiet -o $WORK_DIR/$deployment \
       -J -joliet-long -cache-inodes -l \
-      -e boot/grub/efi.img -no-emul-boot \
-      -append_partition 2 0xef $WORK_DIR/out/boot/grub/efi.img \
+      -e efi.img -no-emul-boot \
+      -append_partition 2 0xef $WORK_DIR/out/efi.img \
       -partition_cyl_align all \
       -V $VOLID \
       -A "${PROJECT}_${REVISION}" \

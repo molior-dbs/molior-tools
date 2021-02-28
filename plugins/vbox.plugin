@@ -4,6 +4,7 @@
 preinit_deployment_vbox()
 {
   REQUIRED_HOST_COMMANDS="vboxmanage kpartx qemu-img qemu-nbd"
+  REQUIRED_PACKAGES="virtualbox kpartx qemu-utils"
   INSTALL_GRUB="yes"
   PARTSEP="p"
 
@@ -21,8 +22,10 @@ preinit_deployment_vbox()
 init_deployment_vbox()
 {
   do_compress=0 # ova is already compressed
+  lvm_rename_existing=1
   vmname=$(get_deployment_filename "")
-  #FIXME check VMSIZE
+
+  # FIXME check VMSIZE
   echo " * creating ${VMSIZE}MB virtual disk"
   if [ "$OLD_KERNEL" -eq 1 ]; then
     VMDISK=$WORK_DIR/disk.vdi
@@ -106,48 +109,70 @@ finalize_deployment_vbox()
   if [ -z "$VMCPUS" ]; then
     VMCPUS=2
   fi
+  if [ -z "$VBOX_NAME" ]; then
+      VBOX_NAME=$vmname
+  fi
+  if [ -z "$VBOX_DESCRIPTION" ]; then
+    VBOX_DESCRIPTION="${PROJECT}_${REVISION}
+Creation Date: `date -R`
+Installed Packages: `cat $WORK_DIR/packages.txt | wc -l`
+APT sources:
+$APT_SOURCES
+"
+  fi
   vboxmanage createvm --name $vmname --ostype=$ostype --register >&2
   exit_on_error "Error creating VirtualBox VM"
-  vboxmanage storagectl $vmname --name "SATA Controller" --add sata --controller IntelAHCI --portcount 2 >&2
+  vmuuid=`vboxmanage showvminfo $vmname --machinereadable | grep ^UUID | cut -d'"' -f2`
+  vboxmanage storagectl $vmuuid --name "SATA Controller" --add sata --controller IntelAHCI --portcount 2 >&2
   if [ "$OLD_KERNEL" -eq 0 ]; then
     qemu-img convert -f qcow2 -O vdi $WORK_DIR/disk.qcow2 $WORK_DIR/disk.vdi
     exit_on_error "Error converting qcow2 to VirtualBox vdi"
     rm -f $WORK_DIR/disk.qcow2
   fi
-  vboxmanage storageattach $vmname --storagectl "SATA Controller" --port 0 --device 0 --type hdd      --medium $WORK_DIR/disk.vdi >&2
+  vboxmanage storageattach $vmuuid --storagectl "SATA Controller" --port 0 --device 0 --type hdd      --medium $WORK_DIR/disk.vdi >&2
   exit_on_error "Error adding VirtualBox disk $WORK_DIR/disk.vdi"
-  vboxmanage storageattach $vmname --storagectl "SATA Controller" --port 1 --device 0 --type dvddrive --medium emptydrive >&2
-  vboxmanage modifyvm $vmname --ioapic on >&2
-  vboxmanage modifyvm $vmname --boot1 disk --boot2 none --boot3 none --boot4 none >&2
-  vboxmanage modifyvm $vmname --cpus $VMCPUS >&2
+  vboxmanage storageattach $vmuuid --storagectl "SATA Controller" --port 1 --device 0 --type dvddrive --medium emptydrive >&2
+  vboxmanage modifyvm $vmuuid --ioapic on >&2
+  vboxmanage modifyvm $vmuuid --boot1 disk --boot2 none --boot3 none --boot4 none >&2
+  if [ "$TARGET_BOOTTYPE" = "efi" ]; then
+    vboxmanage modifyvm $vmuuid --firmware efi
+  fi
+  vboxmanage modifyvm $vmuuid --cpus $VMCPUS >&2
   exit_on_error "Error setting number of VirtualBox CPUS to '$VMCPUS'"
-  vboxmanage modifyvm $vmname --memory $VMRAM --vram $VMVRAM >&2
+  vboxmanage modifyvm $vmuuid --memory $VMRAM --vram $VMVRAM >&2
   exit_on_error "Error setting VirtualBox RAM to '$VMVRAM'"
-  vboxmanage modifyvm $vmname --nic1 nat --nictype1 Am79C973 >&2
-  vboxmanage modifyvm $vmname --accelerate3d on >&2
-  vboxmanage modifyvm $vmname --rtcuseutc on >&2
-  vboxmanage modifyvm $vmname --clipboard bidirectional >&2
-  vboxmanage modifyvm $vmname --description "${PROJECT}_${REVISION}
-Date: `date -R`
-Installed Packages: `wc -l $WORK_DIR/packages.txt`
-APT sources:
-$APT_SOURCES
-" >&2
+  vboxmanage modifyvm $vmuuid --nic1 nat --nictype1 Am79C973 >&2
+  if [ -n "$VBOX_3D" ]; then
+    if [ "$VBOX_3D" = "1" ]; then
+      vboxmanage modifyvm $vmuuid --accelerate3d on >&2
+    fi
+  fi
+  if [ -n "$VBOX_USB" ]; then
+    if [ "$VBOX_USB" = "1" ]; then
+      vboxmanage modifyvm $vmuuid --usb on --usbehci on >&2
+    fi
+  fi
+  vboxmanage modifyvm $vmuuid --rtcuseutc on >&2
+  vboxmanage modifyvm $vmuuid --clipboard bidirectional >&2
+
+  vboxmanage modifyvm $vmuuid --description "$VBOX_DESCRIPTION" >&2
+  exit_on_error "Error setting VirtualBox description"
+
+  vboxmanage modifyvm $vmuuid --name "$VBOX_NAME" >&2
   exit_on_error "Error setting VirtualBox description"
 
   if [ -n "$VMMODIFY" ]; then
     echo "$VMMODIFY" | while read line; do
       if echo "$line" | grep -q '^[a-zA-Z0-9.,_"\\ -]\+$'; then
-        eval vboxmanage modifyvm $vmname `echo -n "$line"` >&2
+        eval vboxmanage modifyvm $vmuuid `echo -n "$line"` >&2
       fi
     done
   fi
 
   echo " * exporting VirtualBox appliance"
   deployment=$vmname.ova
-  vboxmanage export $vmname -o $WORK_DIR/$deployment >&2
+  vboxmanage export $vmuuid -o $WORK_DIR/$deployment >&2
   exit_on_error "Error exporting VM"
 
-  vboxmanage unregistervm "$vmname" --delete >&2
+  vboxmanage unregistervm "$vmuuid" --delete >&2
 }
-

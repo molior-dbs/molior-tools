@@ -4,7 +4,6 @@ create-release         usr/bin/
 molior-sbuild          usr/bin/
 molior-project-manager usr/bin/
 molior-create          usr/bin/
-molior-archive-sources usr/bin/
 molior-trigger         usr/bin/
 
 molior-deploy          usr/sbin/

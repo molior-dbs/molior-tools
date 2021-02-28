@@ -1,0 +1,47 @@
+# molior-deploy plugin
+# vim: syntax=sh
+
+preinit_deployment_srcarchive()
+{
+    do_installation=0
+    ARCH="amd64"
+}
+
+finalize_deployment_srcarchive()
+{
+  deployment=$(get_deployment_filename "tar")
+  mkdir "$WORK_DIR/sources"
+
+  log_info "Downloading source packages ..."
+
+  MOLIOR_API_PROJECT_URL=$MOLIOR_URL/api2/project/$PROJECT/$VERSION
+  MOLIOR_REPOS_PROJECT_URL=$MOLIOR_REPO_URL/stretch/9.13/repos/$PROJECT/$VERSION
+
+  # fetch lastes build information
+  repositories=$(curl -s "$MOLIOR_API_PROJECT_URL/repositories" | jq -r '.results[] | .last_build.sourcename, .last_build.buildstate')
+
+  # fetch Sources and get directory and source package name
+  wget -q -O "$WORK_DIR/Sources" "$MOLIOR_REPOS_PROJECT_URL/dists/stable/main/source/Sources"
+
+  # 'repositories' is a list of tuples (sourcename, buildstate)
+  echo "$repositories" | xargs -xn 2 | while read -r sourcename buildstate
+  do
+      # If buildstate is not successful, fail right away
+      if [ "$buildstate" != "successful" ]
+      then
+          log_error "$sourcename build failed: buildstate=$buildstate"
+          exit 1
+      fi
+
+      srcinfo=$(/usr/lib/molior-tools/find-latest-version.pl "$sourcename" < "$WORK_DIR/Sources")
+
+      FILENAME=$(echo "$srcinfo" | cut -d ' ' -f 1)/$(echo "$srcinfo" | cut -d ' ' -f 2)
+      # REVISION=$(echo "$srcinfo" | cut -d ' ' -f 3)
+
+      FILEBASENAME=$(basename "$FILENAME")
+      log "downloading $FILEBASENAME"
+      wget -v "$MOLIOR_REPOS_PROJECT_URL/$FILENAME" -O "$WORK_DIR/sources/$FILEBASENAME"
+      exit_on_error "Error downloading $MOLIOR_REPOS_PROJECT_URL/$FILENAME"
+  done
+  tar -C "$WORK_DIR/sources" -cf "$WORK_DIR/$deployment" .
+}

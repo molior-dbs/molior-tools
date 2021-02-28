@@ -47,14 +47,17 @@ OPTIONS
   -r                Create rootfs only, do not create final deployment (to be used for -b)
   -b ROOTFS_TAR     Use existing rootfs (tar) as base for deployment (separately created with -r)
   -L                Keep log file for successful runs
+  -U                Use unstable APT sources (CI Builds)
+  -u                Use unstable top level package (INSTALL_PACKAGE in deploy file)
 
 COMMON PARAMETERS
 
  DEPLOYMENT_TYPE               Deployment type (plugin) to be used (mandatory)
  ARCH                          Target machine architecture (amd64, i386, armhf, arm64)
  TARGET_HOSTNAME               Hostname to be set
+ TARGET_BOOTTYPE               Boot type of target system (efi, default: bios)
  INSTALL_PACKAGE               Package to be installed (default: top level package with same name as project)
- DEPLOYMENT_COMPRESSION        Compression method to be used for output (xz, gzip, none)
+ DEPLOYMENT_COMPRESSION        Compression method to be used for output (xz, gz/gzip, none)
  PRESEED_FILE                  Debconf preseed file (relative to source repository)
  MOLIOR_PROJECTINFO_FILE       Write the PROJECT/VERSION to this file in the deployment
  REQUIRED_MOLIORTOOLS_VERSION  Check required molior-tools version by specifying an operator and a operand (i.e. "lt X.Y.Z", "eq X.Y.Z", "ge X.Y.Z")
@@ -81,6 +84,18 @@ FILESYSTEM PARAMETERS
  LVM_LV#_OPTS       LVM logical volume # fstab options (i.e. "defaults,noatime")
  LVM_LV#_MKFSOPTS   Options for mkfs (i.e. "-O ^64bit,^metadata_csum")
 
+ BIND_MOUNTS        Space (' ') separated list of target:source[:mountopts] bind mount pairs which will be mounted before installation and added to the fstab
+ EXTRA_BIND_MOUNTS  Space (' ') separated list of target:source[:mountopts] bind mount pairs which will be added to the fstab
+
+
+RAID PARAMETERS
+ Software RAID via the 'mdadm' may be created by defining the following parameters.
+ Warning: during the installation all existing software raid disks will be reset.
+
+ RAID_NAME          Set the raid device name (e.g. "/dev/md0")
+ RAID_DEVICES       List all physical drives/partitions for raid setup (e.g. "/dev/sda /dev/sdb")
+ RAID_OPTS          Specify all required options for the 'mdadm --create' command (e.g. "--level=1 --raid-devices=2 --metadata=1.0")
+
 BOOT PARAMETERS
  LINUX_CMDLINE      Set Linux command line options (i.e. "biosdevname=0 net.ifnames=0 init=/lib/systemd/systemd)
 
@@ -94,6 +109,15 @@ OPTIONAL PARAMETERS
  ROOTFSOPTS         Set root filesystem fstab entry options (i.e. "defaults,noatime")
 
  EXTRA_BIND_MOUNTS  Set extra fstab entries for bind mounts, colon separated destination:source (i.e. "/tmp:/var/tmp")
+
+DOCKER PARAMETERS
+
+ DOCKER_CONTAINERS              Docker image URLs to be pulled into the deployment (separated by new lines)
+ DOCKER_COMPOSE_FILE            Docker compose file location withing the deploymens. Docker images will be pulled into the deployment
+ DOCKER_COMPOSE_ENV_FILE        Docker default env file within the deployment, will be provided to the docker compose operations
+ DOCKER_COMPOSE_ENV_PATH        Docker runtime env path (containing .env file) for upgrading to new default env settings
+ DOCKER_UPGRADE_DEDUP_IGNORE    Do not deduplicate newline separated list of docker images when creating a upgrade deployment
+
 
 NOTE
  Do not interrupt molior-deploy with Ctrl-C, this might cause an inconsistent system state, since fileystems might be still mounted.
@@ -163,5 +187,5 @@ AUTHORS
  The project homepage is <https://github.com/molior-dbs>
 
 SEE ALSO
- molior-deploy-dir(8), molior-deploy-docker(8), molior-deploy-image(8), molior-deploy-info(8), molior-deploy-installer(8), molior-deploy-lxd(8), molior-deploy-pxeinst(8), molior-deploy-upgrade(8), molior-deploy-vbox(8), molior-deploy-vhd(8), create-release(1), molior-archive-sources(1), molior-sbuild(1), molior-trigger(1), add-molior-repo(8)
+ molior-deploy-dir(8), molior-deploy-docker(8), molior-deploy-image(8), molior-deploy-info(8), molior-deploy-installer(8), molior-deploy-lxd(8), molior-deploy-pxeinst(8), molior-deploy-srcarchive(8), molior-deploy-upgrade(8), molior-deploy-vbox(8), molior-deploy-vhd(8), create-release(1), molior-sbuild(1), molior-trigger(1), add-molior-repo(8)
 

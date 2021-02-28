@@ -8,6 +8,7 @@ preinit_deployment_image()
 
 init_deployment_image()
 {
+  lvm_rename_existing=1
   # FIXME: escape vars
   imagename=$(get_deployment_filename "img")
   log "creating $IMAGESIZE $WORK_DIR/$imagename"

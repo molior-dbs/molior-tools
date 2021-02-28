@@ -2,7 +2,6 @@
 
 . /usr/lib/molior-tools/molior.sh.inc
 
-DIST=stable
 APTLY_OVERRIDE=0
 LIST_ONLY=0
 ask_cleanup=1
@@ -11,7 +10,10 @@ deploy_all=0
 keep_log=0
 no_color=0
 base_only=0
+unstable_sources=0
+dist=stable
 deployment_only=0
+lvm_rename_existing=0
 DEPLOYMENT_SHA256=0
 OVERLAY_VERSION=""
 OVERLAY_AUTO=0
@@ -45,6 +47,8 @@ usage()
   echo "  -r                Create rootfs only, do not create final deployment (to be used for -b)"
   echo "  -b ROOTFS_TAR     Use existing rootfs (tar) as base for deployment (separately created with -r)"
   echo "  -L                Keep log file"
+  echo "  -U                Use unstable APT sources (CI Builds)"
+  echo "  -u                Use unstable top level package (INSTALL_PACKAGE in deploy file)"
   echo
   if [ -n "$1" ]; then
     echo $1
@@ -54,7 +58,7 @@ usage()
 }
 
 origopts=$@
-while getopts "n:s:v:p:m:a:V:o:F:b:rtAlcfdOL" opt; do
+while getopts "n:s:v:p:m:a:V:o:F:b:rtAlcfdOLUu" opt; do
   case $opt in
     n)
       PACKAGE_NAME=$OPTARG
@@ -118,6 +122,14 @@ while getopts "n:s:v:p:m:a:V:o:F:b:rtAlcfdOL" opt; do
       ;;
     L)
       keep_log=1
+      shift 1
+      ;;
+    U)
+      unstable_sources=1
+      shift 1
+      ;;
+    u)
+      dist=unstable
       shift 1
       ;;
     t)
@@ -206,12 +218,14 @@ REQUIRED_MOLIORTOOLS_VERSION=""
 
 # init
 success=0
+CUR_DIR=`pwd`
 WORK_DIR=`mktemp -d /tmp/molior-XXXXXXXX`
 chmod 755 $WORK_DIR
 errlog=$WORK_DIR/output.log
 
 do_fstab=1
 do_compress=1
+do_installation=1
 starttime="0"
 endtime="0"
 target=""
@@ -279,7 +293,7 @@ finish ()
   if [ "$user_abort" -eq 0 ]; then
     if [ "$success" -ne 1 -o "$keep_log" -eq 1 ]; then
       logfile=`date "+${PROJECT}_${VERSION}_${VARIANT}_%Y%m%d%H%M%S.log"`
-      cp $errlog $logfile
+      cp $errlog $CUR_DIR/$logfile
       test "$success" -ne 1 && log_info "full log: $logfile"
     fi
   fi
@@ -294,7 +308,14 @@ finish ()
     return 1
   fi
   if [ -n "$deployment" ]; then
-    log_notice "Deployment created in $((diff / 60))m$((diff % 60))s: $deployment"
+      size=`ls -lh $CUR_DIR/$deployment | cut -d ' ' -f5`
+      log_notice "Deployment created in $((diff / 60))m$((diff % 60))s: $deployment ($size)"
+
+      if type notify_deployment >/dev/null; then
+        echo
+        notify_deployment
+        echo
+      fi
   fi
 }
 
@@ -356,7 +377,6 @@ log_warn()
 
 log_error()
 {
-  set +x
   LIST_ONLY=0
   /bin/echo -e "${color_error}E: $@ $color_reset"
   if [ -n "$target" -a "$user_abort" -eq 0 -a "$ask_cleanup" -eq 1 ]; then
@@ -471,21 +491,18 @@ umount_bootstrap()
   sync
 
   if [ -n "$BIND_MOUNTS" ]; then
-    old_IFS=$IFS
-    IFS=","
     for m in $BIND_MOUNTS
     do
       to=`echo $m | cut -d: -f2`
       unmount $target/$to
     done
-    IFS=$old_IFS
   fi
 
   if [ -d "$target" ]; then
     CHROOTIGNORE=/usr/lib/molior-deploy/chroot-ignore
     for ignore in $CHROOTIGNORE/*
     do
-      rm $target/usr/local/bin/$(basename "$ignore")
+      rm -f $target/usr/local/bin/$(basename "$ignore")
     done
     rm -f $target/usr/sbin/policy-rc.d
 
@@ -550,11 +567,19 @@ setup_deployment()
   log "logfile: $WORK_DIR/output.log"
 
   if [ -z "$MOLIOR_PROJECTSOURCES_FILE" ]; then
+    param=""
+    if [ $unstable_sources -eq 1 ]; then
+      param="?unstable=true"
+    fi
     log_info "Getting deployment information ..."
-    SOURCESURL=$MOLIOR_SERVER/api/projectsources/$PROJECT/$VERSION
-    APT_SOURCES_ORIG=`wget -q -O- $SOURCESURL`
+    SOURCESURL=$MOLIOR_SERVER/api2/project/$PROJECT/$VERSION/aptsources
+    APT_SOURCES_ORIG=`wget -q -O- $SOURCESURL$param`
     if [ -z "$APT_SOURCES_ORIG" ]; then
-      log_error "Error downloading $SOURCESURL"
+      SOURCESURL=$MOLIOR_SERVER/api/projectsources/$PROJECT/$VERSION
+      APT_SOURCES_ORIG=`wget -q -O- $SOURCESURL`
+      if [ -z "$APT_SOURCES_ORIG" ]; then
+        log_error "Error downloading $SOURCESURL"
+      fi
     fi
   else
     log_info "Reading deployment information from $MOLIOR_PROJECTSOURCES_FILE ..."
@@ -563,13 +588,13 @@ setup_deployment()
       log_error "Error reading $MOLIOR_PROJECTSOURCES_FILE"
     fi
   fi
-  APT_SOURCES=`echo "$APT_SOURCES_ORIG" | sed '/^#/d'`
+  APT_SOURCES=`echo "$APT_SOURCES_ORIG" | sed -e '/^#/d' -e '/^$/d'`
   if [ "$APTLY_OVERRIDE" -eq 1 ]; then
     APT_SOURCES=`echo "$APT_SOURCES" | sed "s=deb \([^:]\)\+://\([^/]\)\+=deb $APTLY_SERVER="`
   fi
   MIRROR=`echo "$APT_SOURCES" | head -n 1 | cut -d' ' -f 2`
   if [ -z "$MIRROR" ]; then
-    log_error "No APT repo found"
+    log_error "No base mirror repo found"
   fi
   SUITE=`echo "$APT_SOURCES" | head -n 1 | cut -d' ' -f 3`
   if [ -z "$SUITE" ]; then
@@ -580,6 +605,10 @@ setup_deployment()
   BASEMIRROR=`basename $tmp`
   BASEVERSION=`basename $MIRROR`
   log "mirror: $MIRROR"
+  SOURCEMIRROR=`echo "$APT_SOURCES" | head -n 2 | tail -n 1 | cut -d' ' -f 2`
+  SOURCEMIRROR=`dirname $SOURCEMIRROR` # cut projectversion
+  SOURCEMIRROR=`dirname $SOURCEMIRROR` # cut project
+  SOURCEMIRROR=`dirname $SOURCEMIRROR` # cut /repos
 
   log_info "Getting source package ..."
   if [ -n "$SOURCE_DIR" ]; then
@@ -596,12 +625,12 @@ setup_deployment()
       log "using overlay source: $SOURCES_VERSION"
     fi
     if [ "$OVERLAY_AUTO" -eq 1 ]; then
-      baseurls=`echo "$APT_SOURCES" | grep $MIRROR/repos/$PROJECT | awk '{print $2}'`
+      baseurls=`echo "$APT_SOURCES" | grep $SOURCEMIRROR/repos/$PROJECT | awk '{print $2}'`
       for baseurl in $baseurls
       do
         SOURCES_VERSION=`basename $baseurl`
         log "trying to download package source from $SOURCES_VERSION"
-        wget -q -O $WORK_DIR/Sources $MIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$DIST/main/source/Sources
+        wget -q -O $WORK_DIR/Sources $SOURCEMIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$dist/main/source/Sources
         if [ `wc -l $WORK_DIR/Sources 2>/dev/null` -eq 0 ]; then
           # try next baseurl
           continue
@@ -619,13 +648,14 @@ setup_deployment()
         fi
       done
       if [ -z "$FILENAME" ]; then
-        log_error "No filename found for $PACKAGE_NAME in $MIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$DIST/main/source/Sources"
+        log_error "No filename found for $PACKAGE_NAME in $SOURCEMIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$dist/main/source/Sources"
       fi
       log "using package source: $SOURCES_VERSION"
     else
-      wget -q -O $WORK_DIR/Sources $MIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$DIST/main/source/Sources
-      if [ `wc -l $WORK_DIR/Sources 2>/dev/null` -eq 0 ]; then
-        log_error "Could not download $MIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$DIST/main/source/Sources"
+      wget -q -O $WORK_DIR/Sources $SOURCEMIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$dist/main/source/Sources
+      # FIXME: check if exists...
+      if [ `wc -l $WORK_DIR/Sources 2>/dev/null | cut -d' ' -f1` -eq 0 ]; then
+        log_error "Could not download $SOURCEMIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$dist/main/source/Sources"
       fi
       srcinfo=`/usr/lib/molior-tools/find-latest-version.pl $PACKAGE_NAME $PACKAGE_VERSION < $WORK_DIR/Sources`
       exit_on_error "Error searching $PACKAGE_NAME revision"
@@ -633,14 +663,14 @@ setup_deployment()
       FILENAME=`echo $srcinfo | cut -d ' ' -f 1`/`echo $srcinfo | cut -d ' ' -f 2`
       REVISION=`echo $srcinfo | cut -d ' ' -f 3`
       if [ -z "$FILENAME" ]; then
-        log_error "No filename found for $PACKAGE_NAME in $MIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$DIST/main/source/Sources"
+        log_error "No filename found for $PACKAGE_NAME in $SOURCEMIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$dist/main/source/Sources"
       fi
     fi
 
-    log "downloading source: $MIRROR/repos/$PROJECT/$SOURCES_VERSION/$FILENAME"
+    log "downloading source: $SOURCEMIRROR/repos/$PROJECT/$SOURCES_VERSION/$FILENAME"
     cd $WORK_DIR
-    wget -q $MIRROR/repos/$PROJECT/$SOURCES_VERSION/$FILENAME
-    exit_on_error "Error downloading $MIRROR/repos/$PROJECT/$SOURCES_VERSION/$FILENAME"
+    wget -q $SOURCEMIRROR/repos/$PROJECT/$SOURCES_VERSION/$FILENAME
+    exit_on_error "Error downloading $SOURCEMIRROR/repos/$PROJECT/$SOURCES_VERSION/$FILENAME"
 
     tar xf `basename $FILENAME`
     rm -f `basename $FILENAME`
@@ -652,6 +682,7 @@ setup_deployment()
     log_error "No deploy/ directory found in $SOURCE_DIR"
   fi
 
+  VARIANT=`echo $VARIANT | sed s/\.conf$//`
   variants=""
   count=0
   found_variant=0
@@ -714,14 +745,20 @@ setup_deployment()
     . /usr/lib/molior-deploy/plugins/$DEPLOYMENT_TYPE.plugin
   fi
 
-  if [ "$ROOTPART" ]; then
-    log_warn "Warning: ROOTPART is depreciated, please use PART${ROOTPART}_MNT=/"
+  if [ -n "$ROOTPART" ]; then
+    log_warn "Warning: ROOTPART is deprecated, please use PART${ROOTPART}_MNT=/"
     eval PART${ROOTPART}_MNT=/
   fi
 
   if [ -z "$ARCH" ]; then
     log_warn "The deployment does not specify an architecture, assuming ARCH=amd64"
     ARCH=amd64
+  fi
+
+  if echo $ARCH | grep -q arm; then
+    if ! which /usr/bin/qemu-arm-static >/dev/null || ! which /usr/sbin/update-binfmts >/dev/null; then
+      log_error "Error: qemu arm support is missing, run apt-get install binfmt-support qemu-user-static"
+    fi
   fi
 
   if [ -z "$INSTALL_PACKAGE" ]; then
@@ -738,7 +775,7 @@ setup_deployment()
       xz)
           DEPLOYMENT_COMPRESSION_EXT=".xz"
       ;;
-      gzip)
+      gz|gzip)
           DEPLOYMENT_COMPRESSION_EXT=".gz"
       ;;
       *)
@@ -746,18 +783,16 @@ setup_deployment()
       ;;
   esac
 
+  if [ -n "$RAID_NAME" -a -z "$RAID_DEVICES" ]; then
+    log_error "Error: RAID devices not definded, please set \$RAID_DEVICES"
+  fi
+
   target=$WORK_DIR/root
   mkdir $target
 }
 
 bootstrap_deployment()
 {
-  if echo $ARCH | grep -q arm; then
-    if ! which /usr/bin/qemu-arm-static >/dev/null; then
-      log_error "Please install the qemu-user-static package"
-    fi
-  fi
-
   KEY_URL=$REPOURL/$PUBKEY_FILE
   log "importing gpg key from $KEY_URL"
 
@@ -770,6 +805,9 @@ bootstrap_deployment()
   i=0
   for url in $KEY_URL $APT_KEYS_EXTRA
   do
+    if [ -z "$url" ]; then
+      continue
+    fi
     if [ $i -ne 0 ]; then
       postfix=".$i"
     else
@@ -830,13 +868,19 @@ path-exclude=/usr/share/locale/*
 path-include=/usr/share/locale/locale.alias
 path-exclude=/usr/share/man/*
 path-exclude=/usr/share/doc/*
+path-exclude=/usr/share/info/*
+path-exclude=/usr/share/common-licenses/*
 EOF
       # Clenup already existing locales and docs
       if [ -e $target/usr/share/locale/locale.alias ]; then
         mv $target/usr/share/locale/locale.alias $WORK_DIR
       fi
 
-      rm -rf $target/usr/share/locale/* $target/usr/share/man/* $target/usr/share/doc/*
+      rm -rf $target/usr/share/locale/* \
+             $target/usr/share/man/* \
+             $target/usr/share/doc/* \
+             $target/usr/share/info/* \
+             $target/usr/share/common-licenses/*
 
       if [ -e $WORK_DIR/locale.alias ]; then
         mv $WORK_DIR/locale.alias $target/usr/share/locale/
@@ -850,9 +894,6 @@ EOF
   echo "$TARGET_HOSTNAME" > $target/etc/hostname
   cat >$target/etc/hosts <<EOF
 127.0.0.1       localhost
-::1             localhost ip6-localhost ip6-loopback
-ff02::1         ip6-allnodes
-ff02::2         ip6-allrouters
 
 EOF
   echo "127.0.1.1 $TARGET_HOSTNAME" >> $target/etc/hosts
@@ -896,17 +937,18 @@ EOF
 
   if [ $base_only -eq 0 ]; then
     if [ -n "$BIND_MOUNTS" ]; then
-      old_IFS=$IFS
-      IFS=","
       for m in $BIND_MOUNTS
       do
         from=`echo $m | cut -d: -f1`
         to=`echo $m | cut -d: -f2`
+        opts=`echo $m | cut -d: -f3`
+        if [ -z "$opts" ]; then
+          opts="rw,noexec,nosuid,nodev"
+        fi
         mkdir -p $target/$from $target/$to
         log "bind mount $target/$from $target/$to"
-        mount -o rw,noexec,nosuid,nodev,bind $target/$from $target/$to
+        mount -o $opts,bind $target/$from $target/$to
       done
-      IFS=$old_IFS
     fi
   fi
 }
@@ -955,11 +997,10 @@ cleanup_deployment()
   echo -n > $target/etc/machine-id
   rm -f $target/var/lib/dbus/machine-id
 
-  if [ -n "$MINIMIZE" ]; then
-    if [ "$MINIMIZE" -eq 1 ]; then
-      rm -f $target/var/lib/apt/lists/*Packages* $target/var/lib/apt/lists/*Release*
-    fi
-  fi
+  rm -f $target/var/lib/apt/lists/*Packages* $target/var/lib/apt/lists/*Release*
+  rm -f $target/var/log/alternatives.log $target/var/log/bootstrap.log \
+        $target/var/log/dpkg.log $target/var/log/faillog $target/var/log/lastlog \
+        $target/var/log/apt/*
 }
 
 install_grub_bootloader()
@@ -967,13 +1008,25 @@ install_grub_bootloader()
   if [ -z "$target" ]; then
     log_error "Error: \$target not set"
   fi
-  mount_fs_devices
-  log "grub-install"
-  chroot $target grub-install --modules part_msdos --recheck --force --no-floppy ${disk} >&2
-  exit_on_error "installing grub failed"
 
   if [ -z "$rootpart" ]; then
     log_error "Error updating grub: no rootpart defined"
+  fi
+
+  mount_fs_devices
+
+  uuid=`blkid  -o value -s UUID $rootpart`
+  t="bios"
+  if [ -n "$TARGET_BOOTTYPE" ]; then
+      t=$TARGET_BOOTTYPE
+  fi
+  log "grub-install ($t)"
+  if [ "$TARGET_BOOTTYPE" = "efi" ]; then
+    chroot $target grub-install --removable --recheck --force --no-floppy --target x86_64-efi >&2
+    exit_on_error "installing grub failed"
+  else
+    chroot $target grub-install --modules part_msdos --recheck --force --no-floppy ${disk} >&2
+    exit_on_error "installing grub failed"
   fi
 
   log "update-grub"
@@ -981,7 +1034,7 @@ install_grub_bootloader()
     sed -i "s%^GRUB_CMDLINE_LINUX=.*$%GRUB_CMDLINE_LINUX=\"$LINUX_CMDLINE\"%" $target/etc/default/grub
   fi
   mkdir -p $target/dev/disk/by-uuid
-  ln -s $rootpart $target/dev/disk/by-uuid/`blkid  -o value -s UUID $rootpart`
+  ln -s $rootpart $target/dev/disk/by-uuid/$uuid
   chroot $target update-grub
 
   rm -rf $target/dev/disk/by-uuid
@@ -1020,14 +1073,14 @@ install_docker()
       fi
       # only pull DOCKER_CONTAINERS
   elif [ -z "$DOCKER_CONTAINERS" ]; then
-    DOCKER_CONTAINERS=`grep -v -P '^[ \t]*#' $target/$DOCKER_COMPOSE_FILE | grep "image:" | awk '{ print $2 }'`
-    if [ -z "$DOCKER_CONTAINERS" ]; then
+    docker_containers=`grep -v -P '^[ \t]*#' $target/$DOCKER_COMPOSE_FILE | grep "image:" | awk '{ print $2 }' | sort | uniq`
+    if [ -z "$docker_containers" ]; then
       log_error "Cannot find images in DOCKER_COMPOSE_FILE $target/$DOCKER_COMPOSE_FILE"
     fi
   fi
-
-  log_info "Installing docker containers ..."
-
+  if [ -z "$docker_containers" -a -n "$DOCKER_CONTAINERS" ]; then
+    docker_containers="$DOCKER_CONTAINERS"
+  fi
 
   # prepare filesystem
   umount $target/sys
@@ -1050,12 +1103,20 @@ install_docker()
   chroot $target cgroupfs-mount >&2
 
   # start docker
-  chroot $target sh -c '. /etc/default/docker; exec /usr/sbin/dockerd -H unix:// $DOCKER_OPTS' >&2 &
+  chroot $target sh -c '. /etc/default/docker; TZ=UTC exec /usr/sbin/dockerd --iptables=false -H unix:// $DOCKER_OPTS' >&2 &
   dockerpid=$!
   sleep 5
 
+  # prepare docker compose env dir
+  mkdir $target/tmp/docker-compose
+  if [ -n "$DOCKER_COMPOSE_ENV_FILE" -a -e $target/$DOCKER_COMPOSE_ENV_FILE ]; then
+    cp $target/$DOCKER_COMPOSE_ENV_FILE $target/tmp/docker-compose/.env
+  fi
+
   # pull containers
-  echo "$DOCKER_CONTAINERS" | (while IFS= read -r container
+  total_docker_images=`echo "$docker_containers" | wc -l`
+  i=1
+  echo "$docker_containers" | (while IFS= read -r container
   do
     if echo "$container" | grep -q "^#"; then
       continue
@@ -1063,12 +1124,16 @@ install_docker()
     if echo "$container" | grep -q "^[\t ]*$"; then
       continue
     fi
-    log "docker pull $container"
-    chroot $target docker pull "$container" >&2
+    if [ -f $target/tmp/docker-compose/.env ]; then
+        container=`. $target/tmp/docker-compose/.env; eval echo $container`
+    fi
+    log "docker pull $container ($i/$total_docker_images)"
+    chroot $target sh -c "docker pull $container" >&2
     RET=$?
     if [ "$RET" -ne 0 ]; then
         exit $RET
     fi
+    i=$((i + 1))
   done)
   if [ "$?" -ne 0 ]; then
     docker_install_cleanup
@@ -1076,17 +1141,19 @@ install_docker()
   fi
 
   if [ -n "$DOCKER_COMPOSE_FILE" ]; then
-    log "docker compose"
-    chroot $target docker-compose --no-ansi -f $DOCKER_COMPOSE_FILE up --no-start >&2
+    log "running docker compose up"
+    chroot $target sh -c "cd /tmp/docker-compose; docker-compose --no-ansi -f $DOCKER_COMPOSE_FILE up --no-start" >&2
     if [ "$?" -ne 0 ]; then
       docker_install_cleanup
-      log_error "Error running docker-compose"
+      log_error "Error running docker-compose up"
     fi
     sleep 1
   fi
 
   if type postinst_docker >/dev/null; then
       postinst_docker
+  elif type postinst_docker_$DEPLOYMENT_TYPE >/dev/null; then
+      postinst_docker_$DEPLOYMENT_TYPE
   fi
 
   docker_install_cleanup
@@ -1094,6 +1161,7 @@ install_docker()
 
 docker_install_cleanup()
 {
+  rm -rf $target/tmp/docker-compose
   # stop docker
   kill $dockerpid
   if [ "$?" -ne 0 ]; then
@@ -1180,7 +1248,7 @@ workflow_base()
 
   if [ $base_only -eq 0 -o $deployment_only -eq 1 ]; then
     # if we intent to create LVM VG with the same name as on the host, rename the host one
-    if [ -n "$LVM_VG" ]; then
+    if [ -n "$LVM_VG" -a $lvm_rename_existing -eq 1 ]; then
       if vgs ${LVM_VG} >/dev/null 2>&1; then
         log_warn "Warning: renaming locally existing LVM VG $LVM_VG to ${LVM_VG}_molior_renamed"
         vgrename -A y $LVM_VG ${LVM_VG}_molior_renamed >&2
@@ -1205,50 +1273,53 @@ workflow_base()
     tar xf $BASE_ROOTFS -C $target
     exit_on_error "Error extracting '$BASE_ROOTFS'"
   else  # if [ $deployment_only -eq 0 ]; then
-    log_info "Installing base OS ..."
-    bootstrap_deployment
+    if [ $do_installation -eq 1 ]; then
+      log_info "Installing base OS ..."
+      bootstrap_deployment
 
-    # run preinst_deployment
-    if type preinst_deployment >/dev/null; then
-      preinst_deployment
-    elif type preinst_deployment_$DEPLOYMENT_TYPE >/dev/null; then
-      preinst_deployment_$DEPLOYMENT_TYPE
-    fi
+      # run preinst_deployment
+      if type preinst_deployment >/dev/null; then
+        preinst_deployment
+      elif type preinst_deployment_$DEPLOYMENT_TYPE >/dev/null; then
+        preinst_deployment_$DEPLOYMENT_TYPE
+      fi
 
-    log_info "Installing software ..."
-    install_deployment
+      log_info "Installing software ..."
+      install_deployment
 
-    # enable DNS in chroot for postinst
-    if [ -e $target/etc/resolv.conf -o -h $target/etc/resolv.conf ]; then
-      mv $target/etc/resolv.conf $target/etc/resolv.conf.molior-deploy.bak
-    fi
-    cp -L /etc/resolv.conf $target/etc/resolv.conf
+      # enable DNS in chroot for postinst
+      if [ -e $target/etc/resolv.conf -o -h $target/etc/resolv.conf ]; then
+        mv $target/etc/resolv.conf $target/etc/resolv.conf.molior-deploy.bak
+      fi
+      cp -L /etc/resolv.conf $target/etc/resolv.conf
 
-    # run postinst_deployment
-    if type postinst_deployment >/dev/null; then
-      postinst_deployment
-    elif type postinst_deployment_$DEPLOYMENT_TYPE >/dev/null; then
-      postinst_deployment_$DEPLOYMENT_TYPE
-    fi
+      # run postinst_deployment
+      if type postinst_deployment >/dev/null; then
+        postinst_deployment
+      elif type postinst_deployment_$DEPLOYMENT_TYPE >/dev/null; then
+        postinst_deployment_$DEPLOYMENT_TYPE
+      fi
 
-    # ensure DNS is still enabled
-    rm -f $target/etc/resolv.conf
-    cp -L /etc/resolv.conf $target/etc/resolv.conf
+      # ensure DNS is still enabled
+      rm -f $target/etc/resolv.conf
+      cp -L /etc/resolv.conf $target/etc/resolv.conf
 
-    # install docker containers
-    if [ -n "$DOCKER_CONTAINERS" -o -n "$DOCKER_COMPOSE_FILE" ]; then
-      install_docker
-    fi
+      # install docker containers
+      if [ -n "$DOCKER_CONTAINERS" -o -n "$DOCKER_COMPOSE_FILE" ]; then
+        log_info "Installing docker containers ..."
+        install_docker
+      fi
 
-    # run postinst_internal_deployment
-    if type postinst_internal_deployment_$DEPLOYMENT_TYPE >/dev/null; then
-      postinst_internal_deployment_$DEPLOYMENT_TYPE
-    fi
+      # run postinst_internal_deployment
+      if type postinst_internal_deployment_$DEPLOYMENT_TYPE >/dev/null; then
+        postinst_internal_deployment_$DEPLOYMENT_TYPE
+      fi
 
-    # restore resolv.conf
-    rm -f $target/etc/resolv.conf
-    if [ -e $target/etc/resolv.conf.molior-deploy.bak -o -h $target/etc/resolv.conf.molior-deploy.bak ]; then
-      mv $target/etc/resolv.conf.molior-deploy.bak $target/etc/resolv.conf
+      # restore resolv.conf
+      rm -f $target/etc/resolv.conf
+      if [ -e $target/etc/resolv.conf.molior-deploy.bak -o -h $target/etc/resolv.conf.molior-deploy.bak ]; then
+        mv $target/etc/resolv.conf.molior-deploy.bak $target/etc/resolv.conf
+      fi
     fi
 
     if [ -n "$MOLIOR_PROJECTINFO_FILE" ]; then
@@ -1295,7 +1366,7 @@ workflow_deployment()
            exit_on_error "Error compressing $deployment"
            deployment=$deployment.xz
         ;;
-        gzip)
+        gz|gzip)
            gzip $WORK_DIR/$deployment >&2
            exit_on_error "Error compressing $deployment"
            deployment=$deployment.gz
@@ -1309,17 +1380,18 @@ workflow_deployment()
     fi
     sha256sum $WORK_DIR/$deployment > $WORK_DIR/$deployment.$SHA256EXT
     exit_on_error "Error sha256sum"
-    mv $WORK_DIR/$deployment.$SHA256EXT ./
+    mv $WORK_DIR/$deployment.$SHA256EXT $CUR_DIR
     if [ -n "$SUDO_UID" -a -n "$SUDO_GID" ]; then
-      chown $SUDO_UID:$SUDO_GID $deployment.$SHA256EXT
+      chown $SUDO_UID:$SUDO_GID $CUR_DIR/$deployment.$SHA256EXT
     fi
   fi
 
-  # move deployment to current dir, fix permissions if possible
-  mv $WORK_DIR/$deployment ./
+  # move deployment to current dir, fix ownership if possible
+  mv $WORK_DIR/$deployment $CUR_DIR/
+  exit_on_error "Error moving deployment"
 
   if [ -n "$SUDO_UID" -a -n "$SUDO_GID" ]; then
-    chown $SUDO_UID:$SUDO_GID $deployment
+    chown $SUDO_UID:$SUDO_GID $CUR_DIR/$deployment
   fi
 
   # deinitialize stuff
@@ -1329,7 +1401,6 @@ workflow_deployment()
     deinit_deployment_$DEPLOYMENT_TYPE
   fi
 
-  # everything hunky dory :-)
   success=1
 }
 
@@ -1350,18 +1421,18 @@ elif [ $deployment_only -eq 1 ]; then
   fi
 
   if [ -n "$BIND_MOUNTS" ]; then
-    old_IFS=$IFS
-    IFS=","
     for m in $BIND_MOUNTS
     do
       from=`echo $m | cut -d: -f1`
       to=`echo $m | cut -d: -f2`
+      opts=`echo $m | cut -d: -f3`
+      if [ -z "$opts" ]; then
+        opts="rw,noexec,nosuid,nodev"
+      fi
       mkdir -p $target/$from $target/$to
       log "bind mount $target/$from $target/$to"
-      mount -o rw,noexec,nosuid,nodev,bind $target/$from $target/$to
+      mount -o $opts,bind $target/$from $target/$to
     done
-    IFS=$old_IFS
-
   fi
 
   # install grub if requested

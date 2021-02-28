@@ -9,14 +9,15 @@ OPTIONS
 
  DEPLOYMENT_TYPE            Specify 'installer' to use the installer plugin
  INSTALLER_DISK_MIN         Minimum required disk size in GB (default 3GB)
- INSTALLER_COMPRESSION      Compression method to be used for the installer image (xz, gzip, none)
+ INSTALLER_COMPRESSION      Compression method to be used for the installer image (xz, gz/gzip, none)
  INSTALLER_EXTRA_PACKAGES   Add additional packages to the installer (may need hooks in initrd)
- INSTALLER_BOOTTYPE         For EFI bootable ISOs, specify 'efi' (default: standard)
+ TARGET_BOOTTYPE            For EFI bootable ISOs, specify 'efi' (default: bios)
  INSTALLER_EXTRA_INITRD     Add the contents of the specified directory (in source package) to the /etc/initramfs-tools/ in the installer
  INSTALLER_PASSWD_USERS     List of users separated by space to ask for setting a password during installation
  INSTALLER_ASK_CONFIRM      Specify 'no' to disable asking for confirmation to install
  INSTALLER_ASK_HOSTNAME     Specify 'no' to disable asking for the hostname
  INSTALLER_ASK_REBOOT       Specify 'no' to disable asking for confirmation to reboot the system
+ INSTALLER_LINUX_CMDLINE    Linux cmdline fir the installer
 
 EXAMPLE
 
@@ -33,5 +34,5 @@ AUTHORS
  The project homepage is <https://github.com/molior-dbs>
 
 SEE ALSO
- create-release(1), molior-archive-sources(1), molior-deploy(8), molior-sbuild(1), molior-trigger(1), add-molior-repo(8)
+ create-release(1), molior-deploy(8), molior-sbuild(1), molior-trigger(1), add-molior-repo(8)
 

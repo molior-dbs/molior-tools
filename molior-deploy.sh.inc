@@ -1,16 +1,25 @@
 # vim: syntax=sh
 
-PARTSEP=""
 MAXPART=16
 
 fs_has_partitions=0
 fs_has_lvm=0
 fs_has_luks=0
+fs_on_raid=0
 
 exit_on_error()
 {
   if [ "$?" -ne 0 ]; then
     log_error "$@"
+  fi
+}
+
+detect_partname_scheme()
+{
+  if [ -z "$PARTSEP" ]; then
+    if echo $disk | grep -q "[0-9]$"; then
+      PARTSEP="p"
+    fi
   fi
 }
 
@@ -33,6 +42,7 @@ create_fstab()
     echo "$ROOTDEVICE / $ROOTFS $o 0 1" >> $target/etc/fstab
 
   else
+    set +x
     for p in `seq 1 $MAXPART`
     do
       if [ -n "$SFDISK" ]; then
@@ -51,7 +61,9 @@ create_fstab()
           if [ -z "$uuid" ]; then
             log_error "Error rootfs uuid is empty for '$part'"
           fi
+          set -x
           echo "UUID=$uuid $t $s $o 0 1" >> $target/etc/fstab
+          set +x
           break
         fi
       fi
@@ -71,19 +83,23 @@ create_fstab()
           if [ -z "$u" ]; then
             log_error "LVM no NAME"
           fi
-          part=/dev/mapper/$(echo ${LVM_VG} | sed -r 's/-/--/g')-$u
+          part=/dev/mapper/$(echo ${LVM_VG} | sed -r 's/-/--/g')-$(echo $u | sed -r 's/-/--/g')
           uuid=`blkid -o value -s UUID $part`
           if [ -z "$uuid" ]; then
             log_error "Error rootfs uuid is empty for '$part'"
           fi
+          set -x
           echo "UUID=$uuid $t $s $o 0 1" >> $target/etc/fstab
+          set +x
           break
         fi
       fi
     done
+    set -x
   fi
 
   if [ -n "$SFDISK" ]; then
+    set +x
     for p in `seq 1 $MAXPART`
     do
       eval t=\$PART${p}_MNT
@@ -91,8 +107,11 @@ create_fstab()
         continue
       fi
       eval s=\$PART${p}_FS
+      if [ -z "$t" -a "$s" != "swap" ]; then
+        continue
+      fi
       if [ -z "$s" ]; then
-        break
+        continue
       fi
       eval o=\$PART${p}_OPTS
       if [ -z "$o" ]; then
@@ -103,15 +122,19 @@ create_fstab()
       if [ -z "$uuid" ]; then
         log_error "Error: empty uuid for '$part'"
       fi
+      set -x
       if [ "$s" = "swap" ]; then
         echo "UUID=$uuid none swap sw 0 0" >> $target/etc/fstab
       elif [ "$s" != "lvm" ]; then
         echo "UUID=$uuid $t $s $o 0 2" >> $target/etc/fstab
       fi
+      set +x
     done
+    set -x
   fi
 
   if [ -n "$LVM_VG" ]; then
+    set +x
     for p in `seq 1 $MAXPART`
     do
       eval t=\$LVM_LV${p}_MNT
@@ -119,8 +142,11 @@ create_fstab()
         continue
       fi
       eval s=\$LVM_LV${p}_FS
+      if [ -z "$t" -a "$s" != "swap" ]; then
+        continue
+      fi
       if [ -z "$s" ]; then
-        break
+        continue
       fi
       eval o=\$LVM_LV${p}_OPTS
       if [ -z "$o" ]; then
@@ -131,52 +157,66 @@ create_fstab()
         log_error "LVM no FS"
       fi
 
-      part=/dev/mapper/$(echo ${LVM_VG} | sed -r 's/-/--/g')-$u
+      part=/dev/mapper/$(echo ${LVM_VG} | sed -r 's/-/--/g')-$(echo $u | sed -r 's/-/--/g')
       if [ "$s" != "encrypted-swap" ]; then
         uuid=`blkid -o value -s UUID $part`
         if [ -z "$uuid" ]; then
           log_error "Error: empty uuid for '$part'"
         fi
+        set -x
         if [ "$s" = "swap" ]; then
-        echo "UUID=$uuid none swap sw 0 0" >> $target/etc/fstab
+          echo "UUID=$uuid none swap sw 0 0" >> $target/etc/fstab
         else
           echo "UUID=$uuid $t $s $o 0 2" >> $target/etc/fstab
         fi
+        set +x
       else
+        set -x
         echo "/dev/mapper/${u}-open none swap sw 0 0" >> $target/etc/fstab
+        set +x
       fi
 
       eval c=\$LVM_LV${p}_CRYPTTAB
       if [ -n "$c" ]; then
+        set -x
         echo "${u}-open	${part}	$c" >> $target/etc/crypttab
+        set +x
       fi
     done
+    set -x
   fi
 
   if [ -n "$BIND_MOUNTS" ]; then
     echo >> $target/etc/fstab
-    old_IFS=$IFS
-    IFS=","
     for m in $BIND_MOUNTS
     do
       from=`echo $m | cut -d: -f1`
       to=`echo $m | cut -d: -f2`
-      echo "$to $from none rw,noexec,nosuid,nodev,bind 0 0" >>$target/etc/fstab
+      opts=`echo $m | cut -d: -f3`
+      if [ -z "$opts" ]; then
+        opts="rw,noexec,nosuid,nodev"
+      fi
+      echo "$to $from none $opts,bind 0 0" >>$target/etc/fstab
     done
-    IFS=$old_IFS
   fi
 
   if [ -n "$EXTRA_BIND_MOUNTS" ]; then
     echo >> $target/etc/fstab
-    old_IFS=$IFS
-    IFS=","
     for m in $EXTRA_BIND_MOUNTS
     do
       from=`echo $m | cut -d: -f1`
       to=`echo $m | cut -d: -f2`
-      echo "$to $from none rw,noexec,nosuid,nodev,bind 0 0" >>$target/etc/fstab
+      opts=`echo $m | cut -d: -f3`
+      if [ -z "$opts" ]; then
+        opts="rw,noexec,nosuid,nodev"
+      fi
+      echo "$to $from none $opts,bind 0 0" >>$target/etc/fstab
     done
-    IFS=$old_IFS
+  fi
+
+  if [ -n "$RAID_NAME" ];then
+    # store raid configuration
+    mdadm --detail --scan >> $target/etc/mdadm/mdadm.conf
   fi
 }
 
@@ -185,14 +225,24 @@ create_partitions()
   if [ -z "$disk" ]; then
     log_error "Error: \$disk not set"
   fi
+
+  if [ -n "$RAID_NAME" ]; then
+    echo " * creating raid $RAID_NAME"
+    echo y | mdadm --create --verbose $RAID_OPTS $RAID_NAME $disk missing
+    disk=`mdadm --detail --scan | cut -d" " -f2`
+  fi
+
   if [ -n "$SFDISK" ]; then
     echo " * creating partitions"
-    sfdiskversion=`dpkg -s util-linux | grep ^Version: | sed 's/^Version: //'`
+    # check if sfdisk supports wipearg, i.e. > 2.27.1
+    sfdiskversion=`sfdisk -v | cut -d ' ' -f4`
+    sfdiskmajor=`echo $sfdiskversion | cut -d. -f1`
+    sfdiskminor=`echo $sfdiskversion | cut -d. -f2`
     wipearg=""
-    if dpkg --compare-versions "$sfdiskversion" gt "2.27.1"; then
+    if [ "$sfdiskmajor" -ge 2 -a "$sfdiskminor" -gt 27 ]; then
       wipearg="--wipe=always"
     fi
-    echo "$SFDISK" | sfdisk --force $wiparg $disk >/dev/null
+    echo "$SFDISK" | sfdisk --force $wipearg $disk >/dev/null
     exit_on_error "Error creating partitions"
   fi
 }
@@ -291,7 +341,7 @@ make_fs()
 
   else # normal filesystems
     echo " * mkfs $part"
-    eval mkfs $opts -t $s $part >/dev/null
+    eval mkfs -t $s $opts $part >/dev/null
     exit_on_error "Error formatting partition $part as $s"
   fi
 }
@@ -299,6 +349,7 @@ make_fs()
 create_fs()
 {
   if [ -n "$SFDISK" ]; then
+    set +x
     for p in `seq 1 $MAXPART`
     do
       part=${disk}$PARTSEP$p
@@ -312,14 +363,18 @@ create_fs()
       fi
       eval u=\$PART${p}_LUKSNAME
       eval opts=\$PART${p}_MKFSOPTS
+      set -x
       make_fs "$s" "$part" "$u" "$opts"
+      set +x
     done
+    set -x
   fi
 
   if [ -n "$LVM_VG" ]; then
     if [ "$LVM_PV" = "disk" ]; then
       create_lvm $disk
     fi
+    set +x
     for p in `seq 1 $MAXPART`
     do
       eval t=\$LVM_LV${p}_NAME
@@ -335,22 +390,27 @@ create_fs()
       fi
 
       # lvm replaces hyphens with double hypents in lvm name
-      part=/dev/mapper/$(echo ${LVM_VG} | sed -r 's/-/--/g')-$t
+      part=/dev/mapper/$(echo ${LVM_VG} | sed -r 's/-/--/g')-$(echo $t | sed -r 's/-/--/g')
       eval u=\$LVM_LV${p}_MNT
       if [ "$u" = "/" ]; then
         rootpart=$part
       fi
       eval opts=\$LVM_LV${p}_MKFSOPTS
+      set -x
       make_fs "$s" "$part" "$t" "$opts"
+      set +x
 
       if [ "$s" = "luks" ]; then
         eval v=\$LUKS_${t}_FS
         if [ -z "$v" ]; then
           continue
         fi
+        set -x
         make_fs "$v" "/dev/mapper/$t-decrypted" "" ""
+        set +x
       fi
     done
+    set -x
   fi
 }
 
@@ -358,26 +418,38 @@ get_fsinfo()
 {
   if [ -n "$SFDISK" ]; then
     fs_has_partitions=1
+    set +x
     for p in `seq 1 $MAXPART`
     do
       eval s=\$PART${p}_FS
       if [ "$s" = "luks" ]; then
+        set -x
         fs_has_luks=1
+        set +x
         break
       fi
     done
+    set -x
   fi
 
   if [ -n "$LVM_VG" ]; then
     fs_has_lvm=1
+    set +x
     for p in `seq 1 $MAXPART`
     do
       eval s=\$LVM_LV${p}_FS
       if [ "$s" = "luks" ]; then
+        set -x
         fs_has_luks=1
+        set +x
         break
       fi
     done
+    set -x
+  fi
+
+  if [ -n "$RAID_NAME" ]; then
+    fs_on_raid=1
   fi
 }
 
@@ -394,8 +466,13 @@ mount_fs()
   fi
 
   if [ -n "$SFDISK" ]; then
+    set +x
     for p in `seq 1 $MAXPART`
     do
+      eval fs=\$PART${p}_FS
+      if [ -z "$fs" ]; then
+        continue
+      fi
       eval t=\$PART${p}_MNT
       if [ -z "$t" ]; then
         continue
@@ -406,13 +483,17 @@ mount_fs()
       part=${disk}$PARTSEP$p
       echo " * mount $t"
       mkdir -p $target/$t
-      mount $part $target/$t
+      set -x
+      mount -t $fs $part $target/$t
       exit_on_error "Error mounting filesystem $part to $target$t"
+      set +x
       # FIXME: mount luks
     done
+    set -x
   fi
 
   if [ -n "$LVM_VG" ]; then
+    set +x
     for p in `seq 1 $MAXPART`
     do
       eval s=\$LVM_LV${p}_NAME
@@ -432,19 +513,27 @@ mount_fs()
           fi
           echo " * mount $v"
           mkdir -p $target/$v
+          set -x
           mount /dev/mapper/$s-decrypted $target/$v
+          exit_on_error "Error mounting filesystem $s-decrypted to $target$v"
+          set +x
         fi
         continue
       fi
+
       if [ "$t" = "/" ]; then
         continue
       fi
 
-      part=/dev/mapper/$(echo ${LVM_VG} | sed -r 's/-/--/g')-$s
+      part=/dev/mapper/$(echo ${LVM_VG} | sed -r 's/-/--/g')-$(echo $s | sed -r 's/-/--/g')
       echo " * mount $t"
       mkdir -p $target/$t
+      set -x
       mount $part $target/$t
+      exit_on_error "Error mounting filesystem $part to $target$t"
+      set +x
     done
+    set -x
   fi
 }
 
@@ -462,50 +551,15 @@ umount_fs()
   if [ -z "$target" ]; then
     return
   fi
-  sync
 
-  mountpoints=""
-  if [ -n "$SFDISK" ]; then
-    for p in `seq 1 $MAXPART`
-    do
-      eval s=\$PART${p}_MNT
-      if [ -n "$s" ]; then
-        mountpoints="$mountpoints$target$s\n"
-      fi
-      # FIXME: umount luks
-    done
-  fi
-
-  if [ -n "$LVM_VG" ]; then
-    for p in `seq 1 $MAXPART`
-    do
-      eval s=\$LVM_LV${p}_MNT
-      if [ -n "$s" ]; then
-        mountpoints="$mountpoints$target$s\n"
-      fi
-      eval t=\$LVM_LV${p}_FS
-      if [ "$t" = "encrypted-swap" ]; then
-        continue
-      elif [ "$t" = "luks" ]; then
-        eval u=\$LVM_LV${p}_NAME
-        if [ -n "$u" ]; then
-          eval v=\$LUKS_${u}_MNT
-          if [ -z "$v" ]; then
-            continue
-          fi
-          mountpoints="$mountpoints$target$v\n"
-        fi
-      fi
-    done
-  fi
-
-  for m in `/bin/echo -e "$mountpoints" | sort -r`
+  for m in `grep $target /proc/mounts | cut -d ' ' -f 2 | sort -r`
   do
     umount $m
   done
 
   # close LUKS devices
   if [ -n "$SFDISK" ]; then
+    set +x
     for p in `seq 1 $MAXPART`
     do
       eval t=\$PART${p}_FS
@@ -517,12 +571,16 @@ umount_fs()
         if [ -z "$u" ]; then
           continue
         fi
+        set +x
         cryptsetup luksClose /dev/mapper/$u-decrypted
+        set -x
       fi
     done
+    set -x
   fi
 
   if [ -n "$LVM_VG" ]; then
+    set +x
     for p in `seq 1 $MAXPART`
     do
       eval s=\$LVM_LV${p}_FS
@@ -536,9 +594,12 @@ umount_fs()
         if [ -z "$t" ]; then
           continue
         fi
+        set -x
         cryptsetup luksClose /dev/mapper/$t-decrypted
+        set +x
       fi
     done
+    set -x
   fi
 }
 
@@ -586,6 +647,8 @@ configure_networking()
     busybox sh
   fi
 
+  # FIXME: check $IP, use dhcp if empty
+
   CLIENT_IP=$(echo $IP | cut -d: -f1)
   ROOTSERVER=$(echo $IP | cut -d: -f2)
   GATEWAY=$(echo $IP | cut -d: -f3)
@@ -596,82 +659,103 @@ configure_networking()
   ip route add default via $GATEWAY dev $DEVICE
 }
 
+echovar()
+{
+    name="$1"
+    value="$2"
+    if [ -z "$value" ]; then
+        value=`eval echo \"\\${$name}\" | sed -e 's/\`/\\\\\`/g' -e 's/\\\$/\\\\$/g'`
+    fi
+    set -x
+    echo "$name=\"$value\""
+    set +x
+}
+
 get_deploy_config()
 {
-  echo "MOLIOR_TOOLS_VERSION=\"$MOLIOR_TOOLS_VERSION\""
-  echo "DEPLOYMENT_TIMESTAMP=\"$DEPLOYMENT_TIMESTAMP\""
-  echo "PROJECT=\"$PROJECT\""
-  echo "VERSION=\"$VERSION\""
-  echo "REVISION=\"$REVISION\""
-  echo "VARIANT=\"$VARIANT\""
-  echo "SUITE=\"$SUITE\""
-  echo "SFDISK=\"$SFDISK\""
-  echo "LVM_VG=\"$LVM_VG\""
-  echo "ROOTDEVICE=\"$ROOTDEVICE\""
-  echo "ROOTFS=\"$ROOTFS\""
-  echo "ROOTFSOPTS=\"$ROOTFSOPTS\""
+  set +x
+  echovar MOLIOR_TOOLS_VERSION
+  echovar DEPLOYMENT_TIMESTAMP
+  echovar PROJECT
+  echovar VERSION
+  echovar REVISION
+  echovar VARIANT
+  echovar SUITE
+  echovar SFDISK
+  echovar LVM_VG
+  echovar ROOTDEVICE
+  echovar ROOTFS
+  echovar ROOTFSOPTS
   for p in `seq 1 $MAXPART`
   do
     eval s=\$PART${p}_FS
-    test -n "$s" && echo "PART${p}_FS=\"$s\""
+    test -n "$s" && echovar PART${p}_FS $s
     eval s=\$PART${p}_MNT
-    test -n "$s" && echo "PART${p}_MNT=\"$s\""
+    test -n "$s" && echovar PART${p}_MNT $s
     eval s=\$PART${p}_OPTS
-    test -n "$s" && echo "PART${p}_OPTS=\"$s\""
+    test -n "$s" && echovar PART${p}_OPTS $s
     eval s=\$PART${p}_MKFSOPTS
-    test -n "$s" && echo "PART${p}_MKFSOPTS=\"$s\""
+    test -n "$s" && echovar PART${p}_MKFSOPTS $s
 
     eval s=\$PART${p}_LUKSNAME
     if [ -n "$s" ]; then
-      echo "PART${p}_LUKSNAME=\"$s\""
+      echovar PART${p}_LUKSNAME $s
       luks_name=$s
       eval s=\$LUKS_${luks_name}_FS
-      test -n "$s" && echo "LUKS_${luks_name}_FS=\"$s\""
+      test -n "$s" && echovar LUKS_${luks_name}_FS $s
       eval s=\$LUKS_${luks_name}_MNT
-      test -n "$s" && echo "LUKS_${luks_name}_MNT=\"$s\""
+      test -n "$s" && echovar LUKS_${luks_name}_MNT $s
       # FIXME: LUKS_${luks_name}_MKFSOPTS
     fi
 
     eval s=\$LVM_LV${p}_FS
-    test -n "$s" && echo "LVM_LV${p}_FS=\"$s\""
+    test -n "$s" && echovar LVM_LV${p}_FS $s
     lvm_fs=$s
     eval s=\$LVM_LV${p}_MNT
-    test -n "$s" && echo "LVM_LV${p}_MNT=\"$s\""
+    test -n "$s" && echovar LVM_LV${p}_MNT $s
     eval s=\$LVM_LV${p}_NAME
-    test -n "$s" && echo "LVM_LV${p}_NAME=\"$s\""
+    test -n "$s" && echovar LVM_LV${p}_NAME $s
     eval s=\$LVM_LV${p}_OPTS
-    test -n "$s" && echo "LVM_LV${p}_OPTS=\"$s\""
+    test -n "$s" && echovar LVM_LV${p}_OPTS $s
     eval s=\$LVM_LV${p}_CRYPTTAB
-    test -n "$s" && echo "LVM_LV${p}_CRYPTTAB=\"$s\""
+    test -n "$s" && echovar LVM_LV${p}_CRYPTTAB $s
     if [ "$lvm_fs" = "luks" ]; then
       luks_name=$s
       eval s=\$LUKS_${luks_name}_FS
-      test -n "$s" && echo "LUKS_${luks_name}_FS=\"$s\""
+      test -n "$s" && echovar LUKS_${luks_name}_FS $s
       eval s=\$LUKS_${luks_name}_MNT
-      test -n "$s" && echo "LUKS_${luks_name}_MNT=\"$s\""
+      test -n "$s" && echovar LUKS_${luks_name}_MNT $s
     fi
     eval s=\$LVM_LV${p}_SIZE
-    test -n "$s" && echo "LVM_LV${p}_SIZE=\"$s\""
+    test -n "$s" && echovar LVM_LV${p}_SIZE $s
     eval s=\$LVM_LV${p}_MKFSOPTS
-    test -n "$s" && echo "LVM_LV${p}_MKFSOPTS=\"$s\""
+    test -n "$s" && echovar LVM_LV${p}_MKFSOPTS $s
   done
-  echo "BIND_MOUNTS=\"${BIND_MOUNTS}\""
-  echo "EXTRA_BIND_MOUNTS=\"${EXTRA_BIND_MOUNTS}\""
+  echovar BIND_MOUNTS
+  echovar EXTRA_BIND_MOUNTS
 
   if [ -n "$TARGET_HOSTNAME" ]; then
-    echo "HOSTNAME=\"$TARGET_HOSTNAME\""
+    echovar HOSTNAME $TARGET_HOSTNAME
   fi
-  echo "LINUX_CMDLINE=\"$LINUX_CMDLINE\""
-  echo "INSTALLER_PASSWD_USERS=\"$INSTALLER_PASSWD_USERS\""
-  echo "INSTALLER_ASK_HOSTNAME=\"$INSTALLER_ASK_HOSTNAME\""
-  echo "INSTALLER_ASK_CONFIRM=\"$INSTALLER_ASK_CONFIRM\""
-  echo "INSTALLER_ASK_REBOOT=\"$INSTALLER_ASK_REBOOT\""
-  echo "INSTALLER_USE_PXE=\"$INSTALLER_USE_PXE\""
-  echo "INSTALLER_EXTRA_INITRD=\"$INSTALLER_EXTRA_INITRD\""
-  echo "INSTALLER_BOOTTYPE=\"$INSTALLER_BOOTTYPE\""
-  echo "INSTALLER_COMPRESSION=\"$INSTALLER_COMPRESSION\""
-  echo "INSTALLER_COMPRESSION_EXT=\"$INSTALLER_COMPRESSION_EXT\""
-  echo "INSTALLER_DISK_MIN=\"$INSTALLER_DISK_MIN\""
-  echo "INSTALLER_PXE_IMAGE_URL=\"$INSTALLER_PXE_IMAGE_URL\""
+  echovar LINUX_CMDLINE
+  echovar INSTALLER_PASSWD_USERS
+  echovar INSTALLER_ASK_HOSTNAME
+  echovar INSTALLER_ASK_CONFIRM
+  echovar INSTALLER_ASK_REBOOT
+  echovar INSTALLER_USE_PXE
+  echovar INSTALLER_EXTRA_INITRD
+  echovar TARGET_BOOTTYPE
+  echovar INSTALLER_COMPRESSION
+  echovar INSTALLER_COMPRESSION_EXT
+  echovar INSTALLER_DISK_MIN
+  echovar INSTALLER_DOWNLOAD_URL
+  echovar INSTALLER_INSTALL_DISK
+  echovar INSTALLER_HOSTNAME_APPEND_MAC_IFACE
+  echovar INSTALLER_EXTRA_MODULES
+  echovar PARTSEP
+  echovar RAID_NAME
+  echovar RAID_DEVICES
+  echovar RAID_OPTS
+  set -x
 }
 

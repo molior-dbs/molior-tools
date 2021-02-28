@@ -8,7 +8,7 @@ OPTIONS
  The deployment configuration (deploy/*.conf file) needs the following setting:
 
  DEPLOYMENT_TYPE          Specify 'pxeinst' to use the pxeinst plugin
- INSTALLER_PXE_IMAGE_URL  If set, use this wget URL download the cpio.image.* file, otherwise use tftp
+ INSTALLER_DOWNLOAD_URL   If set, use this wget URL download the cpio.image.* file
 
  As pxeinst is using the installer, see molior-deploy-installer(8) for other options.
 
@@ -27,5 +27,5 @@ AUTHORS
  The project homepage is <https://github.com/molior-dbs>
 
 SEE ALSO
- molior-deploy-installer(8), create-release(1), molior-archive-sources(1), molior-deploy(8), molior-sbuild(1), molior-trigger(1), add-molior-repo(8)
+ molior-deploy-installer(8), create-release(1), molior-deploy(8), molior-sbuild(1), molior-trigger(1), add-molior-repo(8)
 

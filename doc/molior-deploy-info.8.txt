@@ -9,13 +9,14 @@ DESCRIPTION
  - package dependency graph
  - disk usage
  - changelogs and licenses
- - the rootfs itself
+ - optionally, the rootfs itself
 
 
 PARAMETERS
  The deployment configuration (deploy/*.conf file) recognizes the following variables:
 
  DEPLOYMENT_TYPE    Specify 'info' to use the info plugin
+ INCLUDE_ROOTFS     Set to 1 to include the rootfs
 
 EXAMPLE
 
@@ -32,5 +33,5 @@ AUTHORS
  The project homepage is <https://github.com/molior-dbs>
 
 SEE ALSO
- create-release(1), molior-archive-sources(1), molior-deploy(8), molior-sbuild(1), molior-trigger(1), add-molior-repo(8)
+ create-release(1), molior-deploy(8), molior-sbuild(1), molior-trigger(1), add-molior-repo(8)
 
