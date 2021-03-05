@@ -689,47 +689,47 @@ get_deploy_config()
   for p in `seq 1 $MAXPART`
   do
     eval s=\$PART${p}_FS
-    test -n "$s" && echovar PART${p}_FS $s
+    test -n "$s" && echovar PART${p}_FS "$s"
     eval s=\$PART${p}_MNT
-    test -n "$s" && echovar PART${p}_MNT $s
+    test -n "$s" && echovar PART${p}_MNT "$s"
     eval s=\$PART${p}_OPTS
-    test -n "$s" && echovar PART${p}_OPTS $s
+    test -n "$s" && echovar PART${p}_OPTS "$s"
     eval s=\$PART${p}_MKFSOPTS
-    test -n "$s" && echovar PART${p}_MKFSOPTS $s
+    test -n "$s" && echovar PART${p}_MKFSOPTS "$s"
 
     eval s=\$PART${p}_LUKSNAME
     if [ -n "$s" ]; then
-      echovar PART${p}_LUKSNAME $s
-      luks_name=$s
+      echovar PART${p}_LUKSNAME "$s"
+      luks_name="$s"
       eval s=\$LUKS_${luks_name}_FS
-      test -n "$s" && echovar LUKS_${luks_name}_FS $s
+      test -n "$s" && echovar LUKS_${luks_name}_FS "$s"
       eval s=\$LUKS_${luks_name}_MNT
-      test -n "$s" && echovar LUKS_${luks_name}_MNT $s
+      test -n "$s" && echovar LUKS_${luks_name}_MNT "$s"
       # FIXME: LUKS_${luks_name}_MKFSOPTS
     fi
 
     eval s=\$LVM_LV${p}_FS
-    test -n "$s" && echovar LVM_LV${p}_FS $s
-    lvm_fs=$s
+    test -n "$s" && echovar LVM_LV${p}_FS "$s"
+    lvm_fs="$s"
     eval s=\$LVM_LV${p}_MNT
-    test -n "$s" && echovar LVM_LV${p}_MNT $s
+    test -n "$s" && echovar LVM_LV${p}_MNT "$s"
     eval s=\$LVM_LV${p}_NAME
-    test -n "$s" && echovar LVM_LV${p}_NAME $s
+    test -n "$s" && echovar LVM_LV${p}_NAME "$s"
     eval s=\$LVM_LV${p}_OPTS
-    test -n "$s" && echovar LVM_LV${p}_OPTS $s
+    test -n "$s" && echovar LVM_LV${p}_OPTS "$s"
     eval s=\$LVM_LV${p}_CRYPTTAB
-    test -n "$s" && echovar LVM_LV${p}_CRYPTTAB $s
+    test -n "$s" && echovar LVM_LV${p}_CRYPTTAB "$s"
     if [ "$lvm_fs" = "luks" ]; then
-      luks_name=$s
+      luks_name="$s"
       eval s=\$LUKS_${luks_name}_FS
-      test -n "$s" && echovar LUKS_${luks_name}_FS $s
+      test -n "$s" && echovar LUKS_${luks_name}_FS "$s"
       eval s=\$LUKS_${luks_name}_MNT
-      test -n "$s" && echovar LUKS_${luks_name}_MNT $s
+      test -n "$s" && echovar LUKS_${luks_name}_MNT "$s"
     fi
     eval s=\$LVM_LV${p}_SIZE
-    test -n "$s" && echovar LVM_LV${p}_SIZE $s
+    test -n "$s" && echovar LVM_LV${p}_SIZE "$s"
     eval s=\$LVM_LV${p}_MKFSOPTS
-    test -n "$s" && echovar LVM_LV${p}_MKFSOPTS $s
+    test -n "$s" && echovar LVM_LV${p}_MKFSOPTS "$s"
   done
   echovar BIND_MOUNTS
   echovar EXTRA_BIND_MOUNTS
