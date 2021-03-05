@@ -142,7 +142,7 @@ create_fstab()
         continue
       fi
       eval s=\$LVM_LV${p}_FS
-      if [ -z "$t" -a "$s" != "swap" ]; then
+      if [ -z "$t" ] -a [ "$s" != "swap" -a "$s" != "encrypted-swap" ]; then
         continue
       fi
       if [ -z "$s" ]; then
