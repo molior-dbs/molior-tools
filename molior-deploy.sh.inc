@@ -242,7 +242,7 @@ create_fstab()
         set +x
       fi
 
-      eval c=\$LVM_LV${p}_CRYPTTAB
+      eval c="\$LVM_LV${p}_CRYPTTAB"
       if [ -n "$c" ]; then
         set -x
         echo "${u}-open	${part}	$c" >> $target/etc/crypttab
@@ -892,7 +892,7 @@ get_deploy_config()
     test -n "$s" && echovar LVM_LV${p}_NAME "$s"
     eval s=\$LVM_LV${p}_OPTS
     test -n "$s" && echovar LVM_LV${p}_OPTS "$s"
-    eval s=\$LVM_LV${p}_CRYPTTAB
+    eval s="\$LVM_LV${p}_CRYPTTAB"
     test -n "$s" && echovar LVM_LV${p}_CRYPTTAB "$s"
     if [ "$lvm_fs" = "luks" ]; then
       luks_name="$s"
