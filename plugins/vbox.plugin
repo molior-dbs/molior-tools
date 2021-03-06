@@ -3,10 +3,12 @@
 
 preinit_deployment_vbox()
 {
-  REQUIRED_HOST_COMMANDS="vboxmanage kpartx qemu-img qemu-nbd"
-  REQUIRED_PACKAGES="virtualbox kpartx qemu-utils"
+  REQUIRED_HOST_COMMANDS="$REQUIRED_HOST_COMMANDS vboxmanage kpartx qemu-img qemu-nbd"
+  REQUIRED_PACKAGES="$REQUIRED_PACKAGES virtualbox kpartx qemu-utils"
   INSTALL_GRUB="yes"
   PARTSEP="p"
+  do_compress=0 # ova is already compressed
+  lvm_rename_existing=1
 
   # On newer systems nbd partitions are automatically populated in /dev,
   # i.e. /dev/nbd0p1. On older systems this does not happen, but mappings
@@ -23,8 +25,6 @@ preinit_deployment_vbox()
 
 init_deployment_vbox()
 {
-  do_compress=0 # ova is already compressed
-  lvm_rename_existing=1
   vmname=$(get_deployment_filename "")
 
   # FIXME check VMSIZE
