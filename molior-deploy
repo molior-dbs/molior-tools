@@ -411,10 +411,12 @@ finish ()
   set +x
   exec 2>&3 3>&-
 
-  for b in $BADFMTS
-  do
-    update-binfmts --enable $b >/dev/null 2>&1
-  done
+  if which update-binfmts >/dev/null 2>&1; then
+    for b in $BADFMTS
+    do
+      update-binfmts --enable $b >/dev/null 2>&1
+    done
+  fi
 
   if [ "$user_abort" -eq 0 ]; then
     if [ "$success" -ne 1 -o "$keep_log" -eq 1 ]; then
@@ -1417,10 +1419,12 @@ check_required_version()
 workflow_base()
 {
   # disable conflicting binfmts
-  for b in $BADFMTS
-  do
-    update-binfmts --disable $b >&2
-  done
+  if which update-binfmts >/dev/null 2>&1; then
+    for b in $BADFMTS
+    do
+      update-binfmts --disable $b >&2
+    done
+  fi
 
   setup_deployment
 
