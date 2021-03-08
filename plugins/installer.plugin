@@ -123,7 +123,7 @@ prepare_initrd_deployment()
   cp -ar $INITRDINST $initrd
   if [ -n "$INSTALLER_EXTRA_INITRD" ]; then
     if [ -d "$SOURCE_DIR/$INSTALLER_EXTRA_INITRD" ]; then
-      cp -r $SOURCE_DIR/$INSTALLER_EXTRA_INITRD/* $initrd/
+      cp -Lr $SOURCE_DIR/$INSTALLER_EXTRA_INITRD/* $initrd/
     fi
   fi
 
