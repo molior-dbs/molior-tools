@@ -19,6 +19,7 @@ OVERLAY_VERSION=""
 OVERLAY_AUTO=0
 VARIANT="undefined"
 MOLIOR_PROJECTINFO_FILE=""
+src_pkg_only=0
 
 MOLIOR_TOOLS_VERSION=`cat /usr/lib/molior-tools/version`
 
@@ -49,6 +50,7 @@ usage()
   echo "  -L                Keep log file"
   echo "  -U                Use unstable APT sources (CI Builds)"
   echo "  -u                Use unstable top level package (INSTALL_PACKAGE in deploy file)"
+  echo "  -S                Only download source package"
   echo
   if [ -n "$1" ]; then
     echo $1
@@ -58,7 +60,7 @@ usage()
 }
 
 origopts=$@
-while getopts "n:s:v:p:m:a:V:o:F:b:rtAlcfdOLUu" opt; do
+while getopts "n:s:v:p:m:a:V:o:F:b:rtAlcfdOLUuS" opt; do
   case $opt in
     n)
       PACKAGE_NAME=$OPTARG
@@ -146,6 +148,10 @@ while getopts "n:s:v:p:m:a:V:o:F:b:rtAlcfdOLUu" opt; do
       deployment_only=1
       BASE_ROOTFS=$OPTARG
       shift 2
+      ;;
+    S)
+      src_pkg_only=1
+      shift 1
       ;;
     \?)
       exit 1
@@ -316,6 +322,9 @@ finish ()
         notify_deployment
         echo
       fi
+  fi
+  if [ $src_pkg_only -eq 1 ]; then
+      log_notice "Source package downloaded: `basename $FILENAME`"
   fi
 }
 
@@ -671,6 +680,15 @@ setup_deployment()
     cd $WORK_DIR
     wget -q $SOURCEMIRROR/repos/$PROJECT/$SOURCES_VERSION/$FILENAME
     exit_on_error "Error downloading $SOURCEMIRROR/repos/$PROJECT/$SOURCES_VERSION/$FILENAME"
+
+    if [ $src_pkg_only -eq 1 ]; then
+      mv `basename $FILENAME` $CUR_DIR
+      if [ -n "$SUDO_UID" -a -n "$SUDO_GID" ]; then
+        chown $SUDO_UID:$SUDO_GID $CUR_DIR/`basename $FILENAME`
+      fi
+      success=1
+      exit
+    fi
 
     tar xf `basename $FILENAME`
     rm -f `basename $FILENAME`
