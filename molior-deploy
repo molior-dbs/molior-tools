@@ -1040,7 +1040,9 @@ cleanup_deployment()
     rm -f $target/usr/bin/qemu-aarch64-static
   fi
   rm -f $target/etc/ssh/ssh_host_*
-  echo -n > $target/etc/machine-id
+  if [ -d $target/etc ] && [ -x $target/bin/systemd ]; then
+    echo -n > $target/etc/machine-id
+  fi
   rm -f $target/var/lib/dbus/machine-id
 
   rm -f $target/var/lib/apt/lists/*Packages* $target/var/lib/apt/lists/*Release*
