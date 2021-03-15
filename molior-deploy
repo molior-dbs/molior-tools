@@ -20,6 +20,7 @@ OVERLAY_AUTO=0
 VARIANT="undefined"
 MOLIOR_PROJECTINFO_FILE=""
 src_pkg_only=0
+output_build_vars=0
 
 MOLIOR_TOOLS_VERSION=`cat /usr/lib/molior-tools/version`
 
@@ -51,6 +52,7 @@ usage()
   echo "  -U                Use unstable APT sources (CI Builds)"
   echo "  -u                Use unstable top level package (INSTALL_PACKAGE in deploy file)"
   echo "  -S                Only download source package"
+  echo "  -D                Output build variables"
   echo
   if [ -n "$1" ]; then
     echo $1
@@ -60,7 +62,7 @@ usage()
 }
 
 origopts=$@
-while getopts "n:s:v:p:m:a:V:o:F:b:rtAlcfdOLUuS" opt; do
+while getopts "n:s:v:p:m:a:V:o:F:b:rtAlcfdOLUuSD" opt; do
   case $opt in
     n)
       PACKAGE_NAME=$OPTARG
@@ -151,6 +153,10 @@ while getopts "n:s:v:p:m:a:V:o:F:b:rtAlcfdOLUuS" opt; do
       ;;
     S)
       src_pkg_only=1
+      shift 1
+      ;;
+    D)
+      output_build_vars=1
       shift 1
       ;;
     \?)
@@ -286,6 +292,14 @@ finish ()
     # FIXME: only for loop disks, not /dev/nbd0
     losetup -d $disk
     disk=""
+  fi
+
+  if [ "$success" -eq 1 -a "$output_build_vars" -eq 1 ]; then
+    get_deploy_config > $CUR_DIR/deployment.vars
+    if [ -n "$SUDO_UID" -a -n "$SUDO_GID" ]; then
+      chown $SUDO_UID:$SUDO_GID $CUR_DIR/deployment.vars
+    fi
+    log_notice "Build variables saved: deployment.vars"
   fi
 
   set +x
@@ -805,6 +819,10 @@ setup_deployment()
     log_error "Error: RAID devices not definded, please set \$RAID_DEVICES"
   fi
 
+  if [ -z "$DEPLOYMENT_OUTPUT_FILE" ]; then
+    DEPLOYMENT_OUTPUT_FILE="${PROJECT}_${VERSION}_${REVISION}_$VARIANT"
+  fi
+
   target=$WORK_DIR/root
   mkdir $target
 }
@@ -1063,11 +1081,7 @@ get_deployment_filename()
 {
   EXTENSION="$1"
 
-  if [ -z "$DEPLOYMENT_OUTPUT_FILE" ]; then
-    deployment="${PROJECT}_${VERSION}_${REVISION}_$VARIANT"
-  else
-    deployment="$DEPLOYMENT_OUTPUT_FILE"
-  fi
+  deployment="$DEPLOYMENT_OUTPUT_FILE"
   if [ -n "$EXTENSION" ]; then
     deployment="$deployment.$EXTENSION"
   fi
