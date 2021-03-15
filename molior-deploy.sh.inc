@@ -758,6 +758,7 @@ get_deploy_config()
   echovar RAID_OPTS
   echovar ARCH
   echovar BASEVERSION
+  echovar DEPLOYMENT_TYPE
   echovar DEPLOYMENT $deployment
   echovar DEPLOYMENT_OUTPUT_FILE
   for var in `set | awk -F= '/^EXTRA_.*/ {print $1}'`; do
