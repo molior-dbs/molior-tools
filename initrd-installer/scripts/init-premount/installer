@@ -92,6 +92,9 @@ finish()
     echo
     log_error "Installation failed, see $errlog"
   fi
+  if type installer_failed >/dev/null 2>&1; then
+    installer_failed
+  fi
 }
 trap finish EXIT
 
