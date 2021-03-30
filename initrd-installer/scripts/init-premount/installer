@@ -551,3 +551,7 @@ if [ "$INSTALLER_ASK_REBOOT" != "no" ]; then
   echo -n "=> Please remove the installation media and press 'Enter' to reboot "
   read x
 fi
+
+if type installer_finish >/dev/null 2>&1; then
+  installer_finish
+fi
