@@ -78,6 +78,10 @@ fi
 
 log_error()
 {
+  if type installer_failed >/dev/null 2>&1; then
+    installer_failed $@
+  fi
+
   echo -e "\e[31m\e[1mE: $@\e[0m"
   set +x
   stty echo
@@ -91,9 +95,6 @@ finish()
   if [ "$SUCCESS" -eq 0 ]; then
     echo
     log_error "Installation failed, see $errlog"
-  fi
-  if type installer_failed >/dev/null 2>&1; then
-    installer_failed
   fi
 }
 trap finish EXIT
@@ -555,6 +556,6 @@ if [ "$INSTALLER_ASK_REBOOT" != "no" ]; then
   read x
 fi
 
-if type installer_finish >/dev/null 2>&1; then
-  installer_finish
+if type installer_finished >/dev/null 2>&1; then
+  installer_finished
 fi
