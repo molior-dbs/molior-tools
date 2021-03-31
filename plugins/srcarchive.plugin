@@ -15,7 +15,7 @@ finalize_deployment_srcarchive()
   log_info "Downloading source packages ..."
 
   MOLIOR_API_PROJECT_URL=$MOLIOR_URL/api2/project/$PROJECT/$VERSION
-  MOLIOR_REPOS_PROJECT_URL=$MOLIOR_REPO_URL/stretch/9.13/repos/$PROJECT/$VERSION
+  MOLIOR_REPOS_PROJECT_URL=$MOLIOR_REPO_URL/$BASEMIRROR/$BASEVERSION/repos/$PROJECT/$VERSION
 
   # fetch lastes build information
   repositories=$(curl -s "$MOLIOR_API_PROJECT_URL/repositories" | jq -r '.results[] | .last_build.sourcename, .last_build.buildstate')
@@ -34,6 +34,10 @@ finalize_deployment_srcarchive()
       fi
 
       srcinfo=$(/usr/lib/molior-tools/find-latest-version.pl "$sourcename" < "$WORK_DIR/Sources")
+      if [ -z "$srcinfo" ]; then
+          log_warn "No latest version found for $sourcename"
+          continue
+      fi
 
       FILENAME=$(echo "$srcinfo" | cut -d ' ' -f 1)/$(echo "$srcinfo" | cut -d ' ' -f 2)
       # REVISION=$(echo "$srcinfo" | cut -d ' ' -f 3)
