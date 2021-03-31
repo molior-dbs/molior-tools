@@ -35,9 +35,9 @@ init_deployment_upgrade()
   APT_SOURCES=`echo "$APT_SOURCES_ORIG" | sed '/^#/d'`
   MIRROR=`echo "$APT_SOURCES" | head -n 1 | cut -d' ' -f 2`
   SUITE=`dirname $MIRROR`
+  BASEMIRROR=`basename $SUITE`
   REPOURL=`dirname $SUITE`
   SUITE=`basename $SUITE`
-  BASEMIRROR=`basename $tmp`
   BASEVERSION=`basename $MIRROR`
   log "old mirror: $MIRROR"
 
