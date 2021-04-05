@@ -30,26 +30,9 @@ echo 0 > /proc/sys/kernel/printk
 
 sleep 1
 
-logo()
-{
-  if type installer_logo >/dev/null 2>&1; then
-    installer_logo
-    return
-  fi
-
-  clear
-  echo -en "\033[1;32m"
-  echo "                   _ _            "
-  echo "   _ __ ___   ___ | (_) ___  _ __ "
-  echo "  | '_ \` _ \\ / _ \\| | |/ _ \\| '__|"
-  echo "  | | | | | | (_) | | | (_) | |   "
-  echo "  |_| |_| |_|\\___/|_|_|\\___/|_|   "
-  echo
-  echo "        --- Installer ---    $MOLIOR_TOOLS_VERSION"
-  echo -e "\033[1;m"
-}
-
 titlecolor="\033[1;32m"
+errorcolor="\e[31m\e[1m"
+textprefix="  "
 
 . /scripts/molior-deploy.sh.inc
 . /scripts/install.conf
@@ -62,6 +45,25 @@ fi
 if type installer_init >/dev/null 2>&1; then
   installer_init
 fi
+
+logo()
+{
+  if type installer_logo >/dev/null 2>&1; then
+    installer_logo
+    return
+  fi
+
+  clear
+  echo -en "$titlecolor"
+  echo "$textprefix                   _ _            "
+  echo "$textprefix   _ __ ___   ___ | (_) ___  _ __ "
+  echo "$textprefix  | '_ \` _ \\ / _ \\| | |/ _ \\| '__|"
+  echo "$textprefix  | | | | | | (_) | | | (_) | |   "
+  echo "$textprefix  |_| |_| |_|\\___/|_|_|\\___/|_|   "
+  echo
+  echo "$textprefix        --- Installer ---    $MOLIOR_TOOLS_VERSION"
+  echo -e "\033[1;m"
+}
 
 logo
 echo -n -e '\033[9;0]\033[14;0]' > /dev/console
@@ -82,12 +84,18 @@ log_error()
     installer_failed $@
   fi
 
-  echo -e "\e[31m\e[1mE: $@\e[0m"
+  echo -e "$textprefix${errorcolor}E: $@\e[0m"
+
   set +x
   stty echo
   exec 2>&3 3>&-
   busybox sh
   exit 1
+}
+
+log()
+{
+  echo -e "$textprefix * $@"
 }
 
 finish()
@@ -112,7 +120,7 @@ fi
 if [ "$INSTALLER_USE_PXE" != "yes" -a -z "$INSTALLER_DOWNLOAD_URL" ]; then
 
   # we are booting from usb, find the disk
-  echo -n "Searching installation media ..."
+  echo -n "${textprefix}Searching installation media ..."
 
   # scan block devices
   for d in `ls /sys/block`; do
@@ -141,13 +149,14 @@ if [ "$INSTALLER_USE_PXE" != "yes" -a -z "$INSTALLER_DOWNLOAD_URL" ]; then
   if blkid $SOURCE | grep -q iso9660 ; then
     modprobe iso9660
   fi
-  echo -e "\rInstalling from: $SOURCE                                "
+  echo -e "\r${textprefix}Installing from: $SOURCE                                "
 
   mount $SOURCE /mnt/source $MOUNTOPTS
+
 else
 
   # we are booting from pxe, download the image
-  echo "Downloading install medium ..."
+  echo "${textprefix}Downloading install medium ..."
 
   configure_networking
 
@@ -188,7 +197,7 @@ while ! $hostnameok; do
 
   if [ -z "$HOSTNAME" -o "$INSTALLER_ASK_HOSTNAME" != "no" ]; then
     echo
-    echo -n "Please specify the system's hostname [$HOSTNAME]: "
+    echo -n "${textprefix}Please specify the system's hostname [$HOSTNAME]: "
     stty echo
     read hostname
     stty -echo
@@ -209,7 +218,7 @@ while ! $hostnameok; do
     continue
   fi
   if ! echo "$hostname" | grep -q '^[a-z0-9-]\+$'; then
-    echo "Invalid hostname, use only [a-z0-9-]"
+    echo "${textprefix}Invalid hostname, use only [a-z0-9-]"
     INSTALLER_ASK_HOSTNAME="yes"
   else
     hostnameok=true
@@ -223,7 +232,7 @@ if [ -n "$INSTALLER_PASSWD_USERS" ]; then
   do
     pwok=false
     while ! $pwok; do
-      echo -e -n "\nPlease specfiy the password for user '$user' (leave empty for default): "
+      echo -e -n "\n${textprefix}Please specfiy the password for user '$user' (leave empty for default): "
       stty -echo
       read  password
       echo
@@ -231,7 +240,7 @@ if [ -n "$INSTALLER_PASSWD_USERS" ]; then
         pwok=true
         break
       fi
-      echo -n "Please confirm the password: "
+      echo -n "${textprefix}Please confirm the password: "
       stty -echo
       read password_confirmed
       echo
@@ -239,7 +248,7 @@ if [ -n "$INSTALLER_PASSWD_USERS" ]; then
         pwok=true
         break
       fi
-      echo "Error: passwords do not match"
+      echo "${textprefix}Error: passwords do not match"
     done
 
     if [ "$password" != "" ]; then
@@ -282,7 +291,7 @@ fi
 while [ $found -ne 1 ]; do
   idx=0
   echo
-  echo "Searching disks ..."
+  echo "${textprefix}Searching disks ..."
   for d in $disks; do
     if [ "$d" != "$SOURCEDISK" ]; then
       size=`blockdev --getsize64 $d 2>/dev/null || true`
@@ -302,7 +311,7 @@ while [ $found -ne 1 ]; do
   if [ "$idx" -eq 0 ]; then
     log_error "Error: no disk >= ${INSTALLER_DISK_MIN}GiB found, aborting installation."
   elif [ "$idx" -gt 1 ]; then
-    echo -n "Enter disk number to install: "
+    echo -n "${textprefix}Enter disk number to install: "
     stty echo
     read input
     stty -echo
@@ -313,21 +322,21 @@ while [ $found -ne 1 ]; do
   if [ -e $disk ]; then
     found=1
   else
-    echo Unknown disk: \"$disk\"
+    echo "${textprefix}Unknown disk: \"$disk\""
   fi
 done
 
 if [ "$INSTALLER_ASK_CONFIRM" != "no" ]; then
   echo
-  echo Are you sure to install to $disk ?
+  echo "${textprefix}Are you sure to install to $disk ?"
   echo -en "\033[1;31m"
   if [ -n "$LVM_VG" ]; then
-    echo "Warning: this will erase all existing data including any LVM VG !"
+    echo "${textprefix}Warning: this will erase all existing data including any LVM VG !"
   else
-    echo "Warning: this will erase all existing data !"
+    echo "${textprefix}Warning: this will erase all existing data !"
   fi
   echo -e "\033[1;m"
-  echo "Press 'Enter' to confirm, Ctrl-Alt-Delete to reboot"
+  echo "${textprefix}Press 'Enter' to confirm, Ctrl-Alt-Delete to reboot"
   read x
   if [ "$x" = "shell" ]; then
     exec 4>&2 # backup logfile
@@ -353,10 +362,10 @@ if [ -x /sbin/lvm ]; then
 fi
 
 echo -n -e $titlecolor
-echo Creating filesystems ...
+echo "${textprefix}Creating filesystems ..."
 echo -n -e "\033[1;m"
 
-echo " * partitioning disk $disk"
+log "partitioning disk $disk"
 if [ -n "$LVM_VG" ]; then
   for vg in `vgs --no-heading -o vg_name`; do
     vgremove -f "$vg" >&2
@@ -386,7 +395,7 @@ mkdir -p $target
 mount_fs
 
 echo -n -e $titlecolor
-echo Copying system ...
+echo "${textprefix}Copying system ..."
 echo -n -e "\033[1;m"
 cd $target
 
@@ -445,7 +454,7 @@ if [ -n "$CHPASSWD" ]; then
 fi
 
 echo -n -e $titlecolor
-echo Finalizing ...
+echo "${textprefix}Finalizing ..."
 echo -n -e "\033[1;m"
 
 create_fstab
@@ -456,7 +465,7 @@ mount proc -t proc $target/proc
 mkdir -p $target/run/udev
 mount --bind /run/udev/ $target/run/udev
 
-echo " * installing boot loader"
+log "installing boot loader"
 
 # ensure root=UUID= boot parameter
 rootuuid=`blkid  -o value -s UUID $rootpart`
@@ -502,7 +511,7 @@ fi
 
 if [ -n "$RAID_NAME" ]; then
   echo -n -e $titlecolor
-  echo Finalize raid setup
+  echo "${textprefix}Finalize raid setup"
   echo -n -e "\033[1;m"
 
   mdadm $RAID_NAME --add `echo "$RAID_DEVICES" | cut -d" " -f2-`
@@ -521,7 +530,7 @@ if [ -n "$RAID_NAME" ]; then
     if grep -q "recovery" /proc/mdstat; then
       sleep 1
       p=`grep "recovery" /proc/mdstat | tr -s " " | cut -d" " -f5,7-`
-      echo -ne "\r * syncing raid disks: $p"
+      echo -ne "\r${textprefix} * syncing raid disks: $p"
     else
       break
     fi
@@ -539,9 +548,9 @@ set +e
 
 endtime=$(date +"%s")
 diff=$(($endtime-$starttime))
-echo " * installation time: $(($diff / 60))min $(($diff % 60))sec"
+log "installation time: $(($diff / 60))min $(($diff % 60))sec"
 echo -n -e $titlecolor
-echo -n "Done ! "
+echo -n "${textprefix}Done ! "
 echo -e "\033[1;m"
 
 cp $errlog $target/var/log
@@ -552,7 +561,7 @@ if [ -n "$SOURCEDISK" ]; then
 fi
 
 if [ "$INSTALLER_ASK_REBOOT" != "no" ]; then
-  echo -n "=> Please remove the installation media and press 'Enter' to reboot "
+  echo -n "${textprefix}=> Please remove the installation media and press 'Enter' to reboot "
   read x
 fi
 
