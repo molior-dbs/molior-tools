@@ -19,7 +19,7 @@ download_project_sources()
   workdir="$WORK_DIR/workdir/${project_fullname}"
   mkdir -p "$workdir"
 
-  log_info "Downloading source packages for ${project_fullname} ..."
+  log_info "downloading source packages for ${project_fullname} ..."
 
   MOLIOR_API_PROJECT_URL=$MOLIOR_URL/api2/project/$project/$version
   MOLIOR_REPOS_PROJECT_URL=$MOLIOR_REPO_URL/$BASEMIRROR/$BASEVERSION/repos/$project/$version
@@ -29,7 +29,7 @@ download_project_sources()
 
   # Fail early if there are no repositories
   if [ -z "$repositories" ]; then
-      log_error "No source repositories"
+      log_error "no source repositories"
   fi
 
   # fetch Sources and get directory and source package name
@@ -43,30 +43,32 @@ download_project_sources()
       buildstate=$(echo $line | cut -d '|' -f3)
       # There is no last build for this repo
       if [ "$sourcename" = "null" ]; then
-          log_warn "No last_build found for $reponame"
+          log_warn "no last_build found for $reponame"
           continue
       fi
       # If buildstate is not successful, fail right away
       if [ "$buildstate" != "successful" ]; then
-          # log_error "$sourcename build failed: buildstate=$buildstate line=$line"
           log_warn "$sourcename last_build failed: buildstate=$buildstate"
           continue
       fi
 
       srcinfo=$(/usr/lib/molior-tools/find-latest-version.pl "$sourcename" < "$workdir/Sources")
       if [ -z "$srcinfo" ]; then
-          log_warn "No latest version found for $sourcename"
+          log_warn "no latest version found for $sourcename"
           continue
       fi
 
       FILENAME=$(echo "$srcinfo" | cut -d ' ' -f 1)/$(echo "$srcinfo" | cut -d ' ' -f 2)
-      # REVISION=$(echo "$srcinfo" | cut -d ' ' -f 3)
+      REVISION=$(echo "$srcinfo" | cut -d ' ' -f 3)
 
-      # # TODO
-      # if [ "$SRCARCHIVE_THIRD_PARTY_ONLY" = "yes"] && [ "$REVISION" not has "-" ]; then
-      #     log_info "Skipping $sourcename $REVISION: not third party"
-      #     continue
-      # fi
+      # Third-party are those sources whose revision contain the "-" character
+      if [ "$SRCARCHIVE_THIRD_PARTY_ONLY" = "yes" ]; then
+          if echo "$REVISION" | grep -vq "-"; then
+              log_info "skipping $sourcename $REVISION: not third party"
+              continue
+          fi
+          log_debug "including third-party $sourcename $REVISION"
+      fi
 
       FILEBASENAME=$(basename "$FILENAME")
       log "downloading $FILEBASENAME"
@@ -76,14 +78,13 @@ download_project_sources()
 
   if [ "$SRCARCHIVE_RECURSIVE" = "yes" ]; then
     # Recursively download dependencies, too
-    # TODO cookie!
-    dependencies=$(curl -s "$MOLIOR_API_PROJECT_URL/dependencies" -H "$(cat /tmp/cookie)" | jq -jr '.results[] | .project_name, "|", .name, "|", .is_mirror, "\n"')
+    dependencies=$(curl -s "$MOLIOR_API_PROJECT_URL/dependencies" | jq -jr '.results[] | .project_name, "|", .name, "|", .is_mirror, "\n"')
     for line in $dependencies; do
         dep_name=$(echo $line | cut -d '|' -f1)
         dep_version=$(echo $line | cut -d '|' -f2)
         dep_is_mirror=$(echo $line | cut -d '|' -f3)
         if [ "$dep_is_mirror" = "true" ]; then
-            log_notice "Excluding mirror dependency $dep_name $dep_version"
+            log_notice "excluding mirror dependency $dep_name $dep_version"
         else
             download_project_sources $dep_name $dep_version
         fi
@@ -94,6 +95,6 @@ download_project_sources()
 finalize_deployment_srcarchive()
 {
   deployment=$(get_deployment_filename "tar")
-  download_project_sources $PROJECT $VERSION
+  download_project_sources "$PROJECT" "$VERSION"
   tar -C "$WORK_DIR/sources" -cf "$WORK_DIR/$deployment" .
 }
