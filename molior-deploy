@@ -1307,12 +1307,8 @@ docker_install_cleanup()
 {
   rm -rf $target/tmp/docker-compose
   # stop docker
-  kill $dockerpid
-  if [ "$?" -ne 0 ]; then
-    docker_install_cleanup
-    log_error "kill dockerpid unsuccessful"
-  fi
-  sleep 5
+  kill_with_retry $dockerpid 3
+  exit_on_error "kill dockerpid=$dockerpid unsuccessful"
 
   # cleaup filesystems
   umount $target/run/systemd/journal
