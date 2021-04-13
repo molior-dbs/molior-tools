@@ -7,13 +7,17 @@ DESCRIPTION
 OPTIONS
  The deployment configuration (deploy/*.conf file) recognizes the following variables:
 
- DEPLOYMENT_TYPE    Specify 'srcarchive to use the srcarchive plugin
+ DEPLOYMENT_TYPE                Specify 'srcarchive' to use the srcarchive plugin
+ SRCARCHIVE_RECURSIVE           Specify 'yes' to recursively include transitive dependencies (default 'no')
+ SRCARCHIVE_THIRD_PARTY_ONLY    Specify 'yes' to only include third-party dependencies (default 'no')
 
 EXAMPLE
 
  deploy/srcarchive.conf:
 
    DEPLOYMENT_TYPE=srcarchive
+   SRCARCHIVE_RECURSIVE=yes
+   SRCARCHIVE_THIRD_PARTY_ONLY=yes
 
 AUTHORS
  Please see the AUTHORS file in the source repositories.
