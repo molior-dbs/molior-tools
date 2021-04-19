@@ -25,13 +25,16 @@ finalize_deployment_docker()
   tar c --one-file-system -f ../root.tar .
   cd - >/dev/null
   CONTAINER_VERSION=`echo $REVISION | tr '~+' '-'`
-  docker import $WORK_DIR/root.tar $PROJECT-$VARIANT:$CONTAINER_VERSION >&2
+  if [ -z "$CONTAINER_NAME" ]; then
+      CONTAINER_NAME=$PROJECT-$VARIANT
+  fi
+  docker import $WORK_DIR/root.tar $CONTAINER_NAME:$CONTAINER_VERSION >&2
   exit_on_error "Error running docker import"
 
   deployment=$(get_deployment_filename "tar")
-  docker save  -o $WORK_DIR/$deployment $PROJECT-$VARIANT:$CONTAINER_VERSION >&2
+  docker save  -o $WORK_DIR/$deployment $CONTAINER_NAME:$CONTAINER_VERSION >&2
   exit_on_error "Error running docker save"
 
-  docker rmi $PROJECT-$VARIANT:$CONTAINER_VERSION >&2
+  docker rmi $CONTAINER_NAME:$CONTAINER_VERSION >&2
 }
 

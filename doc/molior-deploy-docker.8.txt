@@ -8,6 +8,7 @@ OPTIONS
  The deployment configuration (deploy/*.conf file) recognizes the following variables:
 
  DEPLOYMENT_TYPE    Specify 'docker' to use the docker plugin
+ CONTAINER_NAME     Specify docker container name (default: PROJECT_VERSION)
 
 EXAMPLE
 
