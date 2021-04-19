@@ -21,6 +21,7 @@ VARIANT="undefined"
 MOLIOR_PROJECTINFO_FILE=""
 src_pkg_only=0
 output_build_vars=0
+omit_local_suffix=0
 
 MOLIOR_TOOLS_VERSION=`cat /usr/lib/molior-tools/version`
 
@@ -53,6 +54,7 @@ usage()
   echo "  -u                Use unstable top level package (INSTALL_PACKAGE in deploy file)"
   echo "  -S                Only download source package"
   echo "  -D                Output build variables"
+  echo "  -C                Omit +local suffix for local buidls"
   echo
   if [ -n "$1" ]; then
     echo $1
@@ -62,7 +64,7 @@ usage()
 }
 
 origopts=$@
-while getopts "n:s:v:p:m:a:V:o:F:b:rtAlcfdOLUuSD" opt; do
+while getopts "n:s:v:p:m:a:V:o:F:b:rtAlcfdOLUuSDC" opt; do
   case $opt in
     n)
       PACKAGE_NAME=$OPTARG
@@ -157,6 +159,10 @@ while getopts "n:s:v:p:m:a:V:o:F:b:rtAlcfdOLUuSD" opt; do
       ;;
     D)
       output_build_vars=1
+      shift 1
+      ;;
+    C)
+      omit_local_suffix=1
       shift 1
       ;;
     \?)
@@ -611,10 +617,10 @@ setup_deployment()
       log_error "Error reading $MOLIOR_PROJECTSOURCES_FILE"
     fi
   fi
-  APT_SOURCES=`echo "$APT_SOURCES_ORIG" | sed -e '/^#/d' -e '/^$/d'`
   if [ "$APTLY_OVERRIDE" -eq 1 ]; then
-    APT_SOURCES=`echo "$APT_SOURCES" | sed "s=deb \([^:]\)\+://\([^/]\)\+=deb $APTLY_SERVER="`
+    APT_SOURCES_ORIG=`echo "$APT_SOURCES_ORIG" | sed "s=deb \([^:]\)\+://\([^/]\)\+=deb $APTLY_SERVER="`
   fi
+  APT_SOURCES=`echo "$APT_SOURCES_ORIG" | sed -e '/^#/d' -e '/^$/d'`
   MIRROR=`echo "$APT_SOURCES" | head -n 1 | cut -d' ' -f 2`
   if [ -z "$MIRROR" ]; then
     log_error "No base mirror repo found"
@@ -638,7 +644,11 @@ setup_deployment()
     SOURCE_DIR=`readlink -f $SOURCE_DIR`
     log "using local package source: $SOURCE_DIR"
     cd $SOURCE_DIR
-    REVISION=`dpkg-parsechangelog -S Version`+local
+    if [ $omit_local_suffix -eq 0 ]; then
+      REVISION=`dpkg-parsechangelog -S Version`+local
+    else
+      REVISION=`dpkg-parsechangelog -S Version`
+    fi
     log "found source package: $PACKAGE_NAME $REVISION"
     cd - >/dev/null
   else
@@ -1011,7 +1021,7 @@ install_deployment()
     fi
   fi
 
-  log "installing package: $INSTALL_PACKAGE"
+  log "installing: $INSTALL_PACKAGE"
   DEBIAN_FRONTEND=noninteractive chroot $target apt-get install --no-install-recommends --yes $INSTALL_PACKAGE $APT_INSTALL_EXTRA >&2
   exit_on_error "Error installing software"
 
