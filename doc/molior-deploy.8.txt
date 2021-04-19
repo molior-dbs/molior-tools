@@ -49,6 +49,9 @@ OPTIONS
   -L                Keep log file for successful runs
   -U                Use unstable APT sources (CI Builds)
   -u                Use unstable top level package (INSTALL_PACKAGE in deploy file)
+  -S                Only download source package
+  -D                Output build variables
+  -C                Omit +local suffix for local buidls
 
 COMMON PARAMETERS
 
