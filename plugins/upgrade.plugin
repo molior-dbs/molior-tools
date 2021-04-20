@@ -6,8 +6,9 @@ preinit_deployment_upgrade()
   REQUIRED_HOST_COMMANDS="apt-ftparchive"
   if [ -n "$DOCKER_COMPOSE_FILE" ]; then
       REQUIRED_HOST_COMMANDS="$REQUIRED_HOST_COMMANDS rdfind"
+      REQUIRED_PACKAGES="$REQUIRED_PACKAGES rdfind"
   fi
-  REQUIRED_PACKAGES="apt-utils"
+  REQUIRED_PACKAGES="$REQUIRED_PACKAGES apt-utils"
 }
 
 init_deployment_upgrade()
