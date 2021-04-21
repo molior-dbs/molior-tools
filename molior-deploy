@@ -1148,23 +1148,49 @@ init_deployment_dir()
   log "creating rootfs in $target"
 }
 
+# Try to kill pid=$1 nretries=$2 times
+kill_with_retry()
+{
+    pid=$1
+    nretries=$2
+    # Nothing to kill
+    if ! ps -p $pid > /dev/null 2>&1; then
+        log "pid=$pid not found"
+        return
+    fi
+    if [ -z "$nretries" ] || [ "$nretries" -lt 0 ]; then
+        nretries=0
+    fi
+    kill $pid
+    retval=$?
+    if [ "$retval" -ne 0 ]; then
+        if [ "$nretries" -gt 0 ]; then
+            log_warn "Retrying to kill $pid, $nretries more attempts"
+            sleep 1  # Sleep a bit before retrying
+            kill_with_retry $pid $((nretries - 1))
+            retval=$?
+        else
+            log_warn "Failed to kill $pid, no more attempts"
+        fi
+    fi
+    return $retval
+}
+
 install_docker()
 {
-  if [ -z "$DOCKER_COMPOSE_FILE" ]; then
-      if [ -z "$DOCKER_CONTAINERS" ]; then
-          return  # nothing to do
-      fi
-      # only pull DOCKER_CONTAINERS
-  elif [ -z "$DOCKER_CONTAINERS" ]; then
-    docker_containers=`grep -v -P '^[ \t]*#' $target/$DOCKER_COMPOSE_FILE | grep "image:" | awk '{ print $2 }' | sort | uniq`
-    if [ -z "$docker_containers" ]; then
-      log_error "Cannot find images in DOCKER_COMPOSE_FILE $target/$DOCKER_COMPOSE_FILE"
+    if [ -z "$DOCKER_COMPOSE_FILE" ] && [ -z "$DOCKER_CONTAINERS" ]; then
+        return  # nothing to do
     fi
-  fi
-  if [ -z "$docker_containers" -a -n "$DOCKER_CONTAINERS" ]; then
-    docker_containers=`echo "$DOCKER_CONTAINERS" | sed '/^$/d'`
-  fi
 
+    install_docker_start
+    install_docker_pull
+    install_docker_postinst_hooks
+    install_docker_stop
+}
+
+install_docker_start()
+{
+  log "install_docker: start"
   # prepare filesystem
   umount $target/sys
   exit_on_error "Error unmouting /sys"
@@ -1184,16 +1210,43 @@ install_docker()
   mount --bind /run/systemd/journal $target/run/systemd/journal
   exit_on_error "Error mounting /run/systemd/journal"
   chroot $target cgroupfs-mount >&2
-
-  # start docker
-  chroot $target sh -c '. /etc/default/docker; TZ=UTC exec /usr/sbin/dockerd --iptables=false -H unix:// $DOCKER_OPTS' >&2 &
-  dockerpid=$!
-  sleep 5
+  exit_on_error "Error mounting cgroup"
 
   # prepare docker compose env dir
   mkdir $target/tmp/docker-compose
   if [ -n "$DOCKER_COMPOSE_ENV_FILE" -a -e $target/$DOCKER_COMPOSE_ENV_FILE ]; then
     cp $target/$DOCKER_COMPOSE_ENV_FILE $target/tmp/docker-compose/.env
+  fi
+
+  # start docker
+  chroot $target sh -c '. /etc/default/docker; TZ=UTC exec /usr/sbin/dockerd --iptables=false -H unix:// $DOCKER_OPTS' >&2 &
+  dockerpid=$!
+  sleep 5  # Give it time to start and maybe crash
+  if ! kill -0 "$dockerpid"; then
+      log_error "Error starting docker!"
+  fi
+}
+
+install_docker_pull()
+{
+  log "install_docker: pull"
+  if [ -z "$DOCKER_COMPOSE_FILE" ] && [ -z "$DOCKER_CONTAINERS" ]; then
+    log_error "No docker containers or compose file specified."
+  fi
+
+  if [ -z "$DOCKER_CONTAINERS" ]; then
+    docker_containers=`grep -v -P '^[ \t]*#' $target/$DOCKER_COMPOSE_FILE | grep "image:" | awk '{ print $2 }' | sort | uniq`
+    if [ -z "$docker_containers" ]; then
+      log_error "Cannot find images in DOCKER_COMPOSE_FILE $target/$DOCKER_COMPOSE_FILE"
+    fi
+  fi
+
+  if [ -z "$docker_containers" ] && [ -n "$DOCKER_CONTAINERS" ]; then
+    docker_containers=`echo "$DOCKER_CONTAINERS" | sed '/^$/d'`
+  fi
+
+  if [ -z "$docker_containers" ]; then
+    log_error "Cannot find docker containers to pull"
   fi
 
   # pull containers
@@ -1232,14 +1285,21 @@ install_docker()
     fi
     sleep 1
   fi
+}
 
+install_docker_postinst_hooks()
+{
   if type postinst_docker >/dev/null; then
       postinst_docker
   elif type postinst_docker_$DEPLOYMENT_TYPE >/dev/null; then
       postinst_docker_$DEPLOYMENT_TYPE
   fi
+}
 
-  docker_install_cleanup
+install_docker_stop()
+{
+    log "install_docker: stop"
+    docker_install_cleanup
 }
 
 docker_install_cleanup()
