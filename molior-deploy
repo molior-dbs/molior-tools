@@ -493,6 +493,8 @@ EOM
 
   mountbind /dev/pts $target/dev/pts
   exit_on_error "Error mounting $target/dev/pts"
+  mountbind /dev/null $target/dev/null
+  exit_on_error "Error mounting $target/dev/null"
   mountbind /proc $target/proc ro
   exit_on_error "Error mounting $target/proc"
 
@@ -541,6 +543,7 @@ umount_bootstrap()
     done
     umount $target/sys
     umount $target/dev/pts
+    umount $target/dev/null
     umount $target/tmp
     if [ -e $target/etc/apt/auth.conf ]; then
       umount $target/etc/apt/auth.conf
