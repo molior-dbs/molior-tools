@@ -171,18 +171,19 @@ postinst_docker_upgrade()
             echo "$newimages" > $WORK_DIR/upgrade-package/docker.new
             docker_containers=`comm -23 $WORK_DIR/upgrade-package/docker.new $WORK_DIR/upgrade-package/docker.old`
             if [ -n "$docker_containers" ]; then
-                log "deduplicating docker images"
-                chroot $target docker save $docker_containers > $WORK_DIR/upgrade-package/docker-containers.tar
-                exit_on_error "Error saving docker containers"
-                . /usr/lib/molior-deploy/docker-utils.sh.inc
-                docker_deduplicate $WORK_DIR/upgrade-package/docker-containers.old.tar \
-                                   $WORK_DIR/upgrade-package/docker-containers.tar \
-                                   $WORK_DIR/upgrade-package/docker-containers.dedup.tar
-                exit_on_error "Error deduplicating docker containers"
-                rm -f $WORK_DIR/upgrade-package/docker-containers.tar $WORK_DIR/upgrade-package/docker-containers.old.tar
-                chroot $target docker image prune -a -f >&2
+              log "deduplicating docker images"
+              chroot $target docker save $docker_containers > $WORK_DIR/upgrade-package/docker-containers.tar
+              exit_on_error "Error saving docker containers"
+              . /usr/lib/molior-deploy/docker-utils.sh.inc
+              docker_deduplicate $WORK_DIR/upgrade-package/docker-containers.old.tar \
+                                 $WORK_DIR/upgrade-package/docker-containers.tar \
+                                 $WORK_DIR/upgrade-package/docker-containers.dedup.tar
+              exit_on_error "Error deduplicating docker containers"
+              rm -f $WORK_DIR/upgrade-package/docker-containers.tar $WORK_DIR/upgrade-package/docker-containers.old.tar
+              chroot $target docker image prune -a -f >&2
             else
               log "docker: no image changes in docker-compose.yml"
+              rm -f $WORK_DIR/upgrade-package/docker-containers.old.tar
             fi
         else
             log "saving docker containers"
