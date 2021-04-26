@@ -30,8 +30,8 @@ echo 0 > /proc/sys/kernel/printk
 
 sleep 1
 
-titlecolor="\033[1;32m"
-errorcolor="\e[31m\e[1m"
+titlecolor="\e[1;32m"
+errorcolor="\e[1;31m"
 textprefix="  "
 
 . /scripts/molior-deploy.sh.inc
