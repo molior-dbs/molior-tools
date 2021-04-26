@@ -227,13 +227,13 @@ create_partitions()
   fi
 
   if [ -n "$RAID_NAME" ]; then
-    echo " * creating raid $RAID_NAME"
+    log "creating raid $RAID_NAME"
     echo y | mdadm --create --verbose $RAID_OPTS $RAID_NAME $disk missing
     disk=`mdadm --detail --scan | cut -d" " -f2`
   fi
 
   if [ -n "$SFDISK" ]; then
-    echo " * creating partitions"
+    log "creating partitions"
     # check if sfdisk supports wipearg, i.e. > 2.27.1
     sfdiskversion=`sfdisk -v | cut -d ' ' -f4`
     sfdiskmajor=`echo $sfdiskversion | cut -d. -f1`
@@ -280,7 +280,7 @@ create_lvm()
         exit_on_error "LVM thin pool create"
       fi
     fi
-    echo " * creating LVM volume ${LVM_VG}-$t ($s)"
+    log "creating LVM volume ${LVM_VG}-$t ($s)"
     if [ -n "${LVM_THINPOOL}" ]; then
       lvcreate -y --name $t --virtualsize $s --thin $LVM_VG/lv_thin >&2
     else
@@ -294,7 +294,7 @@ create_luks()
 {
   part=$1
   name=$2
-  echo " * cryptsetup $part"
+  log "cryptsetup $part"
   if [ -z "$name" ]; then
     log_error "Error: LUKS partitions need a name. Set PART*_LUKSNAME or LVM_LV*_NAME"
   fi
@@ -329,7 +329,7 @@ make_fs()
     # do nothing - will be created on startup
     true
   elif [ "$s" = "swap" ]; then
-    echo " * mkswap $part"
+    log "mkswap $part"
     mkswap $part >/dev/null
     exit_on_error "Error formatting partition $part as $s"
 
@@ -340,7 +340,7 @@ make_fs()
     create_luks $part $name
 
   else # normal filesystems
-    echo " * mkfs $part"
+    log "mkfs $part"
     eval mkfs -t $s $opts $part >/dev/null
     exit_on_error "Error formatting partition $part as $s"
   fi
@@ -460,7 +460,7 @@ mount_fs()
   fi
   if [ -n "$rootpart" ]; then
     part=$rootpart
-    echo " * mount /"
+    log "mount /"
     mount $part $target
     exit_on_error "Error mounting filesystem $part to $target"
   fi
@@ -481,7 +481,7 @@ mount_fs()
         continue
       fi
       part=${disk}$PARTSEP$p
-      echo " * mount $t"
+      log "mount $t"
       mkdir -p $target/$t
       set -x
       mount -t $fs $part $target/$t
@@ -511,7 +511,7 @@ mount_fs()
           if [ -z "$v" ]; then
             continue
           fi
-          echo " * mount $v"
+          log "mount $v"
           mkdir -p $target/$v
           set -x
           mount /dev/mapper/$s-decrypted $target/$v
@@ -526,7 +526,7 @@ mount_fs()
       fi
 
       part=/dev/mapper/$(echo ${LVM_VG} | sed -r 's/-/--/g')-$(echo $s | sed -r 's/-/--/g')
-      echo " * mount $t"
+      log "mount $t"
       mkdir -p $target/$t
       set -x
       mount $part $target/$t
@@ -540,7 +540,7 @@ mount_fs()
 unmount()
 {
   if mountpoint -q "$1"; then
-    echo " * umount $1"
+    log "umount $1"
     umount "$1"
     exit_on_error "Error umounting $1"
   fi
