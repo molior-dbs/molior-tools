@@ -764,6 +764,11 @@ get_deploy_config()
   for var in `set | awk -F= '/^EXTRA_.*/ {print $1}'`; do
     echovar $var
   done
+  if [ -n "$DEPLOYMENT_ENV_EXTRA" ]; then
+    for var in $DEPLOYMENT_ENV_EXTRA; do
+      echovar $var
+    done
+  fi
   set -x
 }
 
