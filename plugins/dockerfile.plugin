@@ -1,0 +1,28 @@
+# molior-deploy plugin
+# vim: syntax=sh
+
+preinit_deployment_dockerfile()
+{
+    do_installation=0
+    REQUIRED_HOST_COMMANDS="docker"
+}
+
+finalize_deployment_dockerfile()
+{
+    CONTAINER_VERSION=`echo $REVISION | tr '~+' '-'`
+    if [ -z "$CONTAINER_NAME" ]; then
+        CONTAINER_NAME=$PROJECT-$VARIANT
+    fi
+
+    DOCKER_TAG=$CONTAINER_NAME:$CONTAINER_VERSION
+    docker build -f $SOURCE_DIR/$DOCKERFILE -t $DOCKER_TAG .
+    exit_on_error "Error building docker"
+
+    deployment=$(get_deployment_filename "tar")
+    docker save -o $WORK_DIR/$deployment $DOCKER_TAG
+    exit_on_error "Error saving docker"
+
+    docker rmi $DOCKER_TAG
+    exit_on_error "Error removing docker image"
+}
+
