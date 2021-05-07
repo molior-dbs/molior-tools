@@ -101,17 +101,19 @@ postinst_internal_deployment_info()
   chroot $target apt-get -y install debtree >&2
   exit_on_error "Error installing: debtree"
 
-  chroot $target debtree -I -R -r --no-recommends --no-skip --show-all --no-versions $INSTALL_PACKAGE > $WORK_DIR/info/$debtree_complete_file
-  exit_on_error "Error running debtree"
+  if [ $do_installation -eq 1 ]; then
+      chroot $target debtree -I -R -r --no-recommends --no-skip --show-all --no-versions $INSTALL_PACKAGE > $WORK_DIR/info/$debtree_complete_file
+      exit_on_error "Error running debtree"
 
-  chroot $target debtree -I -R -r --no-recommends --no-versions $INSTALL_PACKAGE > $WORK_DIR/info/$debtree_file
-  exit_on_error "Error running debtree"
+      chroot $target debtree -I -R -r --no-recommends --no-versions $INSTALL_PACKAGE > $WORK_DIR/info/$debtree_file
+      exit_on_error "Error running debtree"
 
-  dot -Tsvg $WORK_DIR/info/$debtree_file > $WORK_DIR/info/$debtree_svg
-  exit_on_error "Error running dot"
+      dot -Tsvg $WORK_DIR/info/$debtree_file > $WORK_DIR/info/$debtree_svg
+      exit_on_error "Error running dot"
 
-  dot -Tpng $WORK_DIR/info/$debtree_file > $WORK_DIR/info/$debtree_png
-  exit_on_error "Error running dot"
+      dot -Tpng $WORK_DIR/info/$debtree_file > $WORK_DIR/info/$debtree_png
+      exit_on_error "Error running dot"
+  fi
 }
 
 finalize_deployment_info()

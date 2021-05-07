@@ -190,5 +190,5 @@ AUTHORS
  The project homepage is <https://github.com/molior-dbs>
 
 SEE ALSO
- molior-deploy-dir(8), molior-deploy-docker(8), molior-deploy-dockerfile(8), molior-deploy-image(8), molior-deploy-info(8), molior-deploy-installer(8), molior-deploy-lxd(8), molior-deploy-pxeinst(8), molior-deploy-srcarchive(8), molior-deploy-upgrade(8), molior-deploy-vbox(8), molior-deploy-vhd(8), create-release(1), molior-sbuild(1), molior-trigger(1), add-molior-repo(8)
+ molior-deploy-dir(8), molior-deploy-docker(8), molior-deploy-dockerfile(8), molior-deploy-dockerfileinfo(8), molior-deploy-image(8), molior-deploy-info(8), molior-deploy-installer(8), molior-deploy-lxd(8), molior-deploy-pxeinst(8), molior-deploy-srcarchive(8), molior-deploy-upgrade(8), molior-deploy-vbox(8), molior-deploy-vhd(8), create-release(1), molior-sbuild(1), molior-trigger(1), add-molior-repo(8)
 
