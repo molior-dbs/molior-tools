@@ -2,9 +2,7 @@ NAME
  molior-deploy - docker deployment type
 
 DESCRIPTION
- The dockerfile plugin allows to create a deployment into a docker image from a Dockerfile.
- The docker build happens in the $target context, so you can add files to
- $target and ADD them in your Dockerfile.
+ The dockerfileinfo plugin allows to create a deployment info of a docker image from a Dockerfile.
 
 OPTIONS
  The deployment configuration (deploy/*.conf file) recognizes the following variables:
@@ -15,9 +13,9 @@ OPTIONS
 
 EXAMPLE
 
- deploy/dockerfile.conf:
+ deploy/dockerfileinfo.conf:
 
-   DEPLOYMENT_TYPE=dockerfile
+   DEPLOYMENT_TYPE=dockerfileinfo
    ARCH=amd64
    DOCKERFILE=Dockerfile
 
