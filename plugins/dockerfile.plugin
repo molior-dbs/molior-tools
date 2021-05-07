@@ -15,7 +15,7 @@ finalize_deployment_dockerfile()
     fi
 
     DOCKER_TAG=$CONTAINER_NAME:$CONTAINER_VERSION
-    docker build -f $SOURCE_DIR/$DOCKERFILE -t $DOCKER_TAG .
+    docker build -f $DOCKERFILE -t $DOCKER_TAG $target
     exit_on_error "Error building docker"
 
     deployment=$(get_deployment_filename "tar")
