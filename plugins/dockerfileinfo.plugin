@@ -20,7 +20,14 @@ finalize_deployment_dockerfileinfo()
     DOCKERFILE_TMP=$WORK_DIR/$(basename $DOCKERFILE).tmp
 
     # Modify a copy of Dockerfile to remove exclusion list
-    sed '/^FROM.*/a RUN rm -f /etc/dpkg/dpkg.cfg.d/excludes' $DOCKERFILE > $DOCKERFILE_TMP
+    cat >$target/reinstall-packages.sh <<EOF
+rm -f /etc/dpkg/dpkg.cfg.d/excludes
+apt-get update
+# We don't need an init-system inside docker, but apt-get install requires something
+ln -sf /bin/true /usr/sbin/update-rc.d
+apt-get install --reinstall --yes \$(dpkg --get-selections | grep -v deinstall | cut -f1)
+EOF
+    sed '/^FROM.*/a COPY reinstall-packages.sh .\nRUN /bin/sh reinstall-packages.sh' $DOCKERFILE > $DOCKERFILE_TMP
 
     log "building docker image"
     DOCKER_TAG=$CONTAINER_NAME:$CONTAINER_VERSION
