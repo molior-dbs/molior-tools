@@ -33,7 +33,7 @@ class MoliorConfig:
         Loads the molior.yml file.
         """
         with self.__path.open() as cfg_file:
-            self.__cfg = yaml.load(cfg_file, Loader=yaml.FullLoader)
+            self.__cfg = yaml.safe_load(cfg_file)
 
     def __getattr__(self, name):
         if not self.__cfg:
