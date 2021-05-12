@@ -31,12 +31,12 @@ EOF
 
     log "building docker image"
     DOCKER_TAG=$CONTAINER_NAME:$CONTAINER_VERSION
-    docker build -f $DOCKERFILE_TMP -t $DOCKER_TAG $target
+    eval "docker build $DOCKER_BUILD_OPTS -f $DOCKERFILE_TMP -t $DOCKER_TAG $target"
     exit_on_error "Error building docker"
 
     log "creating docker container"
     container_id=$(docker create $DOCKER_TAG)
-    docker export $container_id -o $WORK_DIR/container.tar
+    eval "docker export $container_id -o $WORK_DIR/container.tar $DOCKER_EXPORT_OPTS"
 
     log "extracting container"
     tar xf $WORK_DIR/container.tar -C $target
