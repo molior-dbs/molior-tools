@@ -15,11 +15,11 @@ finalize_deployment_dockerfile()
     fi
 
     DOCKER_TAG=$CONTAINER_NAME:$CONTAINER_VERSION
-    docker build -f $DOCKERFILE -t $DOCKER_TAG $target
+    eval "docker build $DOCKER_BUILD_OPTS -f $DOCKERFILE -t $DOCKER_TAG $target"
     exit_on_error "Error building docker"
 
     deployment=$(get_deployment_filename "tar")
-    docker save -o $WORK_DIR/$deployment $DOCKER_TAG
+    eval "docker save $DOCKER_SAVE_OPTS -o $WORK_DIR/$deployment $DOCKER_TAG"
     exit_on_error "Error saving docker"
 
     docker rmi $DOCKER_TAG

@@ -28,13 +28,13 @@ finalize_deployment_docker()
   if [ -z "$CONTAINER_NAME" ]; then
       CONTAINER_NAME=$PROJECT-$VARIANT
   fi
-  docker import $WORK_DIR/root.tar $CONTAINER_NAME:$CONTAINER_VERSION >&2
+  eval "docker import $WORK_DIR/root.tar $CONTAINER_NAME:$CONTAINER_VERSION $DOCKER_IMPORT_OPTS"
   exit_on_error "Error running docker import"
 
   deployment=$(get_deployment_filename "tar")
-  docker save  -o $WORK_DIR/$deployment $CONTAINER_NAME:$CONTAINER_VERSION >&2
+  eval "docker save $DOCKER_SAVE_OPTS -o $WORK_DIR/$deployment $CONTAINER_NAME:$CONTAINER_VERSION"
   exit_on_error "Error running docker save"
 
-  docker rmi $CONTAINER_NAME:$CONTAINER_VERSION >&2
+  docker rmi $CONTAINER_NAME:$CONTAINER_VERSION
 }
 
