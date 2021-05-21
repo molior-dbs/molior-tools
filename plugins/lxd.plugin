@@ -57,7 +57,8 @@ notify_deployment()
   echo "Run the following commands to create the LXD container:"
   echo
   echo "lxc image import $deployment --alias $PROJECT-$VERSION-$REVISION"
-  container_name=`echo $PROJECT-$VERSION-$REVISION | tr '.' '-'`
+  # LXD container names can only be alnum and hyphens.
+  container_name=`echo $PROJECT-$VERSION-$REVISION | tr -c '[:alnum:]-\n' '-'`
   echo "lxc launch $PROJECT-$VERSION-$REVISION $container_name"
   echo "lxc exec $container_name /bin/bash"
 }
