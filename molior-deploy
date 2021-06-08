@@ -54,7 +54,7 @@ usage()
   echo "  -u                Use unstable top level package (INSTALL_PACKAGE in deploy file)"
   echo "  -S                Only download source package"
   echo "  -D                Output build variables"
-  echo "  -C                Omit +local suffix for local buidls"
+  echo "  -C                Omit +local suffix for local builds"
   echo
   if [ -n "$1" ]; then
     echo $1

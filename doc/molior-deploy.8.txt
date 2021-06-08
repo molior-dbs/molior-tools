@@ -51,7 +51,7 @@ OPTIONS
   -u                Use unstable top level package (INSTALL_PACKAGE in deploy file)
   -S                Only download source package
   -D                Output build variables
-  -C                Omit +local suffix for local buidls
+  -C                Omit +local suffix for local builds
 
 COMMON PARAMETERS
 
