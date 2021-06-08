@@ -29,50 +29,24 @@ init_deployment_vbox()
 
   # FIXME check VMSIZE
   echo " * creating ${VMSIZE}MB virtual disk"
-  if [ "$OLD_KERNEL" -eq 1 ]; then
-    VMDISK=$WORK_DIR/disk.vdi
-    vboxmanage createhd --filename $VMDISK --size=$VMSIZE >&2
-    exit_on_error "Error creating VirtualBox disk '$VMDISK' with size '$VMSIZE' MB"
-  else
-    VMDISK=$WORK_DIR/disk.qcow2
-    qemu-img create -f qcow2 $VMDISK ${VMSIZE}M >&2
-    exit_on_error "Error creating VirtualBox qcow2 disk '$VMDISK' with size '$VMSIZE' MB"
-  fi
-  exit_on_error "Error creating $VMDISK"
+  VMDISK=$WORK_DIR/disk.raw
+  truncate -s ${VMSIZE}M $VMDISK
+  exit_on_error "Error creating disk image '$VMDISK' with size '$VMSIZE' MB"
 
-  if ! grep -q "^nbd " /proc/modules; then
-    modprobe nbd
-    exit_on_error "Error loading kernel module nbd"
-  fi
-
-  # find free nbd device
-  nb=""
-  for nbdev in `ls -d /sys/class/block/nbd* | grep "nbd[0-9]\+$"`
-  do
-    S=`cat $nbdev/size`
-    if [ "$S" -eq "0" ] ; then
-      nb=`basename $nbdev`
-      break
-    fi
-  done
-  if [ -z "$nb" ]; then
-    log_error "Could not find free nbd device"
-  fi
-
-  nbd=/dev/$nb
-  qemu-nbd -c $nbd $VMDISK >&2
-  exit_on_error "Error running qemu-nbd"
+  # find free loop device
+  loop="$(losetup --show -f $VMDISK)"
+  loopn=$(basename $loop)
 
   if [ "$OLD_KERNEL" -eq 1 ]; then
-    ln -s $nbd /dev/mapper/$nb
-    disk=/dev/mapper/$nb
+    ln -s $loop /dev/mapper/$loopn
+    disk=/dev/mapper/$loopn
   else
-    disk=$nbd
+    disk=$loop
   fi
 
   create_partitions
 
-  test "$OLD_KERNEL" -eq 1 && kpartx -avs $nbd >&2
+  test "$OLD_KERNEL" -eq 1 && kpartx -avs $loop >&2
 
   create_fs
   mount_fs
@@ -84,12 +58,11 @@ deinit_deployment_vbox()
     vgchange -an molior ${LVM_VG} >&2
   fi
 
-  if [ -n "$nbd" ]; then
-    test "$OLD_KERNEL" -eq 1 && kpartx -dv $nbd >&2
-    rm -f /dev/mapper/$nb
-    qemu-nbd -d $nbd >&2
+  if [ -n "$loop" ]; then
+    test "$OLD_KERNEL" -eq 1 && kpartx -dv $loop >&2
+    rm -f /dev/mapper/$loopn
     disk=""
-    nbd=""
+    loop=""
     vgscan --cache >&2
   fi
 }
