@@ -760,8 +760,18 @@ setup_deployment()
   if [ "$found_variant" -ne 1 ]; then
     while true
     do
-      /bin/echo -n -e "${color_ask}Q: Please choose a deployment variant:\n`echo $variants | tr ' ' '\n' | sed 's/^/ > /'`\nEnter variant: $color_reset"
-      read VARIANT
+
+      # Read deployment variant. Use tab-completion if available.
+      if type rlwrap > /dev/null; then
+        rlwrap_comp=$WORK_DIR/molior-deployments.list
+        echo $variants > $rlwrap_comp
+        VARIANT=$(rlwrap -S "Q: Please choose a deployment variant: " -pYellow -e '' -i --break-chars ' ' -f $rlwrap_comp -o cat)
+        rm -f $rlwrap_comp
+      else
+        /bin/echo -n -e "${color_ask}Q: Please choose a deployment variant:\n`echo $variants | tr ' ' '\n' | sed 's/^/ > /'`\nEnter variant: $color_reset"
+        read VARIANT
+      fi
+
       if [ -z "$VARIANT" ]; then
         log_warn "No deployment variant choosen, aborting ..."
         ask_cleanup=0
