@@ -14,6 +14,7 @@ Depends: ${perl:Depends}, ${misc:Depends}, ${python3:Depends},
   debootstrap, xz-utils, devscripts, equivs, curl, lsb-release,
   python3, python3-yaml, python3-click, jq, pxz | xz-utils (>= 5.2.4-1)
 Conflicts: debrilis, rlx3-devtools, molior-deploy
+Recommends: rlwrap
 Description: molior development and deployment tools
  Tools for creating debian package releases in git repositories
  and for creating deployments of molior projects.
