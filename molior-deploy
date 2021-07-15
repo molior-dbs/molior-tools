@@ -267,7 +267,7 @@ apt_get_chroot_with_retry ()
             break
         fi
     done
-    chroot $target apt-get "$@"
+    DEBIAN_FRONTEND=noninteractive chroot $target apt-get "$@"
 }
 
 finish ()
@@ -1042,7 +1042,7 @@ install_deployment()
   fi
 
   log "installing: $INSTALL_PACKAGE"
-  DEBIAN_FRONTEND=noninteractive apt_get_chroot_with_retry install --no-install-recommends --yes $INSTALL_PACKAGE $APT_INSTALL_EXTRA >&2
+  apt_get_chroot_with_retry install --no-install-recommends --yes $INSTALL_PACKAGE $APT_INSTALL_EXTRA >&2
   exit_on_error "Error installing software"
 
   chroot $target apt-get clean >&2
