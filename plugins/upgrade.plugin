@@ -26,7 +26,7 @@ init_deployment_upgrade()
 
   log "initializing upgradeable deployment for $PROJECT/$VERSION"
   SOURCESURL=$MOLIOR_SERVER/api/projectsources/$PROJECT/$VERSION
-  APT_SOURCES_ORIG=`wget -q -O- $SOURCESURL`
+  APT_SOURCES_ORIG=`curl -s --retry 10 $SOURCESURL`
   if [ -z "$APT_SOURCES" ]; then
     log_error "Error downloading $SOURCESURL"
   fi
@@ -80,7 +80,7 @@ postinst_deployment_upgrade()
 
   log "downloading APT sources for $PROJECT/$VERSION"
   SOURCESURL=$MOLIOR_SERVER/api/projectsources/$PROJECT/$VERSION
-  APT_SOURCES_ORIG=`wget -q -O- $SOURCESURL`
+  APT_SOURCES_ORIG=`curl -s --retry 10 $SOURCESURL`
   echo "$APT_SOURCES_ORIG" > $target/etc/apt/sources.list
   exit_on_error "Error downloading APT sources"
 
@@ -106,7 +106,7 @@ postinst_deployment_upgrade()
             postfix=""
           fi
           i=$((i + 1))
-          wget -q $url -O $WORK_DIR/repo.asc$postfix
+          curl -s --retry 10 -o $WORK_DIR/repo.asc$postfix $url
           exit_on_error "Error downloading $url"
         done
 

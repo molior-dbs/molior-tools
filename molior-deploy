@@ -612,10 +612,10 @@ setup_deployment()
     fi
     log_info "Getting deployment information ..."
     SOURCESURL=$MOLIOR_SERVER/api2/project/$PROJECT/$VERSION/aptsources
-    APT_SOURCES_ORIG=`wget -q -O- $SOURCESURL$param`
+    APT_SOURCES_ORIG=`curl -s --retry 10 $SOURCESURL$param`
     if [ -z "$APT_SOURCES_ORIG" ]; then
       SOURCESURL=$MOLIOR_SERVER/api/projectsources/$PROJECT/$VERSION
-      APT_SOURCES_ORIG=`wget -q -O- $SOURCESURL`
+      APT_SOURCES_ORIG=`curl -s --retry 10 $SOURCESURL`
       if [ -z "$APT_SOURCES_ORIG" ]; then
         log_error "Error downloading $SOURCESURL"
       fi
@@ -673,7 +673,7 @@ setup_deployment()
       do
         SOURCES_VERSION=`basename $baseurl`
         log "trying to download package source from $SOURCES_VERSION"
-        wget -q -O $WORK_DIR/Sources $SOURCEMIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$dist/main/source/Sources
+        curl -s --retry 10 -o $WORK_DIR/Sources $SOURCEMIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$dist/main/source/Sources
         if [ `wc -l $WORK_DIR/Sources 2>/dev/null` -eq 0 ]; then
           # try next baseurl
           continue
@@ -695,7 +695,7 @@ setup_deployment()
       fi
       log "using package source: $SOURCES_VERSION"
     else
-      wget -q -O $WORK_DIR/Sources $SOURCEMIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$dist/main/source/Sources
+      curl -s --retry 10 -o $WORK_DIR/Sources $SOURCEMIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$dist/main/source/Sources
       # FIXME: check if exists...
       if [ `wc -l $WORK_DIR/Sources 2>/dev/null | cut -d' ' -f1` -eq 0 ]; then
         log_error "Could not download $SOURCEMIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$dist/main/source/Sources"
@@ -712,7 +712,7 @@ setup_deployment()
 
     log "downloading source: $SOURCEMIRROR/repos/$PROJECT/$SOURCES_VERSION/$FILENAME"
     cd $WORK_DIR
-    wget -q $SOURCEMIRROR/repos/$PROJECT/$SOURCES_VERSION/$FILENAME
+    curl -s --retry 10 -O -J $SOURCEMIRROR/repos/$PROJECT/$SOURCES_VERSION/$FILENAME
     exit_on_error "Error downloading $SOURCEMIRROR/repos/$PROJECT/$SOURCES_VERSION/$FILENAME"
 
     if [ $src_pkg_only -eq 1 ]; then
@@ -880,13 +880,13 @@ bootstrap_deployment()
       postfix=""
     fi
     i=$((i + 1))
-    wget -q $url -O $WORK_DIR/repo.asc$postfix
+    curl -s --retry 10 -o $WORK_DIR/repo.asc$postfix $url
     exit_on_error "Error downloading $url"
   done
   gpg -q --import --no-default-keyring --keyring=trustedkeys.gpg $WORK_DIR/repo.asc
 
   log "downloading debootstrap for $SUITE $BASEMIRROR/$BASEVERSION $ARCH"
-  wget -q $MOLIOR_SERVER/debootstrap/${BASEMIRROR}_${BASEVERSION}_$ARCH.tar.xz -O $WORK_DIR/root.tar.xz
+  curl -s --retry 10 -o $WORK_DIR/root.tar.xz $MOLIOR_SERVER/debootstrap/${BASEMIRROR}_${BASEVERSION}_$ARCH.tar.xz
   if [ $? -eq 0 ]; then
     log "extracting debootstrap"
     mkdir -p $target

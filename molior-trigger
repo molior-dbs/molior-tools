@@ -33,7 +33,7 @@ COOKIE_FILE=`mktemp`
 
 molior_session_call()
 {
-  curl -s --cookie "$COOKIE_FILE" --cookie-jar "$COOKIE_FILE" "$@"
+  curl -s --retry 10 --cookie "$COOKIE_FILE" --cookie-jar "$COOKIE_FILE" "$@"
 }
 
 # login to the molior session
@@ -55,5 +55,5 @@ fi
 echo "Build triggered: $ID"
 echo
 echo "Query build state with: "
-echo "curl -s $MOLIOR_URL/api/build/$ID | json_pp"
+echo "curl -s --retry 10 $MOLIOR_URL/api/build/$ID | json_pp"
 echo
