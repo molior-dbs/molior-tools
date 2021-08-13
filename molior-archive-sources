@@ -41,7 +41,7 @@ COOKIE_FILE=`mktemp`
 molior_session_call()
 {
   URL_PATH="$1" && shift
-  curl $MOLIOR_URL$URL_PATH -s \
+  curl $MOLIOR_URL$URL_PATH -s --retry 10 \
     --cookie "$COOKIE_FILE" \
     --cookie-jar "$COOKIE_FILE" $@
 }
