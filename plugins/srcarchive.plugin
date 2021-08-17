@@ -25,7 +25,7 @@ download_project_sources()
   MOLIOR_REPOS_PROJECT_URL=$MOLIOR_REPO_URL/$BASEMIRROR/$BASEVERSION/repos/$project/$version
 
   # fetch lastes build information
-  repositories=$(curl -s "$MOLIOR_API_PROJECT_URL/repositories" | jq -jr '.results[] | .name, "|", .last_build.sourcename, "|", .last_build.buildstate, "\n"')
+  repositories=$(curl -s --retry 10 "$MOLIOR_API_PROJECT_URL/repositories" | jq -jr '.results[] | .name, "|", .last_build.sourcename, "|", .last_build.buildstate, "\n"')
 
   # Fail early if there are no repositories
   if [ -z "$repositories" ]; then
@@ -33,7 +33,7 @@ download_project_sources()
   fi
 
   # fetch Sources and get directory and source package name
-  wget -q -O "$workdir/Sources" "$MOLIOR_REPOS_PROJECT_URL/dists/stable/main/source/Sources"
+  curl -s --retry 10 -o "$workdir/Sources" "$MOLIOR_REPOS_PROJECT_URL/dists/stable/main/source/Sources"
   exit_on_error "Failed to download Sources file"
 
   # 'repositories' is a list of tuples sourcename|buildstate, one per line
@@ -72,13 +72,13 @@ download_project_sources()
 
       FILEBASENAME=$(basename "$FILENAME")
       log "downloading $FILEBASENAME"
-      wget -q -O "$destdir/$FILEBASENAME" "$MOLIOR_REPOS_PROJECT_URL/$FILENAME"
+      curl -s --retry 10 -o "$destdir/$FILEBASENAME" "$MOLIOR_REPOS_PROJECT_URL/$FILENAME"
       exit_on_error "Error downloading $MOLIOR_REPOS_PROJECT_URL/$FILENAME"
   done
 
   if [ "$SRCARCHIVE_RECURSIVE" = "yes" ]; then
     # Recursively download dependencies, too
-    dependencies=$(curl -s "$MOLIOR_API_PROJECT_URL/dependencies" | jq -jr '.results[] | .project_name, "|", .name, "|", .is_mirror, "\n"')
+    dependencies=$(curl -s --retry 10 "$MOLIOR_API_PROJECT_URL/dependencies" | jq -jr '.results[] | .project_name, "|", .name, "|", .is_mirror, "\n"')
     for line in $dependencies; do
         dep_name=$(echo $line | cut -d '|' -f1)
         dep_version=$(echo $line | cut -d '|' -f2)
