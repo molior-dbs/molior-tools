@@ -136,12 +136,14 @@ $APT_SOURCES
   vboxmanage modifyvm $vmuuid --boot1 disk --boot2 none --boot3 none --boot4 none >&2
   if [ "$TARGET_BOOTTYPE" = "efi" ]; then
     vboxmanage modifyvm $vmuuid --firmware efi
+    vboxmanage setextradata $vmuuid VBoxInternal2/EfiGraphicsResolution 1024x768
   fi
   vboxmanage modifyvm $vmuuid --cpus $VMCPUS >&2
   exit_on_error "Error setting number of VirtualBox CPUS to '$VMCPUS'"
   vboxmanage modifyvm $vmuuid --memory $VMRAM --vram $VMVRAM >&2
   exit_on_error "Error setting VirtualBox RAM to '$VMVRAM'"
   vboxmanage modifyvm $vmuuid --nic1 nat --nictype1 virtio --natdnsproxy1 on >&2
+  vboxmanage modifyvm $vmuuid --graphicscontroller vmsvga >&2
   if [ -n "$VBOX_3D" ]; then
     if [ "$VBOX_3D" = "1" ]; then
       vboxmanage modifyvm $vmuuid --accelerate3d on >&2
