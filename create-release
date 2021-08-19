@@ -52,7 +52,7 @@ fi
 
 cd "$(git rev-parse --show-toplevel)"
 
-if ! git diff-files --quiet || ! git diff-index --quiet --cached HEAD; then
+if ! git diff-files > /dev/null || ! git diff-index --cached HEAD > /dev/null; then
   log_error "you have uncommitted changes, please commit or stash them."
 fi
 
