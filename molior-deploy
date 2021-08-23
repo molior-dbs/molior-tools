@@ -237,7 +237,7 @@ REQUIRED_MOLIORTOOLS_VERSION=""
 # init
 success=0
 CUR_DIR=`pwd`
-WORK_DIR=`mktemp -d /tmp/molior-XXXXXXXX`
+WORK_DIR=`mktemp --tmpdir -d molior-XXXXXXXX`
 chmod 755 $WORK_DIR
 errlog=$WORK_DIR/output.log
 
