@@ -560,11 +560,11 @@ if [ -n "$SOURCEDISK" ]; then
   eject -rs $SOURCEDISK 2>&1
 fi
 
+if type installer_finished >/dev/null 2>&1; then
+  installer_finished
+fi
+
 if [ "$INSTALLER_ASK_REBOOT" != "no" ]; then
   echo -n "${textprefix}=> Please remove the installation media and press 'Enter' to reboot "
   read x
-fi
-
-if type installer_finished >/dev/null 2>&1; then
-  installer_finished
 fi
