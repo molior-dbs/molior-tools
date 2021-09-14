@@ -93,6 +93,9 @@ prepare_initrd_deployment()
     fi
   fi
 
+  if [ -n "$SFDISK" ]; then
+    INSTALLER_EXTRA_PACKAGES="$INSTALLER_EXTRA_PACKAGES fdisk"
+  fi
   if [ "$fs_has_lvm" -eq 1 ]; then
     INSTALLER_EXTRA_PACKAGES="$INSTALLER_EXTRA_PACKAGES lvm2"
   fi
