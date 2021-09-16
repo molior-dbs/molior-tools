@@ -1,0 +1,190 @@
+# molior-deploy plugin
+# vim: syntax=sh
+
+INITRDINST=/usr/lib/molior-deploy/initrd-live
+
+create_efi_image()
+{
+  mkfs.fat -v -C "$WORK_DIR/efiboot.img" 10240 >/dev/null
+  mmd -i "$WORK_DIR/efiboot.img" ::efi
+  mmd -i "$WORK_DIR/efiboot.img" ::efi/boot
+  exit_on_error "Error copying efi files to boot image"
+  mcopy -o -i "$WORK_DIR/efiboot.img" $WORK_DIR/$EFIFILE "::efi/boot"
+}
+
+preinit_deployment_live()
+{
+  REQUIRED_HOST_COMMANDS="isohybrid genisoimage xorriso mcopy mmd mkfs.fat mksquashfs"
+  REQUIRED_PACKAGES="genisoimage xorriso syslinux-utils mtools dosfstools squashfs-tools"
+}
+
+init_deployment_live()
+{
+  do_fstab=0
+  do_compress=0
+  init_deployment_dir
+}
+
+preinst_deployment_live()
+{
+  if [ -z "$LIVE_LINUX_CMDLINE" ]; then
+    LIVE_LINUX_CMDLINE="quiet"
+  fi
+}
+
+postinst_internal_deployment_live()
+{
+  mkdir -p $WORK_DIR/out
+
+  touch $WORK_DIR/out/RLX_LIVE
+
+  log "creating live initrd"
+  if [ "$ARCH" != "amd64" ]; then
+    exit_on_error "$ARCH not supported"
+  fi
+
+  KERNEL_ARCH="$ARCH"
+  EFIFILE=bootx64.efi
+  GRUBEFITYPE=x86_64-efi
+
+  DEBIAN_FRONTEND=noninteractive chroot $target apt-get install --no-install-recommends --yes \
+    $LIVE_EXTRA_PACKAGES linux-image-$KERNEL_ARCH live-boot \
+    busybox initramfs-tools isolinux syslinux-common \
+    grub-pc-bin grub-efi-amd64-bin mtools squashfs-tools >&2
+
+  exit_on_error "Error installing initrd packages"
+
+  chroot $target apt-get clean >&2
+
+  initrd=$target/initramfs-tools
+
+  if [ -n "$INSTALLER_EXTRA_MODULES" ]; then
+    cat > $initrd/hooks/live-extra-modules <<'EOF'
+#!/bin/sh
+
+PREREQ=""
+
+# Output pre-requisites
+prereqs()
+{
+  echo "$PREREQ"
+}
+
+case "$1" in
+  prereqs)
+    prereqs
+    exit 0
+    ;;
+esac
+
+. /usr/share/initramfs-tools/hook-functions
+
+EOF
+    for mod in $LIVE_EXTRA_MODULES
+    do
+        echo "manual_add_modules $mod" >> $initrd/hooks/live-extra-modules
+    done
+    chmod +x $initrd/hooks/live-extra-modules
+  fi
+
+  cat > $target/boot/grub-standalone.cfg << EOF
+search --set=root --file /RLX_LIVE
+
+set gfxpayload=keep
+set default="0"
+set timeout=10
+
+menuentry "RLX Live [EFI/GRUB]" {
+	linux (cd0)/live/vmlinuz boot=live
+	initrd (cd0)/live/initrd
+}
+EOF
+
+mkdir -p $WORK_DIR/out/boot/grub
+
+  cat > $WORK_DIR/out/boot/grub/grub.cfg << EOF
+search --set=root --file /RLX_LIVE
+
+set default="0"
+set timeout=30
+
+menuentry "RLX Live [EFI/GRUB]" {
+    linux ($root)/live/vmlinuz boot=live
+    initrd ($root)/live/initrd
+}
+EOF
+
+  chroot $target grub-mkstandalone --format=$GRUBEFITYPE -o /boot/$EFIFILE --locales="" \
+                                   --fonts="" "boot/grub/grub.cfg=/boot/grub-standalone.cfg"
+  exit_on_error "Error creating grub image"
+  mv $target/boot/$EFIFILE $WORK_DIR/
+
+  create_efi_image
+  mkdir -p $WORK_DIR/out/EFI/boot
+  cp $WORK_DIR/efiboot.img $WORK_DIR/out/EFI/boot
+
+  mkdir -p $WORK_DIR/out/live
+
+  cp -L $target/initrd.img $WORK_DIR/out/live/initrd
+  cp -L $target/vmlinuz $WORK_DIR/out/live
+
+  mkdir -p $WORK_DIR/out/isolinux
+
+  cp $target/usr/lib/ISOLINUX/isolinux.bin $WORK_DIR/out/isolinux
+
+  cp $target/usr/lib/syslinux/modules/bios/*.c32 $WORK_DIR/out/isolinux
+
+  cat > $WORK_DIR/out/isolinux/isolinux.cfg << EOF
+UI vesamenu.c32
+
+MENU TITLE Boot Menu
+DEFAULT linux
+TIMEOUT 600
+MENU RESOLUTION 640 480
+MENU COLOR border       30;44   #40ffffff #a0000000 std
+MENU COLOR title        1;36;44 #9033ccff #a0000000 std
+MENU COLOR sel          7;37;40 #e0ffffff #20ffffff all
+MENU COLOR unsel        37;44   #50ffffff #a0000000 std
+MENU COLOR help         37;40   #c0ffffff #a0000000 std
+MENU COLOR timeout_msg  37;40   #80ffffff #00000000 std
+MENU COLOR timeout      1;37;40 #c0ffffff #00000000 std
+MENU COLOR msg07        37;40   #90ffffff #a0000000 std
+MENU COLOR tabmsg       31;40   #30ffffff #00000000 std
+
+LABEL linux
+  MENU LABEL RLX Live [BIOS/ISOLINUX]
+  MENU DEFAULT
+  KERNEL /live/vmlinuz
+  APPEND initrd=/live/initrd boot=live
+EOF
+
+  umount_bootstrap
+
+  log "creating filesystem.squashfs"
+  mksquashfs $target $WORK_DIR/out/live/filesystem.squashfs -e boot >&2
+  exit_on_error "Error creating $WORK_DIR/out/live/filesystem.squashfs"
+
+
+}
+
+finalize_deployment_live()
+{
+  prepare_initrd_deployment
+
+  deployment=$(get_deployment_filename "iso")
+  log "creating $deployment"
+  rm -f $deployment
+  VOLID=`printf "%.32s" "MLR:${PROJECT}"`
+
+  xorriso -as mkisofs -iso-level 3 -quiet -o $WORK_DIR/$deployment \
+        -full-iso9660-filenames -volid $VOLID \
+        -isohybrid-mbr  $target/usr/lib/ISOLINUX/isohdpfx.bin \
+        -eltorito-boot isolinux/isolinux.bin -no-emul-boot \
+        -boot-load-size 4 -boot-info-table \
+        --eltorito-catalog isolinux/isolinux.cat -eltorito-alt-boot \
+        -e /EFI/boot/efiboot.img -no-emul-boot \
+        -isohybrid-gpt-basdat -append_partition 2 0xef $WORK_DIR/out/EFI/boot/efiboot.img "$WORK_DIR/out" >&2
+
+  exit_on_error "Error running xorriso"
+
+}
