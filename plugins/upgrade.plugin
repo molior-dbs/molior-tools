@@ -196,19 +196,22 @@ postinst_docker_upgrade()
 finalize_deployment_upgrade()
 {
   deployment=$(get_deployment_filename "tar")
-  log "creating Packages and Release files"
-  mkdir -p $WORK_DIR/debian/dists/$PROJECT/$VERSION/stable/binary-$ARCH
-  cd $WORK_DIR/debian
-  apt-ftparchive --arch $ARCH packages pool/ > dists/$PROJECT/$VERSION/stable/binary-$ARCH/Packages
-  cd - >/dev/null
-  cd $WORK_DIR
-  apt-ftparchive release debian/dists/$PROJECT/$VERSION/stable/binary-$ARCH/ > debian/dists/$PROJECT/$VERSION/stable/binary-$ARCH/Release
+  architectures="$ARCH $EXTRA_ARCH"
+  for arch in $architectures; do
+    log "creating Packages and Release files for $arch"
+    mkdir -p $WORK_DIR/debian/dists/$PROJECT/$VERSION/stable/binary-$arch
+    cd $WORK_DIR/debian
+    apt-ftparchive --arch $arch packages pool/ > dists/$PROJECT/$VERSION/stable/binary-$arch/Packages
+    cd - >/dev/null
+    cd $WORK_DIR
+    apt-ftparchive release debian/dists/$PROJECT/$VERSION/stable/binary-$arch/ > debian/dists/$PROJECT/$VERSION/stable/binary-$arch/Release
+  done
   apt-ftparchive -o APT::FTPArchive::Release::Origin="$PROJECT/$VERSION" \
                  -o APT::FTPArchive::Release::Label="$PROJECT/$VERSION" \
                  -o APT::FTPArchive::Release::Suite="$SUITE" \
                  -o APT::FTPArchive::Release::Version="$VERSION" \
                  -o APT::FTPArchive::Release::Codename="$PROJECT/$VERSION" \
-                 -o APT::FTPArchive::Release::Architectures="$ARCH" \
+                 -o APT::FTPArchive::Release::Architectures="$architectures" \
                  -o APT::FTPArchive::Release::Components="stable" \
                  release \
                  debian/dists/$PROJECT/$VERSION/ \
