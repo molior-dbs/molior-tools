@@ -1,3 +1,9 @@
+molior-tools (1.4.1~rc5) stretch; urgency=medium
+
+  * apply the sfdisk fix only to bullseye
+
+ -- André Roth <neolynx@gmail.com>  Tue, 28 Sep 2021 22:45:32 +0200
+
 molior-tools (1.4.1~rc4) stretch; urgency=medium
 
   * upgrade: support multiarch
