@@ -102,8 +102,8 @@ log_info "Preparing release of $package_name"
 
 next_version=""
 if [ -n "$previous_version" ]; then
-  log "fetching tags from $REMOTE ..."
-  git fetch $REMOTE --tags >/dev/null 2>&1
+  log "fetching tags from remote $REMOTE ..."
+  git fetch $REMOTE --tags >$errlog 2>&1
 
   log_info "Previous version: $previous_version"
 
