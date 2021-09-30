@@ -9,7 +9,7 @@ create_efi_image()
   mmd -i "$WORK_DIR/efiboot.img" ::efi
   mmd -i "$WORK_DIR/efiboot.img" ::efi/boot
   exit_on_error "Error copying efi files to boot image"
-  mcopy -o -i "$WORK_DIR/efiboot.img" $WORK_DIR/$EFIFILE "::efi/boot"
+  mcopy -o -i "$WORK_DIR/efiboot.img" $WORK_DIR/out/EFI/BOOT/$EFIFILE "::efi/boot"
 }
 
 preinit_deployment_live()
@@ -117,11 +117,11 @@ EOF
   chroot $target grub-mkstandalone --format=$GRUBEFITYPE -o /boot/$EFIFILE --locales="" \
                                    --fonts="" "boot/grub/grub.cfg=/boot/grub-standalone.cfg"
   exit_on_error "Error creating grub image"
-  mv $target/boot/$EFIFILE $WORK_DIR/
+  mkdir -p $WORK_DIR/out/EFI/BOOT
+  mv $target/boot/$EFIFILE $WORK_DIR/out/EFI/BOOT/
 
   create_efi_image
-  mkdir -p $WORK_DIR/out/EFI/boot
-  cp $WORK_DIR/efiboot.img $WORK_DIR/out/EFI/boot
+  cp $WORK_DIR/efiboot.img $WORK_DIR/out/EFI/BOOT/
 
   mkdir -p $WORK_DIR/out/live
 
@@ -182,8 +182,8 @@ finalize_deployment_live()
         -eltorito-boot isolinux/isolinux.bin -no-emul-boot \
         -boot-load-size 4 -boot-info-table \
         --eltorito-catalog isolinux/isolinux.cat -eltorito-alt-boot \
-        -e /EFI/boot/efiboot.img -no-emul-boot \
-        -isohybrid-gpt-basdat -append_partition 2 0xef $WORK_DIR/out/EFI/boot/efiboot.img "$WORK_DIR/out" >&2
+        -e /EFI/BOOT/efiboot.img -no-emul-boot \
+        -isohybrid-gpt-basdat -append_partition 2 0xef $WORK_DIR/out/EFI/BOOT/efiboot.img "$WORK_DIR/out" >&2
 
   exit_on_error "Error running xorriso"
 
