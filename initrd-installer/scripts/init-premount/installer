@@ -501,6 +501,10 @@ else
     else
       chroot $target grub-install --modules part_msdos --force --no-floppy --recheck $disk >/dev/null 2>&1
     fi
+    # configure root device
+    chroot $target debconf-set-selections <<EOFGRUB
+grub-pc grub-pc/install_devices multiselect $disk
+EOFGRUB
   fi
   chroot $target update-grub
 fi
