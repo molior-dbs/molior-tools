@@ -62,6 +62,7 @@ COMMON PARAMETERS
  INSTALL_PACKAGE               Package to be installed (default: top level package with same name as project)
  DEPLOYMENT_COMPRESSION        Compression method to be used for output (xz, gz/gzip, none)
  PRESEED_FILE                  Debconf preseed file (relative to source repository)
+ DPKG_ADD_ARCH                 Add support for additional dpkg architecture (dpkg --add-architecture)
  MOLIOR_PROJECTINFO_FILE       Write the PROJECT/VERSION to this file in the deployment
  REQUIRED_MOLIORTOOLS_VERSION  Check required molior-tools version by specifying an operator and a operand (i.e. "lt X.Y.Z", "eq X.Y.Z", "ge X.Y.Z")
 
