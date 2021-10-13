@@ -1190,7 +1190,6 @@ install_docker()
 
 install_docker_start()
 {
-  log "install_docker: start"
   # prepare filesystem
   umount $target/sys
   exit_on_error "Error unmouting /sys"
@@ -1229,7 +1228,6 @@ install_docker_start()
 
 install_docker_pull()
 {
-  log "install_docker: pull"
   if [ -z "$DOCKER_COMPOSE_FILE" ] && [ -z "$DOCKER_CONTAINERS" ]; then
     log_error "No docker containers or compose file specified."
   fi
@@ -1298,7 +1296,6 @@ install_docker_postinst_hooks()
 
 install_docker_stop()
 {
-    log "install_docker: stop"
     docker_install_cleanup
 }
 
