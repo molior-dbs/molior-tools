@@ -42,6 +42,9 @@ preinst_deployment_installer()
 {
   APT_INSTALL_EXTRA="$APT_INSTALL_EXTRA cpio"
   cp -ar $target $WORK_DIR/instroot
+  if [ ! -e $WORK_DIR/instroot/etc/resolv.conf ]; then
+    cp -L /etc/resolv.conf $WORK_DIR/instroot/etc/resolv.conf
+  fi
   if [ -z "$INSTALLER_LINUX_CMDLINE" ]; then
     INSTALLER_LINUX_CMDLINE="quiet"
   fi

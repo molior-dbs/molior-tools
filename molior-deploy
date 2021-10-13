@@ -993,6 +993,11 @@ EOF
     mountbind $WORK_DIR/.netrc $target/etc/apt/auth.conf
   fi
 
+  if [ -n "$DPKG_ADD_ARCH" ]; then
+    log "adding $DPKG_ADD_ARCH architecture"
+    chroot $target dpkg --add-architecture $DPKG_ADD_ARCH
+  fi
+
   log "updating APT database"
   chroot $target apt-get -o Acquire::Languages=none update >&2
   exit_on_error "apt-get update failed"
@@ -1025,11 +1030,6 @@ install_deployment()
     log_error "Error: \$target not set"
   fi
   mount_bootstrap
-
-  if [ -n "$DPKG_ADD_ARCH" ]; then
-    chroot $target dpkg --add-architecture $DPKG_ADD_ARCH
-    chroot $target apt-get update
-  fi
 
   if [ -n "$PRESEED_FILE" ]; then
     log "applying preseed file '$PRESEED_FILE'"
