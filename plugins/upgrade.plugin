@@ -196,7 +196,7 @@ postinst_docker_upgrade()
 finalize_deployment_upgrade()
 {
   deployment=$(get_deployment_filename "tar")
-  architectures="$ARCH $EXTRA_ARCH"
+  architectures="$ARCH $DPKG_ADD_ARCH"
   for arch in $architectures; do
     log "creating Packages and Release files for $arch"
     mkdir -p $WORK_DIR/debian/dists/$PROJECT/$VERSION/stable/binary-$arch

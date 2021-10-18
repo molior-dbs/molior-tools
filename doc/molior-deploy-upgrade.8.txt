@@ -10,7 +10,7 @@ OPTIONS
  DEPLOYMENT_TYPE            Specify 'upgrade' to use the upgrade plugin
  UPGRADE_APT_SOURCES_EXTRA  APT sources to replace the APT_SOURCES_EXTRA in the upgrade
  UPGRADE_APT_KEYS_EXTRA     APT keys to replace the APT_KEYS_EXTRA in the upgrade
-
+ DPKG_ADD_ARCH              Add support for additional dpkg architecture (dpkg --add-architecture)
 
 EXAMPLE
 
@@ -20,8 +20,6 @@ EXAMPLE
    ARCH=amd64
    TARGET_HOSTNAME=roofs1
    INSTALL_PACKAGE=toplevel-package
-
-
 
 AUTHORS
  Please see the AUTHORS file in the source repositories.
