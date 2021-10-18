@@ -1,3 +1,9 @@
+molior-tools (1.4.1~rc9) stretch; urgency=medium
+
+  * bump version 1.4.1~rc9
+
+ -- André Roth <neolynx@gmail.com>  Mon, 18 Oct 2021 11:50:49 +0200
+
 molior-tools (1.4.1~rc7) stretch; urgency=medium
 
   * update debconf configuration when using grub in BIOS mode
