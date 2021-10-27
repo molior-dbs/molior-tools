@@ -701,7 +701,7 @@ setup_deployment()
         log_error "Could not download $SOURCEMIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$dist/main/source/Sources"
       fi
       srcinfo=`/usr/lib/molior-tools/find-latest-version.pl $PACKAGE_NAME $PACKAGE_VERSION < $WORK_DIR/Sources`
-      exit_on_error "Error searching $PACKAGE_NAME revision"
+      exit_on_error "Error: package $PACKAGE_NAME not found in $SOURCEMIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$dist/main/source/Sources"
 
       FILENAME=`echo $srcinfo | cut -d ' ' -f 1`/`echo $srcinfo | cut -d ' ' -f 2`
       REVISION=`echo $srcinfo | cut -d ' ' -f 3`
