@@ -176,5 +176,15 @@ $APT_SOURCES
   vboxmanage export $vmuuid -o $WORK_DIR/$deployment >&2
   exit_on_error "Error exporting VM"
 
+  # This is a workaround to remove nvram with absolute path from the vbox file
+  # TODO: it affects virtualbox 6.1, remove it when (if) virtualbox will fix it upstream
+  mkdir $WORK_DIR/ovafix
+  cd $WORK_DIR/ovafix
+  tar xf $WORK_DIR/$deployment
+  sed -i /NVRAM/d *.ovf
+  tar cf $WORK_DIR/$deployment *
+  cd - >/dev/null
+  rm -rf $WORK_DIR/ovafix
+
   vboxmanage unregistervm "$vmuuid" --delete >&2
 }
