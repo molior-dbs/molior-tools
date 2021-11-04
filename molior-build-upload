@@ -1,0 +1,83 @@
+#!/bin/sh
+
+usage()
+{
+    echo "Usage: $0 [options] <project> <version> [pkg_0.1.dsc pkg_0.1.tar.xz] pkg_0.1_amd64.changes pkg_0.1_amd64.buildinfo pkg_0.1_amd64.deb..."
+    echo
+    echo "Options:"
+    echo "  -m, --molior-server  molior server URL (overrides MOLIOR_SERVER from ~/.moliorrc)"
+    echo
+    echo "Example: molior-build-upload -m http://10.0.0.1 test-build-upload 0.1 ../molior-tools-doc_1.4.1~rc10_all.deb ../molior-tools_1.4.1~rc10_all.deb ../molior-tools_1.4.1~rc10_amd64.buildinfo ../molior-tools_1.4.1~rc10_amd64.changes"
+    echo
+    if [ -n "$1" ]; then
+        echo "Error: $1"
+        echo
+    fi
+    exit 1
+}
+
+if [ ! -e ~/.molior-token ]; then
+    echo "Error: no ~/.molior-token found"
+    exit 2
+fi
+
+if [ `stat -c %A ~/.molior-token` != "-r--------" ]; then
+    echo "Error: wrong permissions on ~/.molior-token, run chmod 400 ~/.molior-token"
+    exit 3
+fi
+
+if ! echo "$@" | grep -q ".changes"; then
+    usage "No debian .changes file provided"
+fi
+
+if ! echo "$@" | grep -q ".buildinfo"; then
+    usage "No debian .buildinfo file provided"
+fi
+
+if ! echo "$@" | grep -q ".deb"; then
+    usage "No debian package (*.deb) provided"
+fi
+
+OPTS=$(getopt -o m: --long "molior-server:" -n $(basename $0) -- "$@")
+eval set -- "$OPTS"
+
+MOLIOR_SERVER=""
+if [ -e ~/.moliorrc ]; then
+  . ~/.moliorrc
+fi
+
+while true; do
+  case "$1" in
+    -m | --molior-server) MOLIOR_SERVER="$2"; shift 2 ;;
+    -- ) shift; break ;;
+    * ) break ;;
+  esac
+done
+
+PROJECT=$1; shift
+if [ -z "$PROJECT" ]; then
+    usage "No project specified"
+fi
+
+VERSION=$1; shift
+if [ -z "$VERSION" ]; then
+    usage "No version specified"
+fi
+
+args=""
+for f in $@
+do
+    args="$args -F \"files=@$f\""
+done
+
+old_umask=`umask`
+umask 0044
+tmptoken=`mktemp`
+echo -n "X-MoliorToken: " > $tmptoken
+cat ~/.molior-token >> $tmptoken
+
+msg=`echo $args | xargs curl -s -H @$tmptoken $MOLIOR_SERVER/api2/project/$PROJECT/$VERSION/extbuild | sed -e 's/^"//' -e 's/"$//'`
+rm -f $tmptoken
+if [ -n "$msg" ]; then
+    echo Error: $msg
+fi
