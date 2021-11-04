@@ -143,7 +143,7 @@ $APT_SOURCES
   vboxmanage modifyvm $vmuuid --cpus $VMCPUS >&2
   exit_on_error "Error setting number of VirtualBox CPUS to '$VMCPUS'"
   vboxmanage modifyvm $vmuuid --memory $VMRAM --vram $VMVRAM >&2
-  exit_on_error "Error setting VirtualBox RAM to '$VMVRAM'"
+  exit_on_error "Error setting VirtualBox RAM to '$VMVRAM', VRAM to '$VMVRAM'"
   vboxmanage modifyvm $vmuuid --nic1 nat --nictype1 virtio --natdnsproxy1 on >&2
   vboxmanage modifyvm $vmuuid --graphicscontroller vmsvga >&2
   if [ -n "$VBOX_3D" ]; then
