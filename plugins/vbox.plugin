@@ -17,6 +17,8 @@ preinit_deployment_vbox()
   if dpkg --compare-versions "$ver" gt "4.14.0"; then
       OLD_KERNEL=0
   fi
+
+  log "using virtualbox "`vboxmanage -v`
 }
 
 init_deployment_vbox()
