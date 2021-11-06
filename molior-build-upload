@@ -75,9 +75,17 @@ umask 0044
 tmptoken=`mktemp`
 echo -n "X-MoliorToken: " > $tmptoken
 cat ~/.molior-token >> $tmptoken
+umask $old_umask
+errlog=`mktemp`
 
-msg=`echo $args | xargs curl -s -H @$tmptoken $MOLIOR_SERVER/api2/project/$PROJECT/$VERSION/extbuild | sed -e 's/^"//' -e 's/"$//'`
+curlout=`echo $args | xargs curl -H @$tmptoken $MOLIOR_SERVER/api2/project/$PROJECT/$VERSION/extbuild 2>$errlog`
+ret=$?
 rm -f $tmptoken
+if [ $ret -ne 0 ]; then
+    cat $errlog
+fi
+rm -f $errlog
+msg=`echo "$curlout" | sed -e 's/^"//' -e 's/"$//'`
 if [ -n "$msg" ]; then
     echo Error: $msg
 fi
