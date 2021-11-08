@@ -753,6 +753,11 @@ setup_deployment()
     fi
     count=$((count + 1))
   done
+  if [ -n "$VARIANT" -a "$found_variant" -ne 1 ]; then
+    ask_cleanup=0
+    user_abort=1
+    log_error "Specified deployment variant '$VARIANT' not found (missing deploy/$VARIANT.conf)"
+  fi
   if [ "$count" -eq 1 -a "$found_variant" -ne 1 ]; then
     found_variant=1
     VARIANT=$variants
@@ -796,7 +801,7 @@ setup_deployment()
     done
   fi
   . $SOURCE_DIR/deploy/$VARIANT.conf
-  log_notice "Selected deployment type: $DEPLOYMENT_TYPE"
+  log_notice "Selected deployment variant/type: $VARIANT/$DEPLOYMENT_TYPE"
 
   check_required_version
 
