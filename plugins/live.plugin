@@ -105,17 +105,24 @@ mkdir -p $WORK_DIR/out/boot/grub
   cat > $WORK_DIR/out/boot/grub/grub.cfg << EOF
 search --set=root --file /RLX_LIVE
 
+set gfxpayload=keep
 set default="0"
-set timeout=30
+set timeout=3
 
 menuentry "RLX Live [EFI/GRUB]" {
     linux ($root)/live/vmlinuz boot=live
     initrd ($root)/live/initrd
 }
 EOF
+  GRUBMODULES="all_video btrfs configfile crypto echo efi_gop efi_uga ext2 extcmd"
+  GRUBMODULES="$GRUBMODULES fat font gcry_rsa gcry_sha512 gfxterm iso9660 linux linuxefi"
+  GRUBMODULES="$GRUBMODULES memdisk minicmd mmap mpi normal part_gpt part_msdos"
+  GRUBMODULES="$GRUBMODULES password_pbkdf2 pbkdf2 search search_fs_file search_fs_uuid"
+  GRUBMODULES="$GRUBMODULES search_label sleep terminal verify video_fb"
 
   chroot $target grub-mkstandalone --format=$GRUBEFITYPE -o /boot/$EFIFILE --locales="" \
-                                   --fonts="" "boot/grub/grub.cfg=/boot/grub-standalone.cfg"
+                                   --fonts="" --modules="$GRUBMODULES" \
+                                   "boot/grub/grub.cfg=/boot/grub-standalone.cfg"
   exit_on_error "Error creating grub image"
   if type postinst_bootloader_postprocess >/dev/null; then
       postinst_bootloader_postprocess $target/boot/$EFIFILE
