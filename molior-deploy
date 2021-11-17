@@ -17,11 +17,12 @@ lvm_rename_existing=0
 DEPLOYMENT_SHA256=0
 OVERLAY_VERSION=""
 OVERLAY_AUTO=0
-VARIANT="undefined"
+VARIANT=""
 MOLIOR_PROJECTINFO_FILE=""
 src_pkg_only=0
 output_build_vars=0
 omit_local_suffix=0
+print_verbose=0
 
 MOLIOR_TOOLS_VERSION=`cat /usr/lib/molior-tools/version`
 
@@ -253,11 +254,14 @@ BADFMTS="cli jar jarwrapper python2.7 python3.5"
 
 . /usr/lib/molior-deploy/molior-deploy.sh.inc
 
-if [ ! "$print_verbose" = 1 ]; then
+if [ "$print_verbose" -ne 1 -a "$LIST_ONLY" -ne 1 ]; then
   exec 3>&2
   exec 2>$errlog
 fi
-set -x
+
+if [ "$LIST_ONLY" -ne 1 ]; then
+  set -x
+fi
 
 # functions
 apt_get_chroot_with_retry ()
@@ -282,7 +286,9 @@ finish ()
       fi
     fi
   fi
-  log "cleanup"
+  if [ "$LIST_ONLY" -ne 1 ]; then
+    log "cleanup"
+  fi
 
   umount_bootstrap
   umount_fs
@@ -328,6 +334,9 @@ finish ()
 
   if [ "$user_abort" -eq 0 ]; then
     if [ "$success" -ne 1 -o "$keep_log" -eq 1 ]; then
+      if [ -z "$VARIANT" ]; then
+          VARIANT="undefined"
+      fi
       logfile=`date "+${PROJECT}_${VERSION}_${VARIANT}_%Y%m%d%H%M%S.log"`
       cp $errlog $CUR_DIR/$logfile
       test "$success" -ne 1 && log_info "full log: $logfile"
@@ -416,10 +425,9 @@ log_warn()
 
 log_error()
 {
-  LIST_ONLY=0
-  /bin/echo -e "${color_error}E: $@ $color_reset"
+  /bin/echo -e "${color_error}E: $@ $color_reset" >&2
   if [ -n "$target" -a "$user_abort" -eq 0 -a "$ask_cleanup" -eq 1 ]; then
-    log_info "examine situation: sudo chroot $target"
+    log_info "examine situation: sudo chroot $target" >&2
   fi
 
   # if RET is set to non zero, use it as exit code
