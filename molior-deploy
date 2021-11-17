@@ -259,7 +259,9 @@ if [ "$print_verbose" -ne 1 -a "$LIST_ONLY" -ne 1 ]; then
   exec 2>$errlog
 fi
 
-if [ "$LIST_ONLY" -ne 1 ]; then
+if [ "$LIST_ONLY" -eq 1 ]; then
+  ask_cleanup=0
+else
   set -x
 fi
 
