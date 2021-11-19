@@ -7,6 +7,11 @@ preinit_deployment_dockerfile()
     REQUIRED_HOST_COMMANDS="docker"
 }
 
+postinst_deployment_dockerfile()
+{
+    cp $SOURCE_DIR/$DOCKERFILE $target/Dockerfile
+}
+
 finalize_deployment_dockerfile()
 {
     CONTAINER_VERSION=`echo $REVISION | tr '~+' '-'`
@@ -15,7 +20,7 @@ finalize_deployment_dockerfile()
     fi
 
     DOCKER_TAG=$CONTAINER_NAME:$CONTAINER_VERSION
-    eval "docker build $DOCKER_BUILD_OPTS -f $DOCKERFILE -t $DOCKER_TAG $target"
+    eval "docker build $DOCKER_BUILD_OPTS -f $target/Dockerfile -t $DOCKER_TAG $target"
     exit_on_error "Error building docker"
 
     deployment=$(get_deployment_filename "tar")
