@@ -25,7 +25,7 @@ rm -f /etc/dpkg/dpkg.cfg.d/excludes
 apt-get update
 # We don't need an init-system inside docker, but apt-get install requires something
 ln -sf /bin/true /usr/sbin/update-rc.d
-apt-get install --reinstall --yes \$(dpkg --get-selections | grep -v deinstall | cut -f1)
+apt-get install --no-install-recommends --reinstall --yes \$(dpkg --get-selections | grep -v deinstall | cut -f1)
 EOF
     sed '/^FROM.*/a COPY reinstall-packages.sh .\nRUN /bin/sh reinstall-packages.sh' $DOCKERFILE > $DOCKERFILE_TMP
 
