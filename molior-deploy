@@ -427,9 +427,9 @@ log_warn()
 
 log_error()
 {
-  /bin/echo -e "${color_error}E: $@ $color_reset" >&2
+  /bin/echo -e "${color_error}E: $@ $color_reset"
   if [ -n "$target" -a "$user_abort" -eq 0 -a "$ask_cleanup" -eq 1 ]; then
-    log_info "examine situation: sudo chroot $target" >&2
+    log_info "examine situation: sudo chroot $target"
   fi
 
   # if RET is set to non zero, use it as exit code
