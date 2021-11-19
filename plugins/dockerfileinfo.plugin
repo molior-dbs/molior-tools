@@ -43,13 +43,13 @@ EOF
 
     log "creating info"
     cp -fL /etc/resolv.conf $target/etc/resolv.conf
-    chroot $target apt-get update
+    chroot $target apt-get update >&2
     postinst_internal_deployment_info
     finalize_deployment_info
 
-    docker rm --force --volumes $container_id
+    docker rm --force --volumes $container_id >&2
     exit_on_error "Error removing docker container"
 
-    docker rmi --force $DOCKER_TAG
+    docker rmi --force $DOCKER_TAG >&2
     exit_on_error "Error removing docker image"
 }
