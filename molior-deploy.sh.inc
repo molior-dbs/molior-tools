@@ -666,14 +666,15 @@ echovar()
     if [ -z "$value" ]; then
         value=`eval echo \"\\${$name}\" | sed -e 's/\`/\\\\\`/g' -e 's/\\\$/\\\\$/g'`
     fi
-    set -x
     echo "$name=\"$value\""
-    set +x
 }
 
 get_deploy_config()
 {
-  set +x
+  if echo $- | grep -q x; then
+    set +x
+    trace_disabled="true"
+  fi
   echovar MOLIOR_TOOLS_VERSION
   echovar DEPLOYMENT_TIMESTAMP
   echovar PROJECT
@@ -769,6 +770,8 @@ get_deploy_config()
       echovar $var
     done
   fi
-  set -x
+  if [ "$trace_disabled" = "true" ]; then
+    set -x
+  fi
 }
 
