@@ -123,7 +123,7 @@ postinst_deployment_upgrade()
 
   log "upgrading from $UPGRADE_BASE to $UPGRADE_VERSION"
   chroot $target apt-get clean >&2
-  DEBIAN_FRONTEND=noninteractive chroot $target apt-get -y -f dist-upgrade 2>&1 | tee $WORK_DIR/upgrade.log >&2
+  DEBIAN_FRONTEND=noninteractive chroot $target apt-get -y -f -o Dpkg::Options::="--force-confdef" dist-upgrade 2>&1 | tee $WORK_DIR/upgrade.log >&2
   if [ $? -ne 0 ]; then
     log_error "Error upgrading from $UPGRADE_BASE to $UPGRADE_VERSION"
   fi
