@@ -25,15 +25,20 @@ init_deployment_upgrade()
   fi
 
   log "initializing upgradeable deployment for $PROJECT/$VERSION"
-  SOURCESURL=$MOLIOR_SERVER/api/projectsources/$PROJECT/$VERSION
-  APT_SOURCES_ORIG=`curl -s --retry 10 $SOURCESURL`
-  if [ -z "$APT_SOURCES" ]; then
+  param=""
+  if [ $unstable_sources -eq 1 ]; then
+    param="?unstable=true"
+  fi
+  log_info "Getting deployment information ..."
+  SOURCESURL=$MOLIOR_SERVER/api2/project/$PROJECT/$VERSION/aptsources
+  APT_SOURCES_ORIG=`curl -f -s --retry 10 $SOURCESURL$param`
+  if [ -z "$APT_SOURCES_ORIG" ]; then
     log_error "Error downloading $SOURCESURL"
   fi
   if [ -z "$DOCKER_UPGRADE_NO_DEDUP" ]; then
     DOCKER_UPGRADE_NO_DEDUP=0
   fi
-  APT_SOURCES=`echo "$APT_SOURCES_ORIG" | sed '/^#/d'`
+  APT_SOURCES=`echo "$APT_SOURCES_ORIG" | sed -e '/^#/d' -e '/^$/d'`
   MIRROR=`echo "$APT_SOURCES" | head -n 1 | cut -d' ' -f 2`
   SUITE=`dirname $MIRROR`
   BASEMIRROR=`basename $SUITE`
@@ -79,43 +84,51 @@ postinst_deployment_upgrade()
   VERSION=$UPGRADE_VERSION
 
   log "downloading APT sources for $PROJECT/$VERSION"
-  SOURCESURL=$MOLIOR_SERVER/api/projectsources/$PROJECT/$VERSION
-  APT_SOURCES_ORIG=`curl -s --retry 10 $SOURCESURL`
+  param=""
+  if [ $unstable_sources -eq 1 ]; then
+    param="?unstable=true"
+  fi
+  log_info "Getting deployment information ..."
+  SOURCESURL=$MOLIOR_SERVER/api2/project/$PROJECT/$VERSION/aptsources
+  APT_SOURCES_ORIG=`curl -f -s --retry 10 $SOURCESURL$param`
+  if [ -z "$APT_SOURCES_ORIG" ]; then
+    log_error "Error downloading $SOURCESURL"
+  fi
+
   echo "$APT_SOURCES_ORIG" > $target/etc/apt/sources.list
-  exit_on_error "Error downloading APT sources"
 
-    if [ -n "$UPGRADE_APT_SOURCES_EXTRA" ]; then
-        log "adding new extra APT sources"
-        echo "$UPGRADE_APT_SOURCES_EXTRA" > $target/etc/apt/sources.list.d/extra.list
-    fi
+  if [ -n "$UPGRADE_APT_SOURCES_EXTRA" ]; then
+      log "adding new extra APT sources"
+      echo "$UPGRADE_APT_SOURCES_EXTRA" > $target/etc/apt/sources.list.d/extra.list
+  fi
 
-    if [ -n "$UPGRADE_APT_KEYS_EXTRA" ]; then
-        APT_KEYS_EXTRA=$UPGRADE_APT_KEYS_EXTRA
-        log "downloading new extra APT keys"
+  if [ -n "$UPGRADE_APT_KEYS_EXTRA" ]; then
+      APT_KEYS_EXTRA=$UPGRADE_APT_KEYS_EXTRA
+      log "downloading new extra APT keys"
 
-        # FIXME: use function everywhere
-        i=0
-        for url in $KEY_URL $APT_KEYS_EXTRA
-        do
-          if [ -z "$url" ]; then
-            continue
-          fi
-          if [ $i -ne 0 ]; then
-            postfix=".$i"
-          else
-            postfix=""
-          fi
-          i=$((i + 1))
-          curl -s --retry 10 -o $WORK_DIR/repo.asc$postfix $url
-          exit_on_error "Error downloading $url"
-        done
+      # FIXME: use function everywhere
+      i=0
+      for url in $KEY_URL $APT_KEYS_EXTRA
+      do
+        if [ -z "$url" ]; then
+          continue
+        fi
+        if [ $i -ne 0 ]; then
+          postfix=".$i"
+        else
+          postfix=""
+        fi
+        i=$((i + 1))
+        curl -s --retry 10 -o $WORK_DIR/repo.asc$postfix $url
+        exit_on_error "Error downloading $url"
+      done
 
-        for key in $WORK_DIR/repo.asc*
-        do
-          chroot $target apt-key add - >/dev/null < $key
-          exit_on_error "Error adding apt key"
-        done
-    fi
+      for key in $WORK_DIR/repo.asc*
+      do
+        chroot $target apt-key add - >/dev/null < $key
+        exit_on_error "Error adding apt key"
+      done
+  fi
 
   log "updating APT database"
   chroot $target apt-get update >&2
