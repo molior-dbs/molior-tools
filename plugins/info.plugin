@@ -65,24 +65,24 @@ postinst_internal_deployment_info()
 #  test ! -f $target/etc/fstab || cp $target/etc/fstab $WORK_DIR/info
 
   # make sure required essential packages are installed
-  chroot $target apt-get install -y bash init-system-helpers findutils ucf >&2
-  chroot $target apt-get install -y util-linux >&2
+  DEBIAN_FRONTEND=noninteractive chroot $target apt-get install -y bash init-system-helpers findutils ucf >&2
+  DEBIAN_FRONTEND=noninteractive chroot $target apt-get install -y util-linux >&2
   cd $target
   du -hs `find $target -maxdepth 1 -type d -printf '%P\n' | sed -e "/^proc/d" -e "/^sys/d" -e "/^dev/d"` > $WORK_DIR/info/$du_file
   cd - >/dev/null
 
   if ! grep -qw debsums $WORK_DIR/info/$packages_file; then
-    chroot $target apt-get -y install debsums >&2
+    DEBIAN_FRONTEND=noninteractive chroot $target apt-get -y install debsums >&2
     exit_on_error "Error installing: debsums"
   fi
   chroot $target debsums -ac > $WORK_DIR/info/$debsums_file
   # debsums will return error, no checking
   if ! grep -qw debsums $WORK_DIR/info/$packages_file; then
-    chroot $target apt-get -y purge debsums >&2
+    DEBIAN_FRONTEND=noninteractive chroot $target apt-get -y purge debsums >&2
     exit_on_error "Error removing: debsums"
   fi
 
-  chroot $target apt-get -y install debsecan >&2
+  DEBIAN_FRONTEND=noninteractive chroot $target apt-get -y install debsecan >&2
   exit_on_error "Error installing: debsecan"
 
   export SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
