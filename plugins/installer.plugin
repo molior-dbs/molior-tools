@@ -129,6 +129,9 @@ prepare_initrd_deployment()
   if [ "$fs_on_raid" -eq 1 ]; then
     INSTALLER_EXTRA_PACKAGES="$INSTALLER_EXTRA_PACKAGES mdadm"
   fi
+  if [ "$fs_has_btrfs" -eq 1 ]; then
+    INSTALLER_EXTRA_PACKAGES="$INSTALLER_EXTRA_PACKAGES btrfs-progs"
+  fi
 
   if [ ! -d $WORK_DIR/instroot ]; then
     # in case of using a base roots, there is no instroot debootstrap left,
@@ -168,6 +171,11 @@ prepare_initrd_deployment()
     # FIXME: use manual_add_modules in hooks file ?
     echo "copy_exec /sbin/cryptsetup /sbin" >> $initrd/hooks/installer
     echo dm_crypt >> $initrd/modules
+  fi
+
+  if [ "$fs_has_btrfs" -eq 1 ]; then
+    echo "copy_exec /sbin/mkfs.btrfs /sbin" >> $initrd/hooks/installer
+    echo btrfs >> $initrd/modules
   fi
 
   if [ -n "$INSTALLER_EXTRA_MODULES" ]; then
