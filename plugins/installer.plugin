@@ -11,7 +11,7 @@ create_efi_image()
   mmd -i "$WORK_DIR/efi.img" ::boot
   mmd -i "$WORK_DIR/efi.img" ::boot/grub
   exit_on_error "Error copying efi files to boot image"
-  mcopy -o -i "$WORK_DIR/efi.img" $WORK_DIR/$EFIFILE "::efi/boot"
+  mcopy -o -i "$WORK_DIR/efi.img" $WORK_DIR/out/EFI/BOOT/$EFIFILE "::efi/boot"
   exit_on_error "Error copying efi files to boot image"
   mcopy -s -o -i "$WORK_DIR/efi.img" $WORK_DIR/out/boot/grub/* "::boot/grub"
   exit_on_error "Error copying efi files to boot image"
@@ -228,7 +228,8 @@ EOF
                                             efi_gop $video_mod all_video gfxterm font \
                                             read ls cat png jpeg halt reboot echo sleep
     exit_on_error "Error creating grub image"
-    mv $WORK_DIR/instroot/boot/$EFIFILE $WORK_DIR/
+    mkdir -p $WORK_DIR/out/EFI/BOOT
+    mv $WORK_DIR/instroot/boot/$EFIFILE $WORK_DIR/out/EFI/BOOT/
 
     create_efi_image
     cp $WORK_DIR/efi.img $WORK_DIR/out/
