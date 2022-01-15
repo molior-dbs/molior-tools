@@ -64,6 +64,10 @@ if [ -z "$VERSION" ]; then
     usage "No version specified"
 fi
 
+if [ -z "$MOLIOR_SERVER" ]; then
+    usage "No molior server specified"
+fi
+
 args=""
 for f in $@
 do
