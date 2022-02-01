@@ -54,6 +54,10 @@ while true; do
   esac
 done
 
+if [ -z "$MOLIOR_SERVER" ]; then
+    usage "No molior server specified"
+fi
+
 PROJECT=$1; shift
 if [ -z "$PROJECT" ]; then
     usage "No project specified"
@@ -62,10 +66,6 @@ fi
 VERSION=$1; shift
 if [ -z "$VERSION" ]; then
     usage "No version specified"
-fi
-
-if [ -z "$MOLIOR_SERVER" ]; then
-    usage "No molior server specified"
 fi
 
 args=""
@@ -80,16 +80,19 @@ tmptoken=`mktemp`
 echo -n "X-MoliorToken: " > $tmptoken
 cat ~/.molior-token >> $tmptoken
 umask $old_umask
-errlog=`mktemp`
+errmsg=`mktemp`
 
-curlout=`echo $args | xargs curl -H @$tmptoken $MOLIOR_SERVER/api2/project/$PROJECT/$VERSION/extbuild 2>$errlog`
+httpret=`echo $args | xargs curl -w "%{http_code}" -o $errmsg -H @$tmptoken $MOLIOR_SERVER/api2/project/$PROJECT/$VERSION/extbuild 2>/dev/null`
 ret=$?
 rm -f $tmptoken
+if [ $ret -eq 0 -a $httpret != "201" ]; then
+    ret=1
+fi
+msg=`sed -e 's/^"//' -e 's/"$//' $errmsg`
 if [ $ret -ne 0 ]; then
-    cat $errlog
+    echo "Error: $msg" >&2
+else
+    echo "Response: $msg"
 fi
-rm -f $errlog
-msg=`echo "$curlout" | sed -e 's/^"//' -e 's/"$//'`
-if [ -n "$msg" ]; then
-    echo Error: $msg
-fi
+rm -f $errmsg
+exit $ret
