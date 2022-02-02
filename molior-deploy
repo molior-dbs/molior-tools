@@ -1195,6 +1195,10 @@ install_docker_start()
   exit_on_error "Error unmouting /sys"
   umount $target/proc
   exit_on_error "Error unmouting /proc"
+  umount $target/dev/pts
+  exit_on_error "Error unmouting /dev/pts"
+  umount $target/tmp
+  exit_on_error "Error unmouting /tmp"
 
   docker_root_remount=0
   if ! mountpoint -q $target; then
