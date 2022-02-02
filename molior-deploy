@@ -1162,7 +1162,7 @@ install_docker()
     fi
   fi
   if [ -z "$docker_containers" -a -n "$DOCKER_CONTAINERS" ]; then
-    docker_containers="$DOCKER_CONTAINERS"
+    docker_containers=`echo "$DOCKER_CONTAINERS" | sed '/^$/d'`
   fi
 
   # prepare filesystem
