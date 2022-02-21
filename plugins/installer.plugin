@@ -298,7 +298,8 @@ finalize_deployment_installer()
   VOLID=`printf "%.32s" "MLR:${PROJECT}"`
   if [ "$ARCH" = "amd64" -o "$ARCH" = "i386" ]; then
     if [ "$TARGET_BOOTTYPE" = "efi" ]; then
-      xorriso -as mkisofs -quiet -o $WORK_DIR/$deployment \
+      xorriso -compliance iso_9660_level=3 \
+        -as mkisofs -quiet -o $WORK_DIR/$deployment \
         -r -V $VOLID \
         -J -joliet-long -cache-inodes \
         -isohybrid-mbr  $WORK_DIR/out/isohdpfx.bin \
@@ -331,7 +332,8 @@ finalize_deployment_installer()
     fi
 
   elif [ "$ARCH" = "arm64" ]; then
-    xorriso -as mkisofs -quiet -o $WORK_DIR/$deployment \
+    xorriso -compliance iso_9660_level=3 \
+      -as mkisofs -quiet -o $WORK_DIR/$deployment \
       -J -joliet-long -cache-inodes -l \
       -e efi.img -no-emul-boot \
       -append_partition 2 0xef $WORK_DIR/out/efi.img \
