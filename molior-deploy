@@ -245,6 +245,7 @@ errlog=$WORK_DIR/output.log
 do_fstab=1
 do_compress=1
 do_installation=1
+do_software_installation=1
 starttime="0"
 endtime="0"
 target=""
@@ -1424,8 +1425,10 @@ workflow_base()
         preinst_deployment_$DEPLOYMENT_TYPE
       fi
 
-      log_info "Installing software ..."
-      install_deployment
+      if [ $do_software_installation -eq 1 ]; then
+        log_info "Installing software ..."
+        install_deployment
+      fi
 
       # enable DNS in chroot for postinst
       if [ -e $target/etc/resolv.conf -o -h $target/etc/resolv.conf ]; then
