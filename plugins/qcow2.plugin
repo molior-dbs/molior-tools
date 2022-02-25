@@ -1,0 +1,81 @@
+# molior-deploy plugin
+# vim: syntax=sh
+
+preinit_deployment_qcow2()
+{
+  REQUIRED_HOST_COMMANDS="kpartx qemu-img qemu-nbd"
+  REQUIRED_PACKAGES="kpartx qemu-utils"
+  INSTALL_GRUB="yes"
+  PARTSEP="p"
+}
+
+init_deployment_qcow2()
+{
+  lvm_rename_existing=1
+
+  vmname=$(get_deployment_filename qcow2)
+  deployment=$vmname
+
+  # FIXME check VMSIZE
+  if [ -z "$VMSIZE" ]; then
+    log_error "please set VMSIZE"
+  fi
+
+  echo " * creating qcow2 disk of $VMSIZE"
+  VMDISK=$WORK_DIR/$deployment
+  qemu-img create -f qcow2 $VMDISK ${VMSIZE}M >&2
+  exit_on_error "Error creating $VMDISK"
+
+  if ! grep -q "^nbd " /proc/modules; then
+    modprobe nbd
+    exit_on_error "Error loading kernel module nbd"
+  fi
+
+  # find free nbd device
+  nb=""
+  for nbdev in `ls -d /sys/class/block/nbd* | grep "nbd[0-9]\+$"`
+  do
+    S=`cat $nbdev/size`
+    if [ "$S" -eq "0" ] ; then
+      nb=`basename $nbdev`
+      break
+    fi
+  done
+  if [ -z "$nb" ]; then
+    log_error "Could not find free nbd device"
+  fi
+
+  nbd=/dev/$nb
+  qemu-nbd -c $nbd -f qcow2 $VMDISK >&2
+  exit_on_error "Error running qemu-nbd"
+
+  disk=$nbd
+
+  create_partitions
+
+  create_fs
+  mount_fs
+}
+
+deinit_deployment_qcow2()
+{
+  if [ -n "$LVM_VG" ]; then
+    vgchange -an molior ${LVM_VG} >&2
+  fi
+
+  if [ -n "$nbd" ]; then
+    qemu-nbd -d $nbd >&2
+    rm -f /dev/mapper/$nb
+    disk=""
+    nbd=""
+    vgscan --cache >&2
+  fi
+}
+
+finalize_deployment_qcow2()
+{
+  umount_bootstrap
+  umount_fs
+  deinit_deployment
+}
+
