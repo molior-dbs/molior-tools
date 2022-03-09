@@ -1266,6 +1266,16 @@ install_docker_pull()
     if [ -f $target/tmp/docker-compose/.env ]; then
         container=`. $target/tmp/docker-compose/.env; eval echo $container`
     fi
+    if [ -n "$MOLIOR_DOCKER_LOGIN_USER" ] && [ -n "$MOLIOR_DOCKER_LOGIN_TOKEN" ]; then
+        registry=$(echo $container | cut -d: -f1)
+        log "docker login '$registry'"
+        chroot $target sh -c "docker login $registry -u $MOLIOR_DOCKER_LOGIN_USER -p $MOLIOR_DOCKER_LOGIN_TOKEN" >&2
+        RET=$?
+        if [ "$RET" -ne 0 ]; then
+            log_error "Error docker login $registry"
+            exit $RET
+        fi
+    fi
     log "docker pull $container ($i/$total_docker_images)"
     chroot $target sh -c "docker pull $container" >&2
     RET=$?
