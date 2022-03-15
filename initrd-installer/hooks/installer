@@ -27,6 +27,7 @@ copy_exec /sbin/wipefs       /sbin/
 
 # overwrite busybox binaries
 copy_exec /bin/cpio          /mbin/
+copy_exec /bin/tar           /mbin/
 copy_exec /usr/bin/xz        /mbin/
 copy_exec /bin/gzip          /mbin/
 copy_exec /bin/umount        /mbin/

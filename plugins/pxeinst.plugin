@@ -21,7 +21,7 @@ finalize_deployment_pxeinst()
   deployment=$(get_deployment_filename "tar")
   log "creating $deployment$DEPLOYMENT_COMPRESSION_EXT"
 
-  tar -cf $WORK_DIR/$deployment -C $WORK_DIR/out vmlinuz initrd.img image.cpio$INSTALLER_COMPRESSION_EXT README.md
+  tar -cf $WORK_DIR/$deployment -C $WORK_DIR/out vmlinuz initrd.img image.tar$INSTALLER_COMPRESSION_EXT README.md
   exit_on_error "Error creating tar"
 }
 

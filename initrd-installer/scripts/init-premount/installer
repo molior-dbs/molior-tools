@@ -117,63 +117,65 @@ if [ -z "$SFDISK" ]; then
   log_error "Error: partitions not definded, please set \$SFDISK"
 fi
 
-if [ "$INSTALLER_USE_PXE" != "yes" -a -z "$INSTALLER_DOWNLOAD_URL" ]; then
+if [ ! -f /mnt/source/image.tar$INSTALLER_COMPRESSION_EXT ]; then
+  if [ "$INSTALLER_USE_PXE" != "yes" -a -z "$INSTALLER_DOWNLOAD_URL" ]; then
 
-  # we are booting from usb, find the disk
-  echo -n "${textprefix}Searching installation media ..."
+    # we are booting from usb, find the disk
+    echo -n "${textprefix}Searching installation media ..."
 
-  # scan block devices
-  for d in `ls /sys/block`; do
-    blkid /dev/$d > /dev/null
-  done
+    # scan block devices
+    for d in `ls /sys/block`; do
+      blkid /dev/$d > /dev/null
+    done
 
-  FOUND=false
-  for i in `seq 10`
-  do
-    sleep 1
-    LINE=`blkid | grep MLR:`
-    ret=$?
-    if [ "$ret" -eq "0" ]; then
-      FOUND=true
-      SOURCE=`echo $LINE | cut -f1 -d:`
-      SOURCEDISK=`echo $SOURCE | head -c8`
-      break
+    FOUND=false
+    for i in `seq 10`
+    do
+      sleep 1
+      LINE=`blkid | grep MLR:`
+      ret=$?
+      if [ "$ret" -eq "0" ]; then
+        FOUND=true
+        SOURCE=`echo $LINE | cut -f1 -d:`
+        SOURCEDISK=`echo $SOURCE | head -c8`
+        break
+      fi
+    done
+
+    if [ -z "$SOURCEDISK" ]; then
+      echo -en "\r"
+      log_error "Error: could not find install medium, cannot continue."
     fi
-  done
 
-  if [ -z "$SOURCEDISK" ]; then
-    echo -en "\r"
-    log_error "Error: could not find install medium, cannot continue."
-  fi
-
-  if blkid $SOURCE | grep -q iso9660 ; then
-    modprobe iso9660
-  fi
-  echo -e "\r${textprefix}Installing from: $SOURCE                                "
-
-  mount $SOURCE /mnt/source $MOUNTOPTS
-
-else
-
-  # we are booting from pxe, download the image
-  echo "${textprefix}Downloading install medium ..."
-
-  configure_networking
-
-  if [ -n "$INSTALLER_DOWNLOAD_URL" ]; then
-    # allow progress bar to be displayed
-    set +x
-    exec 4>&2 # backup logfile
-    exec 2>&3
-    wget -O /mnt/source/image.cpio$INSTALLER_COMPRESSION_EXT $INSTALLER_DOWNLOAD_URL/image.cpio$INSTALLER_COMPRESSION_EXT
-    ret=$?
-    exec 2>&4 4>&- # restore logfile
-    set -x
-    if [ $ret -ne 0 ]; then
-        log_error "Error downloading image, aborting installation."
+    if blkid $SOURCE | grep -q iso9660 ; then
+      modprobe iso9660
     fi
+    echo -e "\r${textprefix}Installing from: $SOURCE                                "
+
+    mount $SOURCE /mnt/source $MOUNTOPTS
+
   else
-    tftp -g -l /mnt/source/image.cpio$INSTALLER_COMPRESSION_EXT -r image.cpio$INSTALLER_COMPRESSION_EXT -b 16384 "$ROOTSERVER"
+
+    # we are booting from pxe, download the image
+    echo "${textprefix}Downloading install medium ..."
+
+    configure_networking
+
+    if [ -n "$INSTALLER_DOWNLOAD_URL" ]; then
+      # allow progress bar to be displayed
+      set +x
+      exec 4>&2 # backup logfile
+      exec 2>&3
+      wget -O /mnt/source/image.tar$INSTALLER_COMPRESSION_EXT $INSTALLER_DOWNLOAD_URL/image.tar$INSTALLER_COMPRESSION_EXT
+      ret=$?
+      exec 2>&4 4>&- # restore logfile
+      set -x
+      if [ $ret -ne 0 ]; then
+          log_error "Error downloading image, aborting installation."
+      fi
+    else
+      tftp -g -l /mnt/source/image.tar$INSTALLER_COMPRESSION_EXT -r image.tar$INSTALLER_COMPRESSION_EXT -b 16384 "$ROOTSERVER"
+    fi
   fi
 fi
 
@@ -399,16 +401,6 @@ echo "${textprefix}Copying system ..."
 echo -n -e "\033[1;m"
 cd $target
 
-case $INSTALLER_COMPRESSION in
-   none)
-   ;;
-   xz)
-       bytes=`xz --robot --list /mnt/source/image.cpio$INSTALLER_COMPRESSION_EXT 2>/dev/null | grep totals | awk '{ print $5 }'`
-   ;;
-   gz|gzip)
-       bytes=`gzip -l /mnt/source/image.cpio$INSTALLER_COMPRESSION_EXT | grep /mnt/source/image.cpio | awk '{ print $2 }'`
-   ;;
-esac
 
 # allow progress bar to be displayed
 set +x
@@ -417,13 +409,13 @@ exec 2>&3
 
 case $INSTALLER_COMPRESSION in
    none)
-       pv /mnt/source/image.cpio | cpio -B -H newc -imd --no-absolute-filenames 2>/dev/null
+       pv /mnt/source/image.tar | tar -xps 2>/dev/null
    ;;
    xz)
-       xz -dc /mnt/source/image.cpio$INSTALLER_COMPRESSION_EXT | pv -s $bytes | cpio -B -H newc -imd --no-absolute-filenames 2>/dev/null
+       pv /mnt/source/image.tar$INSTALLER_COMPRESSION_EXT | xz -dc - | tar -xps 2>/dev/null
    ;;
    gz|gzip)
-       gzip -dc /mnt/source/image.cpio$INSTALLER_COMPRESSION_EXT | pv -s $bytes | cpio -B -H newc -imd --no-absolute-filenames 2>/dev/null
+       pv /mnt/source/image.tar$INSTALLER_COMPRESSION_EXT | gzip -dc - | tar -xps 2>/dev/null
    ;;
    *)
        log_error "Compression '$INSTALLER_COMPRESSION' not supported"
