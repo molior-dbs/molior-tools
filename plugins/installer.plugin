@@ -56,6 +56,22 @@ prepare_initrd_deployment()
 
   mkdir -p $WORK_DIR/out
 
+  if [ -z "$INSTALLER_ARCHIVE_TYPE" ]; then
+      INSTALLER_ARCHIVE_TYPE="cpio"
+  fi
+
+  case $INSTALLER_ARCHIVE_TYPE in
+      cpio)
+        INSTALLER_ARCHIVE_EXT=".cpio"
+      ;;
+      tar)
+        INSTALLER_ARCHIVE_EXT=".tar"
+      ;;
+      *)
+        log_error "Archive format '$INSTALLER_ARCHIVE_TYPE' not supported"
+      ;;
+  esac
+
   if [ -z "$INSTALLER_COMPRESSION" ]; then
       INSTALLER_COMPRESSION="xz"
   fi
@@ -208,7 +224,7 @@ EOF
     mkdir -p $WORK_DIR/out/boot/grub/$GRUBEFITYPE/
     cp $WORK_DIR/instroot/usr/lib/grub/$GRUBEFITYPE/* $WORK_DIR/out/boot/grub/$GRUBEFITYPE/
     cat >$WORK_DIR/out/boot/grub/grub.cfg <<EOF
-search --file --set=root /image.tar$INSTALLER_COMPRESSION_EXT
+search --file --set=root /image$INSTALLER_ARCHIVE_EXT$INSTALLER_COMPRESSION_EXT
 insmod all_video
 set gfxpayload=keep
 set linux_gfx_mode=1024x768x32
@@ -267,10 +283,19 @@ EOF
 EOF
   fi
 
-  log "creating image.tar$INSTALLER_COMPRESSION_EXT"
+  log "creating image$INSTALLER_ARCHIVE_EXT$INSTALLER_COMPRESSION_EXT"
   cd $target
-  find . -xdev -depth -print | tar -c --posix --no-recursion -S -f $WORK_DIR/out/image.tar -T -
-  exit_on_error "Error creating $WORK_DIR/out/image.tar"
+
+  case $INSTALLER_ARCHIVE_TYPE in
+     cpio)
+       find . -xdev -depth -print | cpio --quiet -o -H newc -B > $WORK_DIR/out/image.cpio
+       exit_on_error "Error creating $WORK_DIR/out/image.cpio"
+     ;;
+     tar)
+        find . -xdev -depth -print | tar -c --posix --no-recursion -S -f $WORK_DIR/out/image.tar -T -
+        exit_on_error "Error creating $WORK_DIR/out/image.tar"
+     ;;
+  esac
 
   cd - >/dev/null
 
@@ -278,12 +303,12 @@ EOF
       none)
       ;;
       xz)
-        $PXZ_CMD -T `nproc --ignore 1` $WORK_DIR/out/image.tar 2>&1
-        exit_on_error "Error compressing $WORK_DIR/out/image.tar$INSTALLER_COMPRESSION_EXT"
+        $PXZ_CMD -T `nproc --ignore 1` $WORK_DIR/out/image$INSTALLER_ARCHIVE_EXT 2>&1
+        exit_on_error "Error compressing $WORK_DIR/out/image$INSTALLER_ARCHIVE_EXT$INSTALLER_COMPRESSION_EXT"
       ;;
       gz|gzip)
-        gzip $WORK_DIR/out/image.tar 2>&1
-        exit_on_error "Error compressing $WORK_DIR/out/image.tar$INSTALLER_COMPRESSION_EXT"
+        gzip $WORK_DIR/out/image$INSTALLER_ARCHIVE_EXT 2>&1
+        exit_on_error "Error compressing $WORK_DIR/out/image$INSTALLER_ARCHIVE_EXT$INSTALLER_COMPRESSION_EXT"
       ;;
   esac
 }

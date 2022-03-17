@@ -117,7 +117,7 @@ if [ -z "$SFDISK" ]; then
   log_error "Error: partitions not definded, please set \$SFDISK"
 fi
 
-if [ ! -f /mnt/source/image.tar$INSTALLER_COMPRESSION_EXT ]; then
+if [ ! -f /mnt/source/image$INSTALLER_ARCHIVE_EXT$INSTALLER_COMPRESSION_EXT ]; then
   if [ "$INSTALLER_USE_PXE" != "yes" -a -z "$INSTALLER_DOWNLOAD_URL" ]; then
 
     # we are booting from usb, find the disk
@@ -166,7 +166,7 @@ if [ ! -f /mnt/source/image.tar$INSTALLER_COMPRESSION_EXT ]; then
       set +x
       exec 4>&2 # backup logfile
       exec 2>&3
-      wget -O /mnt/source/image.tar$INSTALLER_COMPRESSION_EXT $INSTALLER_DOWNLOAD_URL/image.tar$INSTALLER_COMPRESSION_EXT
+      wget -O /mnt/source/image$INSTALLER_ARCHIVE_EXT$INSTALLER_COMPRESSION_EXT $INSTALLER_DOWNLOAD_URL/image$INSTALLER_ARCHIVE_EXT$INSTALLER_COMPRESSION_EXT
       ret=$?
       exec 2>&4 4>&- # restore logfile
       set -x
@@ -174,7 +174,7 @@ if [ ! -f /mnt/source/image.tar$INSTALLER_COMPRESSION_EXT ]; then
           log_error "Error downloading image, aborting installation."
       fi
     else
-      tftp -g -l /mnt/source/image.tar$INSTALLER_COMPRESSION_EXT -r image.tar$INSTALLER_COMPRESSION_EXT -b 16384 "$ROOTSERVER"
+      tftp -g -l /mnt/source/image$INSTALLER_ARCHIVE_EXT$INSTALLER_COMPRESSION_EXT -r image$INSTALLER_ARCHIVE_EXT$INSTALLER_COMPRESSION_EXT -b 16384 "$ROOTSERVER"
     fi
   fi
 fi
@@ -407,15 +407,27 @@ set +x
 exec 4>&2 # backup logfile
 exec 2>&3
 
+case $INSTALLER_ARCHIVE_TYPE in
+   cpio)
+     unpack_cmd="cpio -B -H newc -imd --no-absolute-filenames"
+   ;;
+   tar)
+     unpack_cmd="tar -xps"
+   ;;
+   *)
+       log_error "Archive format '$INSTALLER_ARCHIVE_TYPE' not supported"
+   ;;
+esac
+
 case $INSTALLER_COMPRESSION in
    none)
-       pv /mnt/source/image.tar | tar -xps 2>/dev/null
+       pv /mnt/source/image$INSTALLER_ARCHIVE_EXT | $unpack_cmd 2>/dev/null
    ;;
    xz)
-       pv /mnt/source/image.tar$INSTALLER_COMPRESSION_EXT | xz -dc - | tar -xps 2>/dev/null
+       pv /mnt/source/image$INSTALLER_ARCHIVE_EXT$INSTALLER_COMPRESSION_EXT | xz -dc - | $unpack_cmd 2>/dev/null
    ;;
    gz|gzip)
-       pv /mnt/source/image.tar$INSTALLER_COMPRESSION_EXT | gzip -dc - | tar -xps 2>/dev/null
+       pv /mnt/source/image$INSTALLER_ARCHIVE_EXT$INSTALLER_COMPRESSION_EXT | gzip -dc - | $unpack_cmd 2>/dev/null
    ;;
    *)
        log_error "Compression '$INSTALLER_COMPRESSION' not supported"
