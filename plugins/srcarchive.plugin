@@ -28,7 +28,7 @@ postinst_internal_deployment_srcarchive()
   sort $dpkg_initial_list >$dpkg_initial_list.tmp
   mv $dpkg_initial_list.tmp $dpkg_initial_list
   if [ ! -z "$EXCLUDE_FROM_SRCARCHIVE" ]; then
-    log "excluding packages from source archive: $EXCLUDE_FROM_SRCARCHIVE"
+    log "excluding packages from source archive:" $EXCLUDE_FROM_SRCARCHIVE
     for package in $EXCLUDE_FROM_SRCARCHIVE; do
       echo $package >>$dpkg_exclude_list
     done
