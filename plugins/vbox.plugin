@@ -138,7 +138,11 @@ $APT_SOURCES
   vboxmanage modifyvm $vmuuid --boot1 disk --boot2 none --boot3 none --boot4 none >&2
   if [ "$TARGET_BOOTTYPE" = "efi" ]; then
     vboxmanage modifyvm $vmuuid --firmware efi
-    vboxmanage setextradata $vmuuid VBoxInternal2/EfiGraphicsResolution 1024x768
+    if [ -z "$VBOX_SCREEN_RESOLUTION" ]; then
+        VBOX_SCREEN_RESOLUTION=1024x768
+    fi
+    vboxmanage setextradata $vmuuid CustomVideoMode1 "${VBOX_SCREEN_RESOLUTION}x32"  # 32 bits per pixel
+    vboxmanage setextradata $vmuuid VBoxInternal2/EfiGraphicsResolution "$VBOX_SCREEN_RESOLUTION"
   fi
   vboxmanage modifyvm $vmuuid --cpus $VMCPUS >&2
   exit_on_error "Error setting number of VirtualBox CPUS to '$VMCPUS'"

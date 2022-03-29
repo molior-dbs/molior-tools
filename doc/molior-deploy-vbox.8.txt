@@ -7,11 +7,12 @@ DESCRIPTION
 OPTIONS
  The deployment configuration (deploy/*.conf file) recognizes the following variables:
 
- DEPLOYMENT_TYPE    Specify 'vbox' to use the vbox plugin
- VMSIZE             Specify disk size in MB
- VMRAM              Specify RAM size in MB
- VMVRAM             Specify video RAM in MB
- VMMODIFY           Execute vboxmanage modifyvm commands (separated by \\n)
+ DEPLOYMENT_TYPE            Specify 'vbox' to use the vbox plugin
+ VMSIZE                     Specify disk size in MB
+ VMRAM                      Specify RAM size in MB
+ VMVRAM                     Specify video RAM in MB
+ VMMODIFY                   Execute vboxmanage modifyvm commands (separated by \\n)
+ VBOX_SCREEN_RESOLUTION     Specify custom screen resolution for EFI boot only (default: 1024x768)
 
 EXAMPLE
 
