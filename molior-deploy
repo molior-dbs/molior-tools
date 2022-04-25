@@ -57,6 +57,7 @@ usage()
   echo "  -S                Only download source package"
   echo "  -D                Output build variables"
   echo "  -C                Omit +local suffix for local builds"
+  echo "  -T TMPDIR         Use TMPDIR (Default: \$MOLIOR_TMPDIR env variable or /tmp)"
   echo
   if [ -n "$1" ]; then
     echo $1
@@ -66,7 +67,7 @@ usage()
 }
 
 origopts=$@
-while getopts "n:s:v:p:m:a:V:o:F:b:rtAlcfdOLUuSDC" opt; do
+while getopts "n:s:v:p:m:a:V:o:F:b:rtAlcfdOLUuSDCT:" opt; do
   case $opt in
     n)
       PACKAGE_NAME=$OPTARG
@@ -167,6 +168,10 @@ while getopts "n:s:v:p:m:a:V:o:F:b:rtAlcfdOLUuSDC" opt; do
       omit_local_suffix=1
       shift 1
       ;;
+    T)
+      MOLIOR_TMPDIR=$OPTARG
+      shift 2
+      ;;
     \?)
       exit 1
       ;;
@@ -215,6 +220,10 @@ if [ -z "$APTLY_SERVER" ]; then
   APTLY_SERVER=$MOLIOR_REPO_URL
 fi
 
+if [ -z "$MOLIOR_TMPDIR" ]; then
+  MOLIOR_TMPDIR=/tmp
+fi
+
 # clean env
 unset LANGUAGE
 unset LC_ALL
@@ -239,7 +248,8 @@ REQUIRED_MOLIORTOOLS_VERSION=""
 # init
 success=0
 CUR_DIR=`pwd`
-WORK_DIR=`mktemp --tmpdir -d molior-XXXXXXXX`
+
+WORK_DIR=`mktemp -p $MOLIOR_TMPDIR -d molior-XXXXXXXX`
 chmod 755 $WORK_DIR
 errlog=$WORK_DIR/output.log
 

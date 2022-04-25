@@ -52,6 +52,7 @@ OPTIONS
   -S                Only download source package
   -D                Output build variables
   -C                Omit +local suffix for local builds
+  -T TMPDIR         Use TMPDIR (Default: $MOLIOR_TMPDIR env variable or /tmp)
 
 COMMON PARAMETERS
 
