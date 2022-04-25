@@ -23,6 +23,7 @@ src_pkg_only=0
 output_build_vars=0
 omit_local_suffix=0
 print_verbose=0
+docker_login_registires=""
 
 MOLIOR_TOOLS_VERSION=`cat /usr/lib/molior-tools/version`
 
@@ -1192,14 +1193,22 @@ install_docker()
 install_docker_start()
 {
   # prepare filesystem
-  umount $target/sys
-  exit_on_error "Error unmouting /sys"
-  umount $target/proc
-  exit_on_error "Error unmouting /proc"
-  umount $target/dev/pts
-  exit_on_error "Error unmouting /dev/pts"
-  umount $target/tmp
-  exit_on_error "Error unmouting /tmp"
+  if mountpoint -q $target/sys; then
+    umount $target/sys
+    exit_on_error "Error unmouting $target/sys"
+  fi
+  if mountpoint -q $target/proc; then
+    umount $target/proc
+    exit_on_error "Error unmouting $target/proc"
+  fi
+  if mountpoint -q $target/dev/pts; then
+    umount $target/dev/pts
+    exit_on_error "Error unmouting $target/dev/pts"
+  fi
+  if mountpoint -q $target/tmp; then
+    umount $target/tmp
+    exit_on_error "Error unmouting $target/tmp"
+  fi
 
   docker_root_remount=0
   if ! mountpoint -q $target; then
@@ -1255,7 +1264,7 @@ install_docker_pull()
   # pull containers
   total_docker_images=`echo "$docker_containers" | wc -l`
   i=1
-  echo "$docker_containers" | (while IFS= read -r container
+  for container in $docker_containers
   do
     if echo "$container" | grep -q "^#"; then
       continue
@@ -1267,13 +1276,25 @@ install_docker_pull()
         container=`. $target/tmp/docker-compose/.env; eval echo $container`
     fi
     if [ -n "$MOLIOR_DOCKER_LOGIN_USER" ] && [ -n "$MOLIOR_DOCKER_LOGIN_TOKEN" ]; then
-        registry=$(echo $container | cut -d: -f1)
-        log "docker login '$registry'"
-        chroot $target sh -c "docker login $registry -u $MOLIOR_DOCKER_LOGIN_USER -p $MOLIOR_DOCKER_LOGIN_TOKEN" >&2
-        RET=$?
-        if [ "$RET" -ne 0 ]; then
-            log_error "Error docker login $registry"
-            exit $RET
+        if echo $MOLIOR_DOCKER_LOGIN_USER | grep -q "@"; then
+            docker_user=`echo $MOLIOR_DOCKER_LOGIN_USER | cut -d@ -f1`
+            docker_registry=`echo $MOLIOR_DOCKER_LOGIN_USER | cut -d@ -f2`
+        else
+            docker_user=$MOLIOR_DOCKER_LOGIN_USER
+            docker_registry=`echo $container | cut -d: -f1`
+        fi
+        if ! echo $docker_login_registires | grep -w -q $docker_registry; then
+            log "docker login '$docker_registry'"
+            echo chroot $target sh -c "docker login $docker_registry -u $docker_user -p ****" >&2
+            set +x
+            echo $MOLIOR_DOCKER_LOGIN_TOKEN | chroot $target sh -c "docker login $docker_registry -u $docker_user --password-stdin" >&2
+            RET=$?
+            set -x
+            if [ "$RET" -ne 0 ]; then
+                log_error "Error docker login $docker_registry"
+                exit $RET
+            fi
+            docker_login_registires="$docker_login_registires $docker_registry"
         fi
     fi
     log "docker pull $container ($i/$total_docker_images)"
@@ -1283,7 +1304,7 @@ install_docker_pull()
         exit $RET
     fi
     i=$((i + 1))
-  done)
+  done
   if [ "$?" -ne 0 ]; then
     docker_install_cleanup
     log_error "Error pulling docker container $container"
@@ -1330,6 +1351,9 @@ docker_install_cleanup()
   if [ $docker_root_remount -eq 1 ]; then
     umount $target
   fi
+
+  # remove any docker credentials
+  rm -f $target/root/.docker/config.json
 
   # restore bootstrap mounts
   mountbind /proc $target/proc ro

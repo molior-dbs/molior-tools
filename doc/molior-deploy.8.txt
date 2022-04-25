@@ -121,6 +121,8 @@ DOCKER PARAMETERS
  DOCKER_COMPOSE_ENV_FILE        Docker default env file within the deployment, will be provided to the docker compose operations
  DOCKER_COMPOSE_ENV_PATH        Docker runtime env path (containing .env file) for upgrading to new default env settings
  DOCKER_UPGRADE_DEDUP_IGNORE    Do not deduplicate newline separated list of docker images when creating a upgrade deployment
+ MOLIOR_DOCKER_LOGIN_USER       Login user and server for pulling images (username@docker-registry.example.com)
+ MOLIOR_DOCKER_LOGIN_TOKEN      Login token for pulling images
 
 
 NOTE
