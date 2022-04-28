@@ -19,6 +19,7 @@ esac
 copy_exec /bin/mountpoint    /bin/
 copy_exec /usr/bin/pv        /bin/
 copy_exec /usr/bin/tr        /bin/
+copy_exec /bin/head          /bin/
 copy_exec /sbin/sfdisk       /sbin/
 copy_exec /sbin/mkfs         /sbin/
 copy_exec /usr/sbin/chpasswd /sbin/
