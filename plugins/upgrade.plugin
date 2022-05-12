@@ -144,6 +144,10 @@ postinst_deployment_upgrade()
   DEBIAN_FRONTEND=noninteractive chroot $target apt-get -qy autoremove --purge >&2
   # TODO: check if "0 not upgraded" in upgrade.log
 
+  if [ -n "$UPGRADE_EXTRA_PACKAGES" ]; then
+      DEBIAN_FRONTEND=noninteractive chroot $target apt-get install -y --download-only $UPGRADE_EXTRA_PACKAGES 2>&1 | tee -a $WORK_DIR/upgrade.log >&2
+  fi
+
   grep "^Get:" $WORK_DIR/upgrade.log | cut -d ' ' -f 2,5 | sed 's#.*/\(.\+/.\+\) \(.\+\)#\1 \2#' | sort > $WORK_DIR/dpkgs.list
   log "copying `wc -l < $WORK_DIR/dpkgs.list` debian packages to APT repository"
   while read line
