@@ -18,7 +18,7 @@ preinit_deployment_vbox()
       OLD_KERNEL=0
   fi
 
-  log "using virtualbox "`vboxmanage -v | grep -v -e WARNING -e '^ ' -e '^$'`
+  log "using virtualbox "`vboxmanage -v | grep -v -e WARNING -e '^ ' -e '^$' -e Please`
 }
 
 init_deployment_vbox()
