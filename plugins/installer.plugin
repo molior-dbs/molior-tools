@@ -99,6 +99,10 @@ prepare_initrd_deployment()
     KERNEL_ARCH="686"
   fi
 
+  if [ -z "$LINUX_IMAGE_NAME" ]; then
+    LINUX_IMAGE_NAME="linux-image-$KERNEL_ARCH"
+  fi
+
   if [ "$TARGET_BOOTTYPE" = "efi" ]; then
     INSTALLER_EXTRA_PACKAGES="$INSTALLER_EXTRA_PACKAGES grub-efi-$ARCH-bin dosfstools"
     if [ "$ARCH" = "amd64" ]; then
@@ -134,7 +138,7 @@ prepare_initrd_deployment()
   fi
 
   DEBIAN_FRONTEND=noninteractive chroot $WORK_DIR/instroot apt-get install --no-install-recommends --yes \
-    $INSTALLER_EXTRA_PACKAGES linux-image-$KERNEL_ARCH \
+    $INSTALLER_EXTRA_PACKAGES $LINUX_IMAGE_NAME \
     busybox initramfs-tools isolinux syslinux-common \
     xz-utils pv util-linux eject >&2
   exit_on_error "Error installing initrd packages"
@@ -216,7 +220,6 @@ EOF
     chmod +x $initrd/hooks/mkfs.vfat
   fi
 
-  initrd=`readlink $WORK_DIR/instroot/initrd.img | xargs basename`
   chroot $WORK_DIR/instroot update-initramfs -u >/dev/null
   exit_on_error "Error updating installer initrd"
 
@@ -266,8 +269,11 @@ EOF
     cp $WORK_DIR/instroot/usr/lib/syslinux/modules/bios/ldlinux.c32 $WORK_DIR/out/
     cp $INITRDINST/syslinux.cfg $WORK_DIR/out/
   fi
-  cp $WORK_DIR/instroot/boot/$initrd $WORK_DIR/out/initrd.img
-  cp -L $WORK_DIR/instroot/vmlinuz $WORK_DIR/out/
+
+  kernel_version=$(chroot $WORK_DIR/instroot/ dpkg-query -W -f='${binary:Package}\n' linux-image-* | head -n 1 | sed 's/linux-image-//')
+
+  cp -L $WORK_DIR/instroot/boot/initrd.img-$kernel_version $WORK_DIR/out/initrd.img
+  cp -L $WORK_DIR/instroot/boot/vmlinuz-$kernel_version $WORK_DIR/out/vmlinuz
 
   cat >$WORK_DIR/out/README.md <<EOF
 = Molior Installer for ${PROJECT}_${REVISION} `date -R` =
