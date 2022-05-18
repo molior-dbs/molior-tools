@@ -10,6 +10,7 @@ preinit_deployment_dockerfile()
 postinst_deployment_dockerfile()
 {
     cp $SOURCE_DIR/$DOCKERFILE $target/Dockerfile
+    exit_on_error "Error copying $SOURCE_DIR/$DOCKERFILE to $target"
 }
 
 finalize_deployment_dockerfile()
@@ -19,7 +20,7 @@ finalize_deployment_dockerfile()
         CONTAINER_NAME=$PROJECT-$VARIANT
     fi
 
-    DOCKER_TAG=$CONTAINER_NAME:$CONTAINER_VERSION
+    DOCKER_TAG=`echo $CONTAINER_NAME:$CONTAINER_VERSION | tr A-Z a-z`
     eval "docker build $DOCKER_BUILD_OPTS -f $target/Dockerfile -t $DOCKER_TAG $target"
     exit_on_error "Error building docker"
 

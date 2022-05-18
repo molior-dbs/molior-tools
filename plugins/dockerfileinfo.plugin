@@ -30,7 +30,7 @@ EOF
     sed '/^FROM.*/a COPY reinstall-packages.sh .\nRUN /bin/sh reinstall-packages.sh' $DOCKERFILE > $DOCKERFILE_TMP
 
     log "building docker image"
-    DOCKER_TAG=$CONTAINER_NAME:$CONTAINER_VERSION
+    DOCKER_TAG=`echo $CONTAINER_NAME:$CONTAINER_VERSION | tr A-Z a-z`
     eval "docker build $DOCKER_BUILD_OPTS -f $DOCKERFILE_TMP -t $DOCKER_TAG $target"
     exit_on_error "Error building docker"
 
