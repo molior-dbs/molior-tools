@@ -22,7 +22,7 @@ postinst_internal_deployment_srcarchive()
   dpkg_exclude_list=$WORK_DIR/srcarchive/dpkg-exclude.list
   dpkg_final_list=$WORK_DIR/srcarchive/dpkg-final.list
   chroot $target dpkg --get-selections | awk '{print $1}' >$dpkg_initial_list
-  dry_run=`chroot $target apt-get install -s $INSTALL_PACKAGE`
+  dry_run=`chroot $target apt-get install --no-install-recommends -s $INSTALL_PACKAGE`
   exit_on_error "Error installing software"
   echo "$dry_run" | grep -w ^Inst | awk '{print $2}' >>$dpkg_initial_list
   sort $dpkg_initial_list >$dpkg_initial_list.tmp
