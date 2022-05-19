@@ -7,12 +7,6 @@ preinit_deployment_dockerfile()
     REQUIRED_HOST_COMMANDS="docker"
 }
 
-postinst_deployment_dockerfile()
-{
-    cp $SOURCE_DIR/$DOCKERFILE $target/Dockerfile
-    exit_on_error "Error copying $SOURCE_DIR/$DOCKERFILE to $target"
-}
-
 finalize_deployment_dockerfile()
 {
     CONTAINER_VERSION=`echo $REVISION | tr '~+' '-'`
@@ -21,7 +15,7 @@ finalize_deployment_dockerfile()
     fi
 
     DOCKER_TAG=`echo $CONTAINER_NAME:$CONTAINER_VERSION | tr A-Z a-z`
-    eval "docker build $DOCKER_BUILD_OPTS -f $target/Dockerfile -t $DOCKER_TAG $target"
+    eval "docker build --no-cache $DOCKER_BUILD_OPTS -f $SOURCE_DIR/$DOCKERFILE -t $DOCKER_TAG $SOURCE_DIR"
     exit_on_error "Error building docker"
 
     deployment=$(get_deployment_filename "tar")
