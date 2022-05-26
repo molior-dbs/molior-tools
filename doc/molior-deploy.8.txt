@@ -42,7 +42,7 @@ OPTIONS
   -c                Cleanup on error (Default: ask)
   -f                Build all variants (Default: ask)
   -F OUTPUT_FILE    Custom deployment output's filename
-  -d                Print debug output to stdout instead of file
+  -d                Debug APT package resolver. Print debug output to stdout instead of file
   -t                Text output only, do not print colored output
   -r                Create rootfs only, do not create final deployment (to be used for -b)
   -b ROOTFS_TAR     Use existing rootfs (tar) as base for deployment (separately created with -r)
