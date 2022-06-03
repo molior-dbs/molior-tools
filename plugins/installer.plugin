@@ -225,7 +225,7 @@ EOF
 
   if [ "$TARGET_BOOTTYPE" = "efi" ]; then
     mkdir -p $WORK_DIR/out/boot/grub/$GRUBEFITYPE/
-    cp $WORK_DIR/instroot/usr/lib/grub/$GRUBEFITYPE/* $WORK_DIR/out/boot/grub/$GRUBEFITYPE/
+    cp $WORK_DIR/instroot/usr/lib/grub/$GRUBEFITYPE/*.mod $WORK_DIR/instroot/usr/lib/grub/$GRUBEFITYPE/*.lst $WORK_DIR/out/boot/grub/$GRUBEFITYPE/
     cat >$WORK_DIR/out/boot/grub/grub.cfg <<EOF
 search --file --set=root /image$INSTALLER_ARCHIVE_EXT$INSTALLER_COMPRESSION_EXT
 insmod all_video
