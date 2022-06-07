@@ -124,7 +124,7 @@ if [ ! -f /mnt/source/image$INSTALLER_ARCHIVE_EXT$INSTALLER_COMPRESSION_EXT ]; t
     echo -n "${textprefix}Searching installation media ..."
 
     # scan block devices
-    for d in `ls /sys/block`; do
+    for d in `ls /sys/block | grep -v dm-*`; do
       blkid /dev/$d > /dev/null
     done
 
