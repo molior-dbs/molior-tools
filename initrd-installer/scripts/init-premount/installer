@@ -180,9 +180,9 @@ if [ ! -f /mnt/source/image$INSTALLER_ARCHIVE_EXT$INSTALLER_COMPRESSION_EXT ]; t
 fi
 
 if [ -n "$SOURCEDISK" ]; then
-  disks=`ls /sys/block/ | sed s_^_/dev/_ | grep -v $SOURCEDISK`
+  disks=`ls /sys/block/ | sed s_^_/dev/_ | grep -v $SOURCEDISK | grep -v dm-*`
 else
-  disks=`ls /sys/block/ | sed s_^_/dev/_`
+  disks=`ls /sys/block/ | sed s_^_/dev/_ | grep -v dm-*`
 fi
 
 if type installer_preinst >/dev/null 2>&1; then
