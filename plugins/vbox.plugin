@@ -18,7 +18,7 @@ preinit_deployment_vbox()
       OLD_KERNEL=0
   fi
 
-  log "using virtualbox "`vboxmanage -v | grep -v -e WARNING -e '^ ' -e '^$' -e Please`
+  log "using virtualbox "`vboxmanage -v  | grep ^[0-9]`
 }
 
 init_deployment_vbox()
@@ -137,12 +137,12 @@ $APT_SOURCES
   vboxmanage modifyvm $vmuuid --ioapic on >&2
   vboxmanage modifyvm $vmuuid --boot1 disk --boot2 none --boot3 none --boot4 none >&2
   if [ "$TARGET_BOOTTYPE" = "efi" ]; then
-    vboxmanage modifyvm $vmuuid --firmware efi
+    vboxmanage modifyvm $vmuuid --firmware efi >&2
     if [ -z "$VBOX_SCREEN_RESOLUTION" ]; then
         VBOX_SCREEN_RESOLUTION=1024x768
     fi
-    vboxmanage setextradata $vmuuid CustomVideoMode1 "${VBOX_SCREEN_RESOLUTION}x32"  # 32 bits per pixel
-    vboxmanage setextradata $vmuuid VBoxInternal2/EfiGraphicsResolution "$VBOX_SCREEN_RESOLUTION"
+    vboxmanage setextradata $vmuuid CustomVideoMode1 "${VBOX_SCREEN_RESOLUTION}x32" >&2 # 32 bits per pixel
+    vboxmanage setextradata $vmuuid VBoxInternal2/EfiGraphicsResolution "$VBOX_SCREEN_RESOLUTION" >&2
   fi
   vboxmanage modifyvm $vmuuid --cpus $VMCPUS >&2
   exit_on_error "Error setting number of VirtualBox CPUS to '$VMCPUS'"
