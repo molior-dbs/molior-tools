@@ -69,6 +69,13 @@ else
   log_error "debian/control not found"
 fi
 
+if [ -d .create-release/pre.d ]; then
+    run-parts .create-release/pre.d
+    if [ $? -ne 0 ]; then
+        log_error "Error: precondition failed"
+    fi
+fi
+
 create_changelog=1
 previous_version=""
 if [ -f debian/changelog ]; then
