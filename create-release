@@ -69,10 +69,13 @@ else
   log_error "debian/control not found"
 fi
 
-if [ -d .create-release/pre.d ]; then
-    run-parts .create-release/pre.d
+if [ -d .create-release/pre-release.d ]; then
+    log_info "Running pre-release scripts"
+    run-parts .create-release/pre-release.d
     if [ $? -ne 0 ]; then
-        log_error "Error: precondition failed"
+        /bin/echo -e "\e[31m\e[1mE: Error running pre-release scripts"
+        echo -n -e "\e[33m\e[1mQ: Press Enter to continue, Ctrl-C to abort ... \e[0m"
+        read x
     fi
 fi
 
