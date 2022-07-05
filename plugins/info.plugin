@@ -90,8 +90,12 @@ postinst_internal_deployment_info()
   chroot $target debsecan > $WORK_DIR/info/$debsecan_complete_file
   exit_on_error "Error running debsecan"
 
-  chroot $target debsecan --only-fixed --suite $SUITE > $WORK_DIR/info/$debsecan_file
-  exit_on_error "Error running debsecan"
+  if [ "$SUITE" != "stretch" ]; then
+      chroot $target debsecan --only-fixed --suite $SUITE > $WORK_DIR/info/$debsecan_file
+      exit_on_error "Error running debsecan"
+  else
+      log "Debsecan is skipped for $SUITE."
+  fi
 
   chroot $target apt-get -y purge debsecan >&2
   exit_on_error "Error removing: debsecan"
