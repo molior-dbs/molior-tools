@@ -412,7 +412,7 @@ case $INSTALLER_ARCHIVE_TYPE in
      unpack_cmd="cpio -B -H newc -imd --no-absolute-filenames"
    ;;
    tar)
-     unpack_cmd="tar -xps"
+     unpack_cmd="tar -xps --xattrs --xattrs-include='*.*'"
    ;;
    *)
        log_error "Archive format '$INSTALLER_ARCHIVE_TYPE' not supported"
