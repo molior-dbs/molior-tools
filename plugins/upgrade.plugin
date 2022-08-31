@@ -141,11 +141,20 @@ postinst_deployment_upgrade()
     log_error "Error upgrading from $UPGRADE_BASE to $UPGRADE_VERSION"
   fi
 
+  if grep -q "^dpkg: error processing " $WORK_DIR/upgrade.log; then
+      log_error "Error upgrading from $UPGRADE_BASE to $UPGRADE_VERSION"
+  fi
+
   DEBIAN_FRONTEND=noninteractive chroot $target apt-get -qy autoremove --purge >&2
   # TODO: check if "0 not upgraded" in upgrade.log
 
+  if grep -q "^dpkg: error processing " $WORK_DIR/upgrade.log; then
+      log_error "Error upgrading from $UPGRADE_BASE to $UPGRADE_VERSION"
+  fi
+
   if [ -n "$UPGRADE_EXTRA_PACKAGES" ]; then
       DEBIAN_FRONTEND=noninteractive chroot $target apt-get install -y --download-only $UPGRADE_EXTRA_PACKAGES 2>&1 | tee -a $WORK_DIR/upgrade.log >&2
+      ret=$?
   fi
 
   grep "^Get:" $WORK_DIR/upgrade.log | cut -d ' ' -f 2,5 | sed 's#.*/\(.\+/.\+\) \(.\+\)#\1 \2#' | sort > $WORK_DIR/dpkgs.list
