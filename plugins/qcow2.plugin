@@ -76,6 +76,6 @@ finalize_deployment_qcow2()
 {
   umount_bootstrap
   umount_fs
-  deinit_deployment
+  deinit_deployment_qcow2
 }
 
