@@ -6,6 +6,7 @@ fs_has_partitions=0
 fs_has_lvm=0
 fs_has_luks=0
 fs_on_raid=0
+fs_has_btrfs=0
 
 exit_on_error()
 {
@@ -339,6 +340,11 @@ make_fs()
   elif [ "$s" = "luks" ]; then
     create_luks $part $name
 
+  elif [ "$s" = "btrfs" ]; then
+    log "mkfs $part"
+    eval mkfs -t btrfs -f $opts $part >/dev/null
+    exit_on_error "Error formatting partition $part as $s"
+
   else # normal filesystems
     log "mkfs $part"
     eval mkfs -t $s $opts $part >/dev/null
@@ -426,7 +432,11 @@ get_fsinfo()
         set -x
         fs_has_luks=1
         set +x
-        break
+      fi
+      if [ "$s" = "btrfs" ]; then
+        set -x
+        fs_has_btrfs=1
+        set +x
       fi
     done
     set -x
@@ -491,6 +501,33 @@ mount_fs()
     done
     set -x
   fi
+
+  set +x
+  for p in `seq 1 $MAXPART`
+  do
+    eval subvol_path=\$BTRFS_SUBVOL${p}_PATH
+    if [ -z "$subvol_path" ]; then
+     continue
+    fi
+    subvol=$target$subvol_path
+    if [ ! -e $subvol ]; then
+      dir=${subvol%${subvol##*/}}
+      if [ ! -e $dir ]; then
+        mkdir -p $dir
+      fi
+      set -x
+      btrfs subvolume create $subvol
+      set +x
+    fi
+    eval subvol_limit=\$BTRFS_SUBVOL${p}_LIMIT
+    if [ -n "$subvol_limit" ]; then
+      set -x
+      btrfs quota enable $subvol
+      btrfs qgroup limit $subvol_limit $subvol
+      set +x
+    fi
+  done
+  set -x
 
   if [ -n "$LVM_VG" ]; then
     set +x
@@ -731,6 +768,11 @@ get_deploy_config()
     test -n "$s" && echovar LVM_LV${p}_SIZE "$s"
     eval s=\$LVM_LV${p}_MKFSOPTS
     test -n "$s" && echovar LVM_LV${p}_MKFSOPTS "$s"
+
+    eval s=\$BTRFS_SUBVOL${p}_PATH
+    test -n "$s" && echovar BTRFS_SUBVOL${p}_PATH "$s"
+    eval s=\$BTRFS_SUBVOL${p}_LIMIT
+    test -n "$s" && echovar BTRFS_SUBVOL${p}_LIMIT "$s"
   done
   echovar BIND_MOUNTS
   echovar EXTRA_BIND_MOUNTS
