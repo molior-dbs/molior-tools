@@ -1,0 +1,79 @@
+# molior-deploy plugin
+# vim: syntax=sh
+
+preinit_deployment_vmdk()
+{
+  REQUIRED_HOST_COMMANDS="kpartx qemu-img qemu-nbd"
+  REQUIRED_PACKAGES="kpartx qemu-utils"
+  INSTALL_GRUB="yes"
+  PARTSEP="p"
+}
+
+init_deployment_vmdk()
+{
+  do_compress=0 # vmdk is already compressed
+  lvm_rename_existing=1
+
+  # FIXME check VM_SIZE
+  echo " * creating ${VM_SIZE}MB virtual disk"
+  VMDISK=$WORK_DIR/disk.vmdk
+  qemu-img create -f vmdk $VMDISK ${VM_SIZE}M >&2
+  exit_on_error "Error creating vmdk disk '$VMDISK' with size '$VM_SIZE' MB"
+
+  if ! grep -q "^nbd " /proc/modules; then
+    modprobe nbd
+    exit_on_error "Error loading kernel module nbd"
+  fi
+
+  # find free nbd device
+  nb=""
+  for nbdev in `ls -d /sys/class/block/nbd* | grep "nbd[0-9]\+$"`
+  do
+    S=`cat $nbdev/size`
+    if [ "$S" -eq "0" ] ; then
+      nb=`basename $nbdev`
+      break
+    fi
+  done
+  if [ -z "$nb" ]; then
+    log_error "Could not find free nbd device"
+  fi
+
+  nbd=/dev/$nb
+  qemu-nbd -c $nbd $VMDISK >&2
+  exit_on_error "Error running qemu-nbd"
+
+  disk=$nbd
+
+  create_partitions
+
+  create_fs
+  mount_fs
+}
+
+deinit_deployment_vmdk()
+{
+  if [ -n "$LVM_VG" ]; then
+    vgchange -an molior ${LVM_VG} >&2
+  fi
+
+  if [ -n "$nbd" ]; then
+    rm -f /dev/mapper/$nb
+    qemu-nbd -d $nbd >&2
+    disk=""
+    nbd=""
+    vgscan --cache >&2
+  fi
+}
+
+finalize_deployment_vmdk()
+{
+  umount_bootstrap
+  umount_fs
+  deinit_deployment_vmdk
+
+  deployment=$(get_deployment_filename "vmdk")
+  qemu-img convert -f vmdk -O vmdk -o compat6,subformat=streamOptimized $WORK_DIR/disk.vmdk $WORK_DIR/disk.vmdk.optimized
+  exit_on_error "Error making vmdk stream optimized"
+  mv $WORK_DIR/disk.vmdk.optimized $WORK_DIR/$deployment
+}
