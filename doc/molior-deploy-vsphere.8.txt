@@ -1,0 +1,38 @@
+NAME
+ molior-deploy - vsphere deployment type
+
+DESCRIPTION
+ The vsphere plugin allows to create a vSphere templatte (*.ova).
+
+OPTIONS
+ The deployment configuration (deploy/*.conf file) recognizes the following variables:
+
+ DEPLOYMENT_TYPE            Specify 'vsphere' to use the vsphere plugin
+ VM_NAME                    Specify VM name
+ VM_DESCRIPTION             Specify description for VM
+ VM_SIZE                    Specify disk size in MB
+ VM_RAM                     Specify RAM size in MB
+ VM_CPUS                    Specify number of VM cpus (default 2)
+
+
+EXAMPLE
+
+ deploy/vsphere-dev.conf:
+
+   DEPLOYMENT_TYPE=vsphere
+   ARCH=amd64
+   TARGET_HOSTNAME=roofs1
+   INSTALL_PACKAGE=toplevel-package
+
+   VM_SIZE=24576 # 24MB
+   VM_RAM=2048
+
+
+AUTHORS
+ Please see the AUTHORS file in the source repositories.
+
+ The project homepage is <https://github.com/molior-dbs>
+
+SEE ALSO
+ create-release(1), molior-deploy(8), molior-sbuild(1), molior-trigger(1), add-molior-repo(8)
+
