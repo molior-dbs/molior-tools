@@ -20,18 +20,11 @@ finalize_deployment_dockerfileinfo()
     DOCKERFILE_TMP=$WORK_DIR/$(basename $DOCKERFILE).tmp
 
     # Modify a copy of Dockerfile to remove exclusion list
-    cat >$target/reinstall-packages.sh <<EOF
-rm -f /etc/dpkg/dpkg.cfg.d/excludes
-apt-get update
-# We don't need an init-system inside docker, but apt-get install requires something
-ln -sf /bin/true /usr/sbin/update-rc.d
-apt-get install --no-install-recommends --reinstall --yes \$(dpkg --get-selections | grep -v deinstall | cut -f1)
-EOF
-    sed '/^FROM.*/a COPY reinstall-packages.sh .\nRUN /bin/sh reinstall-packages.sh' $DOCKERFILE > $DOCKERFILE_TMP
+    sed '/^FROM.*/a RUN rm -f /etc/dpkg/dpkg.cfg.d/excludes; apt-get update; ln -sf /bin/true /usr/sbin/update-rc.d; apt-get install --no-install-recommends --reinstall --yes $(dpkg --get-selections | grep -v deinstall | cut -f1)' $SOURCE_DIR/$DOCKERFILE > $DOCKERFILE_TMP
 
     log "building docker image"
     DOCKER_TAG=`echo $CONTAINER_NAME:$CONTAINER_VERSION | tr A-Z a-z`
-    eval "docker build $DOCKER_BUILD_OPTS -f $DOCKERFILE_TMP -t $DOCKER_TAG $target"
+    eval "docker build $DOCKER_BUILD_OPTS -f $DOCKERFILE_TMP -t $DOCKER_TAG $SOURCE_DIR"
     exit_on_error "Error building docker"
 
     log "creating docker container"
