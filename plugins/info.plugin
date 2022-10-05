@@ -30,6 +30,10 @@ postinst_internal_deployment_info()
   du_file=${PROJECT}_${REVISION}_disk_usage.txt
   deploy_file=${PROJECT}_${REVISION}_deploy.conf
 
+  if [ -z "$INCLUDE_ROOTFS" ]; then
+      INCLUDE_ROOTFS=0
+  fi
+
   if [ "$INCLUDE_ROOTFS" -eq 1 ]; then
       cd $target
       tar $TAR_PXZ --one-file-system -cf $WORK_DIR/info/rootfs.tar.xz .
