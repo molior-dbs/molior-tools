@@ -697,7 +697,7 @@ setup_deployment()
         SOURCES_VERSION=`basename $baseurl`
         log "trying to download package source from $SOURCES_VERSION"
         curl -f -s --retry 10 -o $WORK_DIR/Sources $SOURCEMIRROR/repos/$PROJECT/$SOURCES_VERSION/dists/$dist/main/source/Sources
-        if [ `wc -l $WORK_DIR/Sources 2>/dev/null` -eq 0 ]; then
+        if [ `wc -l $WORK_DIR/Sources 2>/dev/null | cut -d' ' -f1` -eq 0 ]; then
           # try next baseurl
           continue
         fi
