@@ -24,19 +24,22 @@ finalize_deployment_dockerfileinfo()
 
     log "building docker image"
     DOCKER_TAG=`echo $CONTAINER_NAME:$CONTAINER_VERSION | tr A-Z a-z`
-    eval "docker build $DOCKER_BUILD_OPTS -f $DOCKERFILE_TMP -t $DOCKER_TAG $SOURCE_DIR"
+    eval "docker build --no-cache $DOCKER_BUILD_OPTS -f $DOCKERFILE_TMP -t $DOCKER_TAG $SOURCE_DIR"
     exit_on_error "Error building docker"
 
     log "creating docker container"
-    container_id=$(docker create $DOCKER_TAG)
+    container_id=$(docker create $DOCKER_TAG /bin/true)
     eval "docker export $container_id -o $WORK_DIR/container.tar $DOCKER_EXPORT_OPTS"
+    exit_on_error "Error exporting docker container"
 
     log "extracting container"
     tar xf $WORK_DIR/container.tar -C $target
+    exit_on_error "Error extracting docker container"
 
     log "creating info"
     cp -fL /etc/resolv.conf $target/etc/resolv.conf
     chroot $target apt-get update >&2
+    exit_on_error "Error updating docker container"
     postinst_internal_deployment_info
     finalize_deployment_info
 
