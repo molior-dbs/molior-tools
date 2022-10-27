@@ -372,6 +372,9 @@ make_fs()
   if [ "$s" = "encrypted-swap" ]; then
     # do nothing - will be created on startup
     true
+  elif [ "$s" = "bios" ]; then
+    # wipe all data, grub will use it
+    dd if=/dev/zero of=$part
   elif [ "$s" = "swap" ]; then
     log "mkswap $part"
     mkswap $part >/dev/null
