@@ -23,7 +23,7 @@ src_pkg_only=0
 output_build_vars=0
 omit_local_suffix=0
 debug_mode=0
-docker_login_registires=""
+docker_login_registries=""
 
 MOLIOR_TOOLS_VERSION=`cat /usr/lib/molior-tools/version`
 
@@ -1195,10 +1195,22 @@ install_docker()
         return  # nothing to do
     fi
 
-    install_docker_start
+    install_docker_start  # after this, not exit / log_error is allowed until install_docker_stop is called
     install_docker_pull
-    install_docker_postinst_hooks
+    ret=$?
+    if [ "$ret" -eq 0 ]; then
+      install_docker_postinst_hooks
+    fi
     install_docker_stop
+    if [ "$ret" -ne 0 ]; then
+        log_error "Error downloading docker containers"
+    fi
+
+    # restore bootstrap mounts
+    mountbind /proc $target/proc ro
+    exit_on_error "Error mounting $target/proc"
+    mountbind /sys $target/sys ro
+    exit_on_error "Error mounting $target/sys"
 }
 
 install_docker_start()
@@ -1253,14 +1265,20 @@ install_docker_start()
 
 install_docker_pull()
 {
+  # in this function exit / log_error is not allowed, need to tear down chroot docker daemon first
+  ret=0
   if [ -z "$DOCKER_COMPOSE_FILE" ] && [ -z "$DOCKER_CONTAINERS" ]; then
-    log_error "No docker containers or compose file specified."
+    log_warn "No docker containers or compose file specified."
+    ret=-1
+    return $ret
   fi
 
   if [ -z "$DOCKER_CONTAINERS" ]; then
     docker_containers=`grep -v -P '^[ \t]*#' $target/$DOCKER_COMPOSE_FILE | grep "image:" | awk '{ print $2 }' | sort | uniq`
     if [ -z "$docker_containers" ]; then
-      log_error "Cannot find images in DOCKER_COMPOSE_FILE $target/$DOCKER_COMPOSE_FILE"
+      log_warn "Cannot find images in DOCKER_COMPOSE_FILE $target/$DOCKER_COMPOSE_FILE"
+      ret=-1
+      return $ret
     fi
   fi
 
@@ -1269,7 +1287,9 @@ install_docker_pull()
   fi
 
   if [ -z "$docker_containers" ]; then
-    log_error "Cannot find docker containers to pull"
+    log_warn "Cannot find docker containers to pull"
+    ret=-1
+    return $ret
   fi
 
   # pull containers
@@ -1294,42 +1314,40 @@ install_docker_pull()
             docker_user=$MOLIOR_DOCKER_LOGIN_USER
             docker_registry=`echo $container | cut -d: -f1`
         fi
-        if ! echo $docker_login_registires | grep -w -q $docker_registry; then
+        if ! echo $docker_login_registries | grep -w -q $docker_registry; then
             log "docker login '$docker_registry'"
             echo chroot $target sh -c "docker login $docker_registry -u $docker_user -p ****" >&2
             set +x
             echo $MOLIOR_DOCKER_LOGIN_TOKEN | chroot $target sh -c "docker login $docker_registry -u $docker_user --password-stdin" >&2
-            RET=$?
+            ret=$?
             set -x
-            if [ "$RET" -ne 0 ]; then
-                log_error "Error docker login $docker_registry"
-                exit $RET
+            if [ "$ret" -ne 0 ]; then
+                log_warn "Error docker login $docker_registry"
+                return $ret
             fi
-            docker_login_registires="$docker_login_registires $docker_registry"
+            docker_login_registries="$docker_login_registries $docker_registry"
         fi
     fi
     log "docker pull $container ($i/$total_docker_images)"
     chroot $target sh -c "docker pull $container" >&2
-    RET=$?
-    if [ "$RET" -ne 0 ]; then
-        exit $RET
+    ret=$?
+    if [ "$ret" -ne 0 ]; then
+        log_warn "Error pulling docker containers"
+        return $ret
     fi
     i=$((i + 1))
   done
-  if [ "$?" -ne 0 ]; then
-    docker_install_cleanup
-    log_error "Error pulling docker container $container"
-  fi
 
   if [ -n "$DOCKER_COMPOSE_FILE" ]; then
     log "running docker compose up"
     chroot $target sh -c "cd /tmp/docker-compose; docker-compose --no-ansi -f $DOCKER_COMPOSE_FILE up --no-start" >&2
-    if [ "$?" -ne 0 ]; then
-      docker_install_cleanup
-      log_error "Error running docker-compose up"
+    ret=$?
+    if [ "$ret" -ne 0 ]; then
+      log_warn "Error running docker-compose up"
+      return $ret
     fi
-    sleep 1
   fi
+  return $ret
 }
 
 install_docker_postinst_hooks()
@@ -1342,11 +1360,6 @@ install_docker_postinst_hooks()
 }
 
 install_docker_stop()
-{
-    docker_install_cleanup
-}
-
-docker_install_cleanup()
 {
   rm -rf $target/tmp/docker-compose
   # stop docker
@@ -1365,12 +1378,6 @@ docker_install_cleanup()
 
   # remove any docker credentials
   rm -f $target/root/.docker/config.json
-
-  # restore bootstrap mounts
-  mountbind /proc $target/proc ro
-  exit_on_error "Error mounting $target/proc"
-  mountbind /sys $target/sys ro
-  exit_on_error "Error mounting $target/sys"
 }
 
 check_required_version()
