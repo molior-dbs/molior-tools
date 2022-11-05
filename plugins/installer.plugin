@@ -313,7 +313,11 @@ EOF
         exit_on_error "Error compressing $WORK_DIR/out/image$INSTALLER_ARCHIVE_EXT$INSTALLER_COMPRESSION_EXT"
       ;;
       gz|gzip)
-        gzip $WORK_DIR/out/image$INSTALLER_ARCHIVE_EXT 2>&1
+        gzcmd=gzip
+        if which pigz >/dev/null 2>/dev/null; then
+          gzcmd=pigz
+        fi
+        $gzcmd $WORK_DIR/out/image$INSTALLER_ARCHIVE_EXT 2>&1
         exit_on_error "Error compressing $WORK_DIR/out/image$INSTALLER_ARCHIVE_EXT$INSTALLER_COMPRESSION_EXT"
       ;;
   esac
