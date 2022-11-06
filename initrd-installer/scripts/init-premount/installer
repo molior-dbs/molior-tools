@@ -313,11 +313,20 @@ while [ $found -ne 1 ]; do
   if [ "$idx" -eq 0 ]; then
     log_error "Error: no disk >= ${INSTALLER_DISK_MIN}GiB found, aborting installation."
   elif [ "$idx" -gt 1 ]; then
-    echo -n "${textprefix}Enter disk number to install: "
-    stty echo
-    read input
-    stty -echo
-    eval "disk=\$disk${input}"
+    while true
+    do
+      echo -n "${textprefix}Enter disk number to install: "
+      stty echo
+      read input
+      stty -echo
+      if [ -z "$input" ]; then
+          continue
+      fi
+      eval "disk=\$disk${input}"
+      if [ -n "$disk" ]; then
+          break
+      fi
+    done
   else
     eval "disk=\$disk${idx}"
   fi
