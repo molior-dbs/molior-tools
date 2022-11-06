@@ -30,6 +30,7 @@ create_fstab()
   fi
   echo "# $PROJECT fstab" > $target/etc/fstab
 
+  # put root mount first to fstab (search in ROOTDEVICE, partitions, lvm)
   if [ -n "$ROOTDEVICE" ]; then
     if [ -z "$ROOTFS" ]; then
         ROOTFS=auto
@@ -43,31 +44,47 @@ create_fstab()
 
   else
     set +x
-    for p in `seq 1 $MAXPART`
+    for d in "" "DISK1_" "DISK2_" "DISK3_"
     do
-      if [ -n "$SFDISK" ]; then
-        eval t=\$PART${p}_MNT
-        if [ "$t" = "/" ]; then
-          eval s=\$PART${p}_FS
-          if [ -z "$s" ]; then
+      found=0
+      for p in `seq 1 $MAXPART`
+      do
+        eval t_disk=\$${d}DISK
+        if [ -z "$t_disk" ]; then
+          t_disk=$disk
+        fi
+        eval t_mnt=\$${d}PART${p}_MNT
+        if [ -n "$t_mnt" ]; then
+          if [ "$t_mnt" = "/" ]; then  # only include root partition
+            eval s=\$${d}PART${p}_FS
+            if [ -z "$s" ]; then
+              break
+            fi
+            eval o=\$${d}PART${p}_OPTS
+            if [ -z "$o" ]; then
+              o="defaults,errors=remount-ro,noatime"
+            fi
+            eval t_partsep=\$${d}PARTSEP
+            part=$t_disk$t_partsep$p
+            uuid=`blkid -o value -s UUID $part`
+            if [ -z "$uuid" ]; then
+              log_error "Error rootfs uuid is empty for '$part'"
+            fi
+            set -x
+            echo "UUID=$uuid $t_mnt $s $o 0 1" >> $target/etc/fstab
+            set +x
+            found=1
             break
           fi
-          eval o=\$PART${p}_OPTS
-          if [ -z "$o" ]; then
-            o="defaults,errors=remount-ro,noatime"
-          fi
-          part=${disk}$PARTSEP$p
-          uuid=`blkid -o value -s UUID $part`
-          if [ -z "$uuid" ]; then
-            log_error "Error rootfs uuid is empty for '$part'"
-          fi
-          set -x
-          echo "UUID=$uuid $t $s $o 0 1" >> $target/etc/fstab
-          set +x
-          break
         fi
+      done
+      if [ $found -eq 1 ]; then
+        break
       fi
+    done
 
+    for p in `seq 1 $MAXPART`
+    do
       if [ -n "$LVM_VG" ]; then
         eval t=\$LVM_LV${p}_MNT
         if [ "$t" = "/" ]; then
@@ -98,40 +115,48 @@ create_fstab()
     set -x
   fi
 
-  if [ -n "$SFDISK" ]; then
-    set +x
+  # put all other entries to fstab
+  entries=""
+  set +x
+  for d in "" "DISK1_" "DISK2_" "DISK3_"
+  do
     for p in `seq 1 $MAXPART`
     do
-      eval t=\$PART${p}_MNT
-      if [ "$t" = "/" ]; then
-        continue
+      eval t_disk=\$${d}DISK
+      if [ -z "$t_disk" ]; then
+        t_disk=$disk
       fi
-      eval s=\$PART${p}_FS
-      if [ -z "$t" -a "$s" != "swap" ]; then
-        continue
+      eval t_fs=\$${d}PART${p}_FS
+      if [ -n "$t_fs" ]; then
+        eval t_mnt=\$${d}PART${p}_MNT
+        if [ "$t_mnt" = "/" ]; then  # skip root partition
+          continue
+        fi
+        if [ -z "$t_mnt" -a "$t_fs" != "swap" ]; then
+          continue
+        fi
+        eval t_opts=\$${d}PART${p}_OPTS
+        if [ -z "$t_opts" ]; then
+          t_opts="defaults"
+        fi
+        eval t_partsep=\$${d}PARTSEP
+        part=$t_disk$t_partsep$p
+        uuid=`blkid -o value -s UUID $part`
+        if [ -z "$uuid" ]; then
+          log_error "Error: empty uuid for '$part'"
+        fi
+        set -x
+        if [ "$s" = "swap" ]; then  # write swap directly
+          echo "UUID=$uuid none swap sw 0 0" >> $target/etc/fstab
+        elif [ "$s" != "lvm" ]; then
+          # remember for sorting
+          entries="$entries\nUUID=$uuid $t_mnt $t_fs $t_opts 0 2"
+        fi
+        set +x
       fi
-      if [ -z "$s" ]; then
-        continue
-      fi
-      eval o=\$PART${p}_OPTS
-      if [ -z "$o" ]; then
-        o="defaults"
-      fi
-      part=${disk}$PARTSEP$p
-      uuid=`blkid -o value -s UUID $part`
-      if [ -z "$uuid" ]; then
-        log_error "Error: empty uuid for '$part'"
-      fi
-      set -x
-      if [ "$s" = "swap" ]; then
-        echo "UUID=$uuid none swap sw 0 0" >> $target/etc/fstab
-      elif [ "$s" != "lvm" ]; then
-        echo "UUID=$uuid $t $s $o 0 2" >> $target/etc/fstab
-      fi
-      set +x
     done
-    set -x
-  fi
+  done
+  set -x
 
   if [ -n "$LVM_VG" ]; then
     set +x
@@ -164,10 +189,11 @@ create_fstab()
           log_error "Error: empty uuid for '$part'"
         fi
         set -x
-        if [ "$s" = "swap" ]; then
+        if [ "$s" = "swap" ]; then  # write swap directly
           echo "UUID=$uuid none swap sw 0 0" >> $target/etc/fstab
         else
-          echo "UUID=$uuid $t $s $o 0 2" >> $target/etc/fstab
+          # remember for sorting
+          entries="$entries\nUUID=$uuid $t $s $o 0 2"
         fi
         set +x
       else
@@ -185,6 +211,9 @@ create_fstab()
     done
     set -x
   fi
+
+  # write sortes entries
+  echo -e "$entries" | sort -k 2 >> $target/etc/fstab
 
   if [ -n "$BIND_MOUNTS" ]; then
     echo >> $target/etc/fstab
@@ -232,19 +261,30 @@ create_partitions()
     disk=`mdadm --detail --scan | cut -d" " -f2`
   fi
 
-  if [ -n "$SFDISK" ]; then
-    log "creating partitions"
-    # check if sfdisk supports wipearg, i.e. > 2.27.1
-    sfdiskversion=`sfdisk -v | cut -d ' ' -f4`
-    sfdiskmajor=`echo $sfdiskversion | cut -d. -f1`
-    sfdiskminor=`echo $sfdiskversion | cut -d. -f2`
-    wipearg=""
-    if [ "$sfdiskmajor" -ge 2 -a "$sfdiskminor" -gt 27 ]; then
-      wipearg="--wipe=always"
-    fi
-    echo "$SFDISK" | sfdisk --force $wipearg $disk >/dev/null
-    exit_on_error "Error creating partitions"
+  sfdiskversion=`sfdisk -v | cut -d ' ' -f4`
+  sfdiskmajor=`echo $sfdiskversion | cut -d. -f1`
+  sfdiskminor=`echo $sfdiskversion | cut -d. -f2`
+  wipearg=""
+  if [ "$sfdiskmajor" -ge 2 -a "$sfdiskminor" -gt 27 ]; then
+    wipearg="--wipe=always"
   fi
+
+  for d in "" "DISK1_" "DISK2_" "DISK2_"
+  do
+    eval t_sfdisk="\$${d}SFDISK"
+    if [ -n "$t_sfdisk" ]; then
+      if [ -z "${d}" ]; then
+        t_disk=$disk
+      else
+        eval t_disk="\$${d}DISK"
+      fi
+
+      log "creating partitions on $t_disk"
+      # check if sfdisk supports wipearg, i.e. > 2.27.1
+      echo "$t_sfdisk" | sfdisk --force $wipearg $t_disk >/dev/null
+      exit_on_error "Error creating partitions"
+    fi
+  done
 }
 
 create_lvm()
@@ -348,27 +388,28 @@ make_fs()
 
 create_fs()
 {
-  if [ -n "$SFDISK" ]; then
-    set +x
+  for d in "" "DISK1_" "DISK2_" "DISK3_"
+  do
     for p in `seq 1 $MAXPART`
     do
-      part=${disk}$PARTSEP$p
-      eval s=\$PART${p}_FS
-      if [ -z "$s" ]; then
-        break
+      eval t_disk=\$${d}DISK
+      if [ -z "$t_disk" ]; then
+        t_disk=$disk
       fi
-      eval t=\$PART${p}_MNT
-      if [ "$t" = "/" ]; then
-        rootpart=$part
+      eval t_fs=\$${d}PART${p}_FS
+      if [ -n "$t_fs" ]; then
+        eval t_partsep=\$${d}PARTSEP
+        part=$t_disk$t_partsep$p
+        eval t=\$${d}PART${p}_MNT
+        if [ "$t" = "/" ]; then
+          rootpart=$part
+        fi
+        eval u=\$${d}PART${p}_LUKSNAME
+        eval opts=\$${d}PART${p}_MKFSOPTS
+        make_fs "$t_fs" "$part" "$u" "$opts"
       fi
-      eval u=\$PART${p}_LUKSNAME
-      eval opts=\$PART${p}_MKFSOPTS
-      set -x
-      make_fs "$s" "$part" "$u" "$opts"
-      set +x
     done
-    set -x
-  fi
+  done
 
   if [ -n "$LVM_VG" ]; then
     if [ "$LVM_PV" = "disk" ]; then
@@ -416,6 +457,8 @@ create_fs()
 
 get_fsinfo()
 {
+    # for d in "" "DISK1_" "DISK2_" "DISK3_"
+    # do
   if [ -n "$SFDISK" ]; then
     fs_has_partitions=1
     set +x
@@ -455,6 +498,7 @@ get_fsinfo()
 
 mount_fs()
 {
+  # mount root filesystem
   if [ -z "$target" ]; then
     log_error "Error: \$target not set"
   fi
@@ -465,76 +509,82 @@ mount_fs()
     exit_on_error "Error mounting filesystem $part to $target"
   fi
 
-  if [ -n "$SFDISK" ]; then
-    set +x
+  # mount other filesystems
+  filesystems=""
+  for d in "" "DISK1_" "DISK2_" "DISK3_"
+  do
+    eval t_disk=\$${d}DISK
+    if [ -z "$t_disk" ]; then
+      t_disk=$disk
+    fi
     for p in `seq 1 $MAXPART`
     do
-      eval fs=\$PART${p}_FS
-      if [ -z "$fs" ]; then
-        continue
+      eval t_mnt=\$${d}PART${p}_MNT
+      if [ -n "$t_mnt" ]; then
+        if [ "$t_mnt" = "/" ]; then
+          continue
+        fi
+        eval t_fs=\$${d}PART${p}_FS
+        if [ -z "$t_fs" ]; then
+          continue
+        fi
+        if [ "$t_fs" = "encrypted-swap" ]; then
+          continue
+        fi
+        eval t_partsep=\$${d}PARTSEP
+        part=$t_disk$t_partsep$p
+        filesystems="$filesystems\n$t_mnt|$part|$t_fs"
+
+        # TODO: mount luks
       fi
-      eval t=\$PART${p}_MNT
-      if [ -z "$t" ]; then
-        continue
-      fi
-      if [ "$t" = "/" ]; then
-        continue
-      fi
-      part=${disk}$PARTSEP$p
-      log "mount $t"
-      mkdir -p $target/$t
-      set -x
-      mount -t $fs $part $target/$t
-      exit_on_error "Error mounting filesystem $part to $target$t"
-      set +x
-      # FIXME: mount luks
     done
-    set -x
-  fi
+  done
 
   if [ -n "$LVM_VG" ]; then
-    set +x
     for p in `seq 1 $MAXPART`
     do
-      eval s=\$LVM_LV${p}_NAME
-      if [ -z "$s" ]; then
+      eval t_name=\$LVM_LV${p}_NAME
+      if [ -z "$t_name" ]; then
         continue
       fi
-      eval t=\$LVM_LV${p}_MNT
-      if [ -z "$t" ]; then
+      eval t_fs=\$LVM_LV${p}_FS
+      eval t_mnt=\$LVM_LV${p}_MNT
+      if [ -z "$t_mnt" ]; then
 
-        eval u=\$LVM_LV${p}_FS
-        if [ "$u" = "encrypted-swap" ]; then
+        if [ "$t_fs" = "encrypted-swap" ]; then
           continue
-        elif [ "$u" = "luks" ]; then
-          eval v=\$LUKS_${s}_MNT
+        elif [ "$t_fs" = "luks" ]; then
+          eval v=\$LUKS_${t_name}_MNT
           if [ -z "$v" ]; then
             continue
           fi
-          log "mount $v"
-          mkdir -p $target/$v
-          set -x
-          mount /dev/mapper/$s-decrypted $target/$v
-          exit_on_error "Error mounting filesystem $s-decrypted to $target$v"
-          set +x
+          filesystems="$filesystem\n$v|/dev/mapper/$t_name-decrypted|$t_fs"
         fi
         continue
       fi
 
-      if [ "$t" = "/" ]; then
+      if [ "$t_mnt" = "/" ]; then
         continue
       fi
 
-      part=/dev/mapper/$(echo ${LVM_VG} | sed -r 's/-/--/g')-$(echo $s | sed -r 's/-/--/g')
-      log "mount $t"
-      mkdir -p $target/$t
-      set -x
-      mount $part $target/$t
-      exit_on_error "Error mounting filesystem $part to $target$t"
-      set +x
+      part=/dev/mapper/$(echo ${LVM_VG} | sed -r 's/-/--/g')-$(echo $t_name | sed -r 's/-/--/g')
+      filesystems="$filesystems\n$t_mnt|$part|$t_fs"
     done
-    set -x
   fi
+
+  for fs in `echo -e "$filesystems" | sort -t"|" -k 1,1`
+  do
+    if [ -z "$fs" ]; then
+      continue
+    fi
+    t_mnt=`echo $fs | cut -d"|" -f1`
+    t_part=`echo $fs | cut -d"|" -f2`
+    t_fs=`echo $fs | cut -d"|" -f3`
+    log "mount $t_mnt ($t_fs)"
+    mkdir -p $target/$t_mnt
+    mount -t $t_fs $t_part $target/$t_mnt
+    exit_on_error "Error mounting filesystem $t_part to $target$t_mnt"
+  done
 }
 
 unmount()
@@ -682,25 +732,34 @@ get_deploy_config()
   echovar REVISION
   echovar VARIANT
   echovar SUITE
-  echovar SFDISK
   echovar LVM_VG
   echovar ROOTDEVICE
   echovar ROOTFS
   echovar ROOTFSOPTS
+  for d in "" "DISK1_" "DISK2_" "DISK3_"
+  do
+    eval s=\$${d}SFDISK
+    test -n "$s" && echovar ${d}SFDISK "$s"
+    eval s=\$${d}DISK
+    test -n "$s" && echovar ${d}DISK "$s"
+    for p in `seq 1 $MAXPART`
+    do
+      eval s=\$${d}PART${p}_FS
+      test -n "$s" && echovar ${d}PART${p}_FS "$s"
+      eval s=\$${d}PART${p}_MNT
+      test -n "$s" && echovar ${d}PART${p}_MNT "$s"
+      eval s=\$${d}PART${p}_OPTS
+      test -n "$s" && echovar ${d}PART${p}_OPTS "$s"
+      eval s=\$${d}PART${p}_MKFSOPTS
+      test -n "$s" && echovar ${d}PART${p}_MKFSOPTS "$s"
+    done
+  done
+
   for p in `seq 1 $MAXPART`
   do
-    eval s=\$PART${p}_FS
-    test -n "$s" && echovar PART${p}_FS "$s"
-    eval s=\$PART${p}_MNT
-    test -n "$s" && echovar PART${p}_MNT "$s"
-    eval s=\$PART${p}_OPTS
-    test -n "$s" && echovar PART${p}_OPTS "$s"
-    eval s=\$PART${p}_MKFSOPTS
-    test -n "$s" && echovar PART${p}_MKFSOPTS "$s"
-
-    eval s=\$PART${p}_LUKSNAME
+    eval s=\$${d}PART${p}_LUKSNAME
     if [ -n "$s" ]; then
-      echovar PART${p}_LUKSNAME "$s"
+      echovar ${d}PART${p}_LUKSNAME "$s"
       luks_name="$s"
       eval s=\$LUKS_${luks_name}_FS
       test -n "$s" && echovar LUKS_${luks_name}_FS "$s"
@@ -732,6 +791,7 @@ get_deploy_config()
     eval s=\$LVM_LV${p}_MKFSOPTS
     test -n "$s" && echovar LVM_LV${p}_MKFSOPTS "$s"
   done
+
   echovar BIND_MOUNTS
   echovar EXTRA_BIND_MOUNTS
 
