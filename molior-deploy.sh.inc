@@ -572,7 +572,8 @@ mount_fs()
     done
   fi
 
-  for fs in `echo -e "$filesystems" | sort -t"|" -k 1,1`
+  # mount in the right order
+  for fs in `/bin/echo -e "$filesystems" | sort -t"|" -k 1,1`
   do
     if [ -z "$fs" ]; then
       continue
