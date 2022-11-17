@@ -20,6 +20,13 @@ init_deployment_upgrade()
   # to be upgraded version
   UPGRADE_VERSION=$VERSION # remember the version to be upgraded to
   VERSION=$UPGRADE_BASE
+
+  PROJECT_NEW=$PROJECT
+  # PROJECT_OLD is optional and used if we create upgrade package for project which name has changed
+  if [ -n "$PROJECT_OLD" ]; then
+    PROJECT=$PROJECT_OLD
+  fi
+
   if [ -z "$VERSION" ]; then
     log_error "Could not extract project version for upgrading. Please name the deployment configuration file \$VARIANT-upgrade-\$PROJECTVERSION.conf"
   fi
@@ -78,9 +85,9 @@ postinst_deployment_upgrade()
     pre_upgrade_deployment
   fi
 
-  log_info "Upgrading $PROJECT $VERSION to $UPGRADE_VERSION ..."
+  log_info "Upgrading $PROJECT $VERSION to $PROJECT_NEW $UPGRADE_VERSION ..."
 
-
+  PROJECT=$PROJECT_NEW
   # restore the version to be upgraded to
   VERSION=$UPGRADE_VERSION
 
