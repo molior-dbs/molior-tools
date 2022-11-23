@@ -212,7 +212,7 @@ create_fstab()
     set -x
   fi
 
-  # write sortes entries
+  # write sorted entries
   echo -e "$entries" | sort -k 2 >> $target/etc/fstab
 
   if [ -n "$BIND_MOUNTS" ]; then
@@ -237,9 +237,13 @@ create_fstab()
       to=`echo $m | cut -d: -f2`
       opts=`echo $m | cut -d: -f3`
       if [ -z "$opts" ]; then
-        opts="rw,noexec,nosuid,nodev"
+        opts="rw,noexec,nosuid,nodevice,bind"
+      elif [ -n "$opts" -a "$opts" = "defaults" ]; then
+        opts="defaults,bind"
+      else
+        opts=$opts
       fi
-      echo "$to $from none $opts,bind 0 0" >>$target/etc/fstab
+      echo "$to $from none $opts 0 0" >>$target/etc/fstab
     done
   fi
 
