@@ -87,6 +87,9 @@ APT sources:
 $APT_SOURCES
 "
   fi
+  if [ -z "$VSPHERE_VERSION" ]; then
+    VSPHERE_VERSION="13"
+  fi
 
     deployment=$vmname.ova
     VMDK_FILE=$vmname.vmdk
@@ -129,7 +132,7 @@ $APT_SOURCES
       <System>
         <vssd:ElementName>Virtual Hardware Family</vssd:ElementName>
         <vssd:InstanceID>0</vssd:InstanceID>
-        <vssd:VirtualSystemType>vmx-13</vssd:VirtualSystemType>
+        <vssd:VirtualSystemType>vmx-$VSPHERE_VERSION</vssd:VirtualSystemType>
       </System>
       <Item>
         <rasd:AllocationUnits>hertz * 10^6</rasd:AllocationUnits>
