@@ -448,6 +448,10 @@ set -x
 
 cd /
 
+if type installer_postinst >/dev/null 2>&1; then
+    installer_postinst
+fi
+
 if [ "$INSTALLER_USE_PXE" != "yes" -a -z "$INSTALLER_DOWNLOAD_URL" ]; then
   umount /mnt/source
 fi
