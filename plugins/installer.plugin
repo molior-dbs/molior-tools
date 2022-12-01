@@ -134,6 +134,13 @@ prepare_initrd_deployment()
     # in case of using a base roots, there is no instroot debootstrap left,
     # copy full rootfs for creating the initrd
     cp -ar $target $WORK_DIR/instroot
+
+    # mount bind the needed system folders to allow installing without errors
+    mount proc -t proc $WORK_DIR/instroot/proc
+    mount sysfs -t sysfs $WORK_DIR/instroot/sys
+    mount udev -t devtmpfs $WORK_DIR/instroot/dev
+    mount devpts -t devpts $WORK_DIR/instroot/dev/pts
+
     chroot $WORK_DIR/instroot apt-get update >&2
   fi
 
@@ -274,6 +281,12 @@ EOF
 
   cp -L $WORK_DIR/instroot/boot/initrd.img-$kernel_version $WORK_DIR/out/initrd.img
   cp -L $WORK_DIR/instroot/boot/vmlinuz-$kernel_version $WORK_DIR/out/vmlinuz
+
+  # unmount the previous mounted system folders
+  umount $WORK_DIR/instroot/sys
+  umount $WORK_DIR/instroot/proc
+  umount $WORK_DIR/instroot/dev/pts
+  umount $WORK_DIR/instroot/dev
 
   cat >$WORK_DIR/out/README.md <<EOF
 = Molior Installer for ${PROJECT}_${REVISION} `date -R` =
