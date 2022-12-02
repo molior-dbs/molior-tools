@@ -450,14 +450,6 @@ set -x
 
 cd /
 
-if type installer_postinst >/dev/null 2>&1; then
-    installer_postinst
-fi
-
-if [ "$INSTALLER_USE_PXE" != "yes" -a -z "$INSTALLER_DOWNLOAD_URL" ]; then
-  umount /mnt/source
-fi
-
 if [ -n "$hostname" ]; then
   if [ -n "$INSTALLER_HOSTNAME_APPEND_MAC_IFACE" ]; then
       mac=`tr -d : < /sys/class/net/$INSTALLER_HOSTNAME_APPEND_MAC_IFACE/address`
@@ -470,6 +462,14 @@ fi
 
 if [ -n "$CHPASSWD" ]; then
   echo "$CHPASSWD" | chroot $target chpasswd
+fi
+
+if type installer_prefinalize >/dev/null 2>&1; then
+    installer_prefinalize
+fi
+
+if [ "$INSTALLER_USE_PXE" != "yes" -a -z "$INSTALLER_DOWNLOAD_URL" ]; then
+  umount /mnt/source
 fi
 
 echo -n -e $titlecolor
