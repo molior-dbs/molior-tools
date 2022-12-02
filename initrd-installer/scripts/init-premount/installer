@@ -102,7 +102,9 @@ finish()
 {
   if [ "$SUCCESS" -eq 0 ]; then
     echo
-    log_error "Installation failed, see $errlog"
+    log_error "Installation failed"
+    log "showing $errlog"
+    less $errlog
   fi
 }
 trap finish EXIT
