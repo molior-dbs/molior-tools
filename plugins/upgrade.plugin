@@ -92,7 +92,7 @@ postinst_deployment_upgrade()
   VERSION=$UPGRADE_VERSION
 
   # reset docker login cache
-  docker_login_registires=""
+  docker_login_registries=""
 
   log "downloading APT sources for $PROJECT/$VERSION"
   param=""
