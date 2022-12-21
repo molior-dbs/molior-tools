@@ -374,7 +374,7 @@ make_fs()
     true
   elif [ "$s" = "bios" ]; then
     # wipe all data, grub will use it
-    dd if=/dev/zero of=$part
+    dd if=/dev/zero of=$part bs=4K count=8
   elif [ "$s" = "swap" ]; then
     log "mkswap $part"
     mkswap $part >/dev/null
