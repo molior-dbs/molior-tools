@@ -142,7 +142,7 @@ PLATFORM=$(platform $ARCH)
 HOST_PLATFORM=$(platform $HOSTARCH)
 
 SOURCESURL=$MOLIOR_SERVER/api/projectsources/$PROJECT/$VERSION
-APT_SOURCES=`curl -s --retry 10 $SOURCESURL | grep -v '^#' | grep -v '^$'`
+APT_SOURCES=`curl -n -s --retry 10 $SOURCESURL | grep -v '^#' | grep -v '^$'`
 if [ $? -ne 0 ]; then
   log_error "Error downloading $SOURCESURL"
 fi
@@ -161,7 +161,7 @@ if ! schroot -i -c $SUITE-$ARCH-$VERSION >/dev/null 2>&1; then
   log_notice "Downloading schroot build environment"
 
   sudo mkdir -p /var/lib/schroot/chroots
-  sudo curl -s --retry 10 -o $SCHROOT $MOLIOR_SERVER/schroots/$SUITE-$VERSION-$ARCH.tar.xz
+  sudo curl -n -s --retry 10 -o $SCHROOT $MOLIOR_SERVER/schroots/$SUITE-$VERSION-$ARCH.tar.xz
   if [ $? -ne 0 ]; then
     log_error "Error downloading $MOLIOR_SERVER/schroots/$SUITE-$VERSION-$ARCH.tar.xz"
   fi

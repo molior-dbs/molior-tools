@@ -82,7 +82,7 @@ cat ~/.molior-token >> $tmptoken
 umask $old_umask
 errmsg=`mktemp`
 
-httpret=`echo $args | xargs curl -w "%{http_code}" -o $errmsg -H @$tmptoken $MOLIOR_SERVER/api2/project/$PROJECT/$VERSION/extbuild 2>/dev/null`
+httpret=`echo $args | xargs curl -n -w "%{http_code}" -o $errmsg -H @$tmptoken $MOLIOR_SERVER/api2/project/$PROJECT/$VERSION/extbuild 2>/dev/null`
 ret=$?
 rm -f $tmptoken
 if [ $ret -eq 0 -a $httpret != "201" ]; then

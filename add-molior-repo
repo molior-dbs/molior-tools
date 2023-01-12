@@ -29,7 +29,7 @@ add_molior_project()
     PROJECT="$1"
     VERSION="$2"
 
-    APT_SOURCES="$(curl -s --retry 10 $MOLIOR_URL/api/projectsources/$PROJECT/$VERSION)"
+    APT_SOURCES="$(curl -n -s --retry 10 $MOLIOR_URL/api/projectsources/$PROJECT/$VERSION)"
     if [ -z "$APT_SOURCES" ]
     then
         echo "Error downloading apt sources from '$MOLIOR_URL'"
@@ -48,7 +48,7 @@ add_molior_project()
     # add the repository key
     # get the apt url from the molior api
     APT_URL=$(echo $MIRROR | cut -d' ' -f 2 | cut -d/ -f 1-3)
-    curl -s --retry 10 $APT_URL/$PUBKEY_FILE | apt-key add - > /dev/null
+    curl -n -s --retry 10 $APT_URL/$PUBKEY_FILE | apt-key add - > /dev/null
 
     # remove the mirror from the apt sources
     APT_SOURCES=$(echo "${APT_SOURCES}" | tail -n +2)

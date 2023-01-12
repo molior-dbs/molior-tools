@@ -38,7 +38,7 @@ init_deployment_upgrade()
   fi
   log_info "Getting deployment information ..."
   SOURCESURL=$MOLIOR_SERVER/api2/project/$PROJECT/$VERSION/aptsources
-  APT_SOURCES_ORIG=`curl -f -s --retry 10 $SOURCESURL$param`
+  APT_SOURCES_ORIG=`curl -n -f -s --retry 10 $SOURCESURL$param`
   if [ -z "$APT_SOURCES_ORIG" ]; then
     log_error "Error downloading $SOURCESURL"
   fi
@@ -101,7 +101,7 @@ postinst_deployment_upgrade()
   fi
   log_info "Getting deployment information ..."
   SOURCESURL=$MOLIOR_SERVER/api2/project/$PROJECT/$VERSION/aptsources
-  APT_SOURCES_ORIG=`curl -f -s --retry 10 $SOURCESURL$param`
+  APT_SOURCES_ORIG=`curl -n -f -s --retry 10 $SOURCESURL$param`
   if [ -z "$APT_SOURCES_ORIG" ]; then
     log_error "Error downloading $SOURCESURL"
   fi
@@ -130,7 +130,7 @@ postinst_deployment_upgrade()
           postfix=""
         fi
         i=$((i + 1))
-        curl -s --retry 10 -o $WORK_DIR/repo.asc$postfix $url
+        curl -n -s --retry 10 -o $WORK_DIR/repo.asc$postfix $url
         exit_on_error "Error downloading $url"
       done
 
