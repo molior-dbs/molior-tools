@@ -20,6 +20,7 @@ OPTIONS
  INSTALLER_ASK_REBOOT       Specify 'no' to disable asking for confirmation to reboot the system
  INSTALLER_LINUX_CMDLINE    Linux cmdline for the installer
  DEPLOYMENT_ENV_EXTRA       Comma separated list of environment variable to add to the installer
+ INSTALLER_EJECT_DISK       Specify 'no' to disable ejecting the installation media after the installation has finished
 
 EXAMPLE
 

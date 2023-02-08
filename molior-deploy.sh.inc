@@ -832,6 +832,7 @@ get_deploy_config()
   echovar DEPLOYMENT_TYPE
   echovar DEPLOYMENT $deployment
   echovar DEPLOYMENT_OUTPUT_FILE
+  echovar INSTALLER_EJECT_DISK
   for var in `set | awk -F= '/^EXTRA_.*/ {print $1}'`; do
     echovar $var
   done

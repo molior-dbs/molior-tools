@@ -579,7 +579,7 @@ echo -e "\033[1;m"
 cp $errlog $target/var/log
 umount_fs >/dev/null 2>&1
 
-if [ -n "$SOURCEDISK" ]; then
+if [ "$INSTALLER_EJECT_DISK" != "no" -a -n "$SOURCEDISK" ]; then
   eject -rs $SOURCEDISK 2>&1
 fi
 
