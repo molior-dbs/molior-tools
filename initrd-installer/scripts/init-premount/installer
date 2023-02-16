@@ -494,6 +494,7 @@ if [ ! -L $target/dev/disk/by-uuid/$rootuuid ]; then
 fi
 
 if [ -n "$LINUX_CMDLINE" ]; then
+  LINUX_CMDLINE=`echo "$LINUX_CMDLINE" | sed 's/\\$/\\\\\\\\$/'`
   sed -i "s%^GRUB_CMDLINE_LINUX=.*$%GRUB_CMDLINE_LINUX=\"$LINUX_CMDLINE\"%" $target/etc/default/grub
 fi
 
