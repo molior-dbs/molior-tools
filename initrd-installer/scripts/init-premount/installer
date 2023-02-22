@@ -451,7 +451,7 @@ set -x
 cd /
 
 if [ -n "$hostname" ]; then
-  if [ -n "$INSTALLER_HOSTNAME_APPEND_MAC_IFACE" ]; then
+  if [ -n "$INSTALLER_HOSTNAME_APPEND_MAC_IFACE" -a -f "/sys/class/net/$INSTALLER_HOSTNAME_APPEND_MAC_IFACE/address"]; then
       mac=`tr -d : < /sys/class/net/$INSTALLER_HOSTNAME_APPEND_MAC_IFACE/address`
       hostname="$hostname-$mac"
   fi
