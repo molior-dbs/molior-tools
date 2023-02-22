@@ -95,6 +95,7 @@ $APT_SOURCES
     VMDK_FILE=$vmname.vmdk
     VM_ID=$vmname
 
+    log "creating $VMDK_FILE"
     mkdir $WORK_DIR/ovatmp
     qemu-img convert -f vmdk -O vmdk -o compat6,subformat=streamOptimized $VMDISK $WORK_DIR/ovatmp/$VMDK_FILE
     exit_on_error "Error converting vmdk"
