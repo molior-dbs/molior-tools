@@ -524,8 +524,8 @@ done
 EOM
   chmod +x $target/usr/sbin/policy-rc.d
 
-  mountbind /dev $target/dev
-  exit_on_error "Error mounting $target/dev"
+#  mountbind /dev $target/dev
+#  exit_on_error "Error mounting $target/dev"
   mountbind /dev/pts $target/dev/pts
   exit_on_error "Error mounting $target/dev/pts"
   mountbind /proc $target/proc ro
@@ -576,7 +576,7 @@ umount_bootstrap()
     done
     umount $target/sys
     umount $target/dev/pts
-    umount $target/dev
+#    umount $target/dev
     umount $target/tmp
     if [ -e $target/etc/apt/auth.conf ]; then
       umount $target/etc/apt/auth.conf
