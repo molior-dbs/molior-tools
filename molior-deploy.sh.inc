@@ -225,7 +225,7 @@ create_fstab()
       if [ -z "$opts" ]; then
         opts="rw,noexec,nosuid,nodev"
       fi
-      echo "$to $from none $opts,bind 0 0" >>$target/etc/fstab
+      echo "$from $to none $opts,bind 0 0" >>$target/etc/fstab
     done
   fi
 
@@ -243,7 +243,7 @@ create_fstab()
       else
         opts=$opts
       fi
-      echo "$to $from none $opts 0 0" >>$target/etc/fstab
+      echo "$from $to none $opts 0 0" >>$target/etc/fstab
     done
   fi
 
