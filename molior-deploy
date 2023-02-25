@@ -1073,12 +1073,16 @@ install_deployment()
   fi
 
   log "installing: $INSTALL_PACKAGE"
-  (install_progress) &
-  progress_pid=$!
+  if [ -t 1 ]; then
+      (install_progress) &
+      progress_pid=$!
+  fi
   apt_get_chroot_with_retry install $APT_DEBUG_OPTIONS --no-install-recommends --yes $INSTALL_PACKAGE $APT_INSTALL_EXTRA >&2
   ret=$?
-  rm -f $WORK_DIR/.show_install_progress
-  wait $progress_pid
+  if [ -t 1 ]; then
+      rm -f $WORK_DIR/.show_install_progress
+      wait $progress_pid
+  fi
   if [ $ret -ne 0 ]; then
     log_error "Error installing software"
   fi
@@ -1452,7 +1456,7 @@ workflow_base()
   fi
 
   if [ -n "$REQUIRED_HOST_COMMANDS" ]; then
-    log "checking required commands: $REQUIRED_HOST_COMMANDS"
+    log "checking required commands: "$REQUIRED_HOST_COMMANDS
     ok=1
     for cmd in $REQUIRED_HOST_COMMANDS
     do

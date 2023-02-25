@@ -8,13 +8,12 @@ Standards-Version: 3.9.3
 Package: molior-tools
 Section: misc
 Architecture: all
-Suggests: docker, virtualbox, syslinux-utils, genisoimage, pigz
+Suggests: docker, virtualbox, syslinux-utils, genisoimage, pigz, rlwrap
 Depends: ${perl:Depends}, ${misc:Depends}, ${python3:Depends},
-  libapt-pkg-perl, libparse-debian-packages-perl, wget,
+  libapt-pkg-perl, libparse-debian-packages-perl, wget, pv,
   debootstrap, xz-utils, devscripts, equivs, curl, lsb-release,
   python3, python3-yaml, python3-click, jq, pxz | xz-utils (>= 5.2.4-1)
 Conflicts: debrilis, rlx3-devtools, molior-deploy
-Recommends: rlwrap
 Description: molior development and deployment tools
  Tools for creating debian package releases in git repositories
  and for creating deployments of molior projects.
