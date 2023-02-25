@@ -1073,11 +1073,42 @@ install_deployment()
   fi
 
   log "installing: $INSTALL_PACKAGE"
+  (install_progress) &
+  progress_pid=$!
   apt_get_chroot_with_retry install $APT_DEBUG_OPTIONS --no-install-recommends --yes $INSTALL_PACKAGE $APT_INSTALL_EXTRA >&2
-  exit_on_error "Error installing software"
+  ret=$?
+  rm -f $WORK_DIR/.show_install_progress
+  wait $progress_pid
+  if [ $ret -ne 0 ]; then
+    log_error "Error installing software"
+  fi
 
   chroot $target apt-get clean >&2
   chroot $target dpkg -l | tail -n +6 | awk '{ printf "%-42s %s\n", $2, $3 }' >$WORK_DIR/packages.txt
+}
+
+install_progress()
+{
+    total=""
+    already=`grep "^Get:\|^Preparing to unpack\|^Setting up" $errlog -c`
+    touch $WORK_DIR/.show_install_progress
+    sleep 10
+    while [ -f $WORK_DIR/.show_install_progress ]; do
+        sleep 2
+        if [ -z "$total" ]; then
+            set +x
+            total=`grep "newly installed" $errlog | tail -n1 | sed 's/.*, \([0-9]\+\) newly installed.*/\1/'`
+            total=$((total * 3))
+            set -x
+        fi
+        if [ -z "$total" ]; then
+            continue
+        fi
+        current=`grep "^Get:\|^Preparing to unpack\|^Setting up" $errlog -c`
+        current=$((current - already))
+        /bin/echo -ne "\r   `perl -e "print '.' x $current" | pv -pf --width 32 -s $total 2>&1 >/dev/null`"
+    done
+    /bin/echo -ne "\r                                                         "
 }
 
 cleanup_deployment()
