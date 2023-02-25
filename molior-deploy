@@ -1108,7 +1108,7 @@ install_progress()
         current=$((current - already))
         /bin/echo -ne "\r   `perl -e "print '.' x $current" | pv -pf --width 32 -s $total 2>&1 >/dev/null`"
     done
-    /bin/echo -ne "\r                                                         "
+    /bin/echo -ne "                                        \r"
 }
 
 cleanup_deployment()
