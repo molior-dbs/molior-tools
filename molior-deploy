@@ -1376,15 +1376,6 @@ install_docker_pull()
     i=$((i + 1))
   done
 
-  if [ -n "$DOCKER_COMPOSE_FILE" ]; then
-    log "running docker compose up"
-    chroot $target sh -c "cd /tmp/docker-compose; docker-compose --no-ansi -f $DOCKER_COMPOSE_FILE up --no-start" >&2
-    ret=$?
-    if [ "$ret" -ne 0 ]; then
-      log_warn "Error running docker-compose up"
-      return $ret
-    fi
-  fi
   return $ret
 }
 
