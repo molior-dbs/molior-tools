@@ -524,14 +524,13 @@ done
 EOM
   chmod +x $target/usr/sbin/policy-rc.d
 
-#  mountbind /dev $target/dev
-#  exit_on_error "Error mounting $target/dev"
-  mountbind /dev/pts $target/dev/pts
+  mount udev -t devtmpfs $target/dev
+  exit_on_error "Error mounting $target/dev"
+  mount devpts -t devpts $target/dev/pts
   exit_on_error "Error mounting $target/dev/pts"
-  mountbind /proc $target/proc ro
+  mount proc -t proc $target/proc
   exit_on_error "Error mounting $target/proc"
-
-  mountbind /sys $target/sys ro
+  mount sysfs -t sysfs $target/sys
   exit_on_error "Error mounting $target/sys"
 
   mkdir -p $WORK_DIR/chroottmp
@@ -574,9 +573,10 @@ umount_bootstrap()
     do
       umount $m
     done
+    umount $target/proc
     umount $target/sys
     umount $target/dev/pts
-#    umount $target/dev
+    umount $target/dev
     umount $target/tmp
     if [ -e $target/etc/apt/auth.conf ]; then
       umount $target/etc/apt/auth.conf
