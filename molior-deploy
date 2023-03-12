@@ -1245,9 +1245,9 @@ install_docker()
     fi
 
     # restore bootstrap mounts
-    mountbind /proc $target/proc ro
+    mount proc -t proc $target/proc
     exit_on_error "Error mounting $target/proc"
-    mountbind /sys $target/sys ro
+    mount sys -t sysfs $target/sys
     exit_on_error "Error mounting $target/sys"
 }
 
@@ -1265,6 +1265,10 @@ install_docker_start()
   if mountpoint -q $target/dev/pts; then
     umount $target/dev/pts
     exit_on_error "Error unmouting $target/dev/pts"
+  fi
+  if mountpoint -q $target/dev; then
+    umount $target/dev
+    exit_on_error "Error unmouting $target/dev"
   fi
   if mountpoint -q $target/tmp; then
     umount $target/tmp
@@ -1391,9 +1395,13 @@ install_docker_postinst_hooks()
 install_docker_stop()
 {
   rm -rf $target/tmp/docker-compose
+
   # stop docker
   kill_with_retry $dockerpid 3
   exit_on_error "kill dockerpid=$dockerpid unsuccessful"
+
+  # wait for dockerd do terminate
+  sleep 5
 
   # cleaup filesystems
   umount $target/run/systemd/journal
@@ -1402,7 +1410,9 @@ install_docker_stop()
   umount $target/sys
   umount $target/proc
   if [ $docker_root_remount -eq 1 ]; then
+    docker_root_remount=0
     umount $target
+    exit_on_error "error unmounting docker remount"
   fi
 
   # remove any docker credentials
