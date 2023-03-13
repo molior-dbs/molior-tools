@@ -846,3 +846,68 @@ get_deploy_config()
   fi
 }
 
+mount_fs_devices()
+{
+  if [ -z "$target" ]; then
+    log_error "Error: \$target not set"
+  fi
+
+  # on Debian/buster /run/udev seems to be needed for installing grub
+  if [ -d "/run/udev/" ]; then
+    mkdir -p $target/run/udev
+    mount --bind /run/udev/ $target/run/udev
+  fi
+}
+
+umount_fs_devices()
+{
+  if [ -z "$target" ]; then
+    return
+  fi
+  if [ -d "/run/udev" ]; then
+    umount $target/run/udev/
+    rmdir $target/run/udev/
+  fi
+}
+
+install_grub_bootloader()
+{
+  if [ -z "$target" ]; then
+    log_error "Error: \$target not set"
+  fi
+
+  if [ -z "$rootpart" ]; then
+    log_error "Error updating grub: no rootpart defined"
+  fi
+
+  mount_fs_devices
+
+  uuid=`blkid  -o value -s UUID $rootpart`
+  t="bios"
+  if [ -n "$TARGET_BOOTTYPE" ]; then
+      t=$TARGET_BOOTTYPE
+  fi
+  log "grub-install ($t)"
+  if [ "$TARGET_BOOTTYPE" = "efi" ]; then
+    chroot $target grub-install --removable --recheck --force --no-floppy --target x86_64-efi >&2
+    exit_on_error "installing grub failed"
+  else
+    chroot $target grub-install --modules part_msdos --recheck --force --no-floppy $disk >&2
+    exit_on_error "installing grub failed"
+    # configure root device
+    chroot $target debconf-set-selections <<EOFGRUB
+grub-pc grub-pc/install_devices multiselect $disk
+EOFGRUB
+  fi
+
+  log "update-grub"
+  if [ -n "$LINUX_CMDLINE" ]; then
+    sed -i "s%^GRUB_CMDLINE_LINUX=.*$%GRUB_CMDLINE_LINUX=\"$LINUX_CMDLINE\"%" $target/etc/default/grub
+  fi
+  mkdir -p $target/dev/disk/by-uuid
+  ln -s $rootpart $target/dev/disk/by-uuid/$uuid
+  chroot $target update-grub
+
+  rm -rf $target/dev/disk/by-uuid
+  umount_fs_devices
+}

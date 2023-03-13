@@ -585,43 +585,6 @@ umount_bootstrap()
   fi
 }
 
-mount_fs_devices()
-{
-  if [ -z "$target" ]; then
-    log_error "Error: \$target not set"
-  fi
-  for l in ${disk}*
-  do
-    touch $target/$l
-    mount --bind $l $target/$l
-  done
-  cp -a /dev/dm-* $target/dev
-  cp -a /dev/mapper $target/dev/
-  # on Debian/buster /run/udev seems to be needed for installing grub
-  if [ -d "/run/udev/" ]; then
-    mkdir -p $target/run/udev
-    mount --bind /run/udev/ $target/run/udev
-  fi
-}
-
-umount_fs_devices()
-{
-  if [ -z "$target" ]; then
-    return
-  fi
-  if [ -d "/run/udev" ]; then
-    umount $target/run/udev/
-    rmdir $target/run/udev/
-  fi
-  for l in ${disk}*
-  do
-    umount $target/$l
-    rm -f $target/$l
-  done
-  rm -f $target/dev/dm-*
-  rm -rf $target/dev/mapper
-}
-
 setup_deployment()
 {
   DEPLOYMENT_TIMESTAMP=`date -R`
@@ -1137,48 +1100,6 @@ cleanup_deployment()
         $target/var/log/apt/*
 }
 
-install_grub_bootloader()
-{
-  if [ -z "$target" ]; then
-    log_error "Error: \$target not set"
-  fi
-
-  if [ -z "$rootpart" ]; then
-    log_error "Error updating grub: no rootpart defined"
-  fi
-
-  mount_fs_devices
-
-  uuid=`blkid  -o value -s UUID $rootpart`
-  t="bios"
-  if [ -n "$TARGET_BOOTTYPE" ]; then
-      t=$TARGET_BOOTTYPE
-  fi
-  log "grub-install ($t)"
-  if [ "$TARGET_BOOTTYPE" = "efi" ]; then
-    chroot $target grub-install --removable --recheck --force --no-floppy --target x86_64-efi >&2
-    exit_on_error "installing grub failed"
-  else
-    chroot $target grub-install --modules part_msdos --recheck --force --no-floppy $disk >&2
-    exit_on_error "installing grub failed"
-    # configure root device
-    chroot $target debconf-set-selections <<EOFGRUB
-grub-pc grub-pc/install_devices multiselect $disk
-EOFGRUB
-  fi
-
-  log "update-grub"
-  if [ -n "$LINUX_CMDLINE" ]; then
-    sed -i "s%^GRUB_CMDLINE_LINUX=.*$%GRUB_CMDLINE_LINUX=\"$LINUX_CMDLINE\"%" $target/etc/default/grub
-  fi
-  mkdir -p $target/dev/disk/by-uuid
-  ln -s $rootpart $target/dev/disk/by-uuid/$uuid
-  chroot $target update-grub
-
-  rm -rf $target/dev/disk/by-uuid
-  umount_fs_devices
-}
-
 get_deployment_filename()
 {
   EXTENSION="$1"
@@ -1233,6 +1154,8 @@ install_docker()
         return  # nothing to do
     fi
 
+    umount_bootstrap
+
     install_docker_start  # after this, not exit / log_error is allowed until install_docker_stop is called
     install_docker_pull
     ret=$?
@@ -1245,41 +1168,21 @@ install_docker()
     fi
 
     # restore bootstrap mounts
-    mount proc -t proc $target/proc
-    exit_on_error "Error mounting $target/proc"
-    mount sys -t sysfs $target/sys
-    exit_on_error "Error mounting $target/sys"
+    mount_bootstrap
 }
 
 install_docker_start()
 {
   # prepare filesystem
-  if mountpoint -q $target/sys; then
-    umount $target/sys
-    exit_on_error "Error unmouting $target/sys"
-  fi
-  if mountpoint -q $target/proc; then
-    umount $target/proc
-    exit_on_error "Error unmouting $target/proc"
-  fi
-  if mountpoint -q $target/dev/pts; then
-    umount $target/dev/pts
-    exit_on_error "Error unmouting $target/dev/pts"
-  fi
-  if mountpoint -q $target/dev; then
-    umount $target/dev
-    exit_on_error "Error unmouting $target/dev"
-  fi
-  if mountpoint -q $target/tmp; then
-    umount $target/tmp
-    exit_on_error "Error unmouting $target/tmp"
-  fi
-
   docker_root_remount=0
   if ! mountpoint -q $target; then
     docker_root_remount=1
     mount -o bind $target $target
   fi
+
+  mount udev -t devtmpfs $target/dev
+  exit_on_error "Error mounting $target/dev"
+  mount devpts -t devpts $target/dev/pts
   mount proc -t proc $target/proc
   exit_on_error "Error mouting /proc rw"
   mount sys -t sysfs $target/sys
@@ -1405,10 +1308,19 @@ install_docker_stop()
 
   # cleaup filesystems
   umount $target/run/systemd/journal
+  exit_on_error "Error unmounting $target/run/systemd/journal"
   chroot $target cgroupfs-umount >&2
+  exit_on_error "Error unmounting cgroupfs"
   umount $target/sys/fs/cgroup
+  exit_on_error "Error unmounting $target/sys/fs/cgroup"
   umount $target/sys
+  exit_on_error "Error unmounting $target/sys"
   umount $target/proc
+  exit_on_error "Error unmounting $target/proc"
+  umount $target/dev/pts
+  exit_on_error "Error unmounting $target/dev/pts"
+  umount $target/dev
+  exit_on_error "Error unmounting $target/dev"
   if [ $docker_root_remount -eq 1 ]; then
     docker_root_remount=0
     umount $target

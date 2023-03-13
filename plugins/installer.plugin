@@ -135,14 +135,14 @@ prepare_initrd_deployment()
     # copy full rootfs for creating the initrd
     cp -ar $target $WORK_DIR/instroot
 
-    # mount bind the needed system folders to allow installing without errors
-    mount proc -t proc $WORK_DIR/instroot/proc
-    mount sysfs -t sysfs $WORK_DIR/instroot/sys
-    mount udev -t devtmpfs $WORK_DIR/instroot/dev
-    mount devpts -t devpts $WORK_DIR/instroot/dev/pts
-
     chroot $WORK_DIR/instroot apt-get update >&2
   fi
+
+  # mount the needed system folders to allow installing without errors
+  mount proc -t proc $WORK_DIR/instroot/proc
+  mount sysfs -t sysfs $WORK_DIR/instroot/sys
+  mount udev -t devtmpfs $WORK_DIR/instroot/dev
+  mount devpts -t devpts $WORK_DIR/instroot/dev/pts
 
   DEBIAN_FRONTEND=noninteractive chroot $WORK_DIR/instroot apt-get install --no-install-recommends --yes \
     $INSTALLER_EXTRA_PACKAGES $LINUX_IMAGE_NAME \
