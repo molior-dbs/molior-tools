@@ -336,7 +336,7 @@ finish ()
     if [ -n "$SUDO_UID" -a -n "$SUDO_GID" ]; then
       chown $SUDO_UID:$SUDO_GID $CUR_DIR/deployment.vars
     fi
-    log_notice "Build variables saved: deployment.vars"
+    log "saving deploy configuration to deployment.vars"
   fi
 
   set +x
