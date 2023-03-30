@@ -146,9 +146,9 @@ create_fstab()
           log_error "Error: empty uuid for '$part'"
         fi
         set -x
-        if [ "$s" = "swap" ]; then  # write swap directly
+        if [ "$t_fs" = "swap" ]; then  # write swap directly
           echo "UUID=$uuid none swap sw 0 0" >> $target/etc/fstab
-        elif [ "$s" != "lvm" ]; then
+        elif [ "$t_fs" != "lvm" ]; then
           # remember for sorting
           entries="$entries\nUUID=$uuid $t_mnt $t_fs $t_opts 0 2"
         fi
