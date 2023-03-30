@@ -266,6 +266,9 @@ target=""
 BADFMTS="cli jar jarwrapper python2.7 python3.5"
 
 . /usr/lib/molior-deploy/molior-deploy.sh.inc
+if ls /usr/lib/molior-deploy/molior-deploy.d/*.inc > /dev/null 2>&1; then
+    . /usr/lib/molior-deploy/molior-deploy.d/*.inc
+fi
 
 if [ "$debug_mode" -ne 1 -a "$LIST_ONLY" -ne 1 ]; then
   exec 3>&2

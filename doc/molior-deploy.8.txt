@@ -10,7 +10,8 @@ DESCRIPTION
  the deployment configuration located in the deploy/ directory (*.conf files).
 
  The deployment configuration files specify the type of deployment and additional information needed to create
- the deployment and consist of shell script which is sourced by the main molior-deploy command.
+ the deployment and consist of shell script which is sourced by the main molior-deploy command. There is also
+ the folder /usr/lib/molior-deploy/molior-deploy.d/ from where all *.inc files are sourced by the molior-deploy.
 
  Standard deployment types are supported via plugins and custom deployment types can be defined inside the
  configuration files.
