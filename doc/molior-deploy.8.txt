@@ -92,8 +92,8 @@ FILESYSTEM PARAMETERS
  LVM_LV#_OPTS       LVM logical volume # fstab options (i.e. "defaults,noatime")
  LVM_LV#_MKFSOPTS   Options for mkfs (i.e. "-O ^64bit,^metadata_csum")
 
- BIND_MOUNTS        Space (' ') separated list of target:source[:mountopts] bind mount pairs which will be mounted before installation and added to the fstab
- EXTRA_BIND_MOUNTS  Space (' ') separated list of target:source[:mountopts] bind mount pairs which will be added to the fstab
+ BIND_MOUNTS        Set extra bind mounts for installation, space separated list of from:to:options (i.e. "/var/tmp:/tmp"). Entries will be created in fstab
+ EXTRA_BIND_MOUNTS  Set extra bind mounts to be added to fstab (not available during installation)
 
 
 RAID PARAMETERS
@@ -115,8 +115,6 @@ OPTIONAL PARAMETERS
  ROOTDEVICE         Set root device (i.e. "/dev/ubi0_0", default: auto detect)
  ROOTFS             Set root filesystem (i.e. ubifs, default: auto detect)
  ROOTFSOPTS         Set root filesystem fstab entry options (i.e. "defaults,noatime")
-
- EXTRA_BIND_MOUNTS  Set extra fstab entries for bind mounts, colon separated destination:source (i.e. "/tmp:/var/tmp")
 
 DOCKER PARAMETERS
 
