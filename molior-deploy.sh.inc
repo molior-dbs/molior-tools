@@ -240,7 +240,7 @@ create_fstab()
   fi
 
   # write sorted entries
-  echo "$entries" | sort -k 2 >> $target/etc/fstab
+  /bin/echo -e "$entries" | sort -k 2 >> $target/etc/fstab
 
   if [ -n "$BIND_MOUNTS" ]; then
     echo >> $target/etc/fstab
