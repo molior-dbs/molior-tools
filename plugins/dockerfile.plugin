@@ -15,7 +15,8 @@ finalize_deployment_dockerfile()
     fi
 
     DOCKER_TAG=`echo $CONTAINER_NAME:$CONTAINER_VERSION | tr A-Z a-z`
-    eval "docker build --no-cache $DOCKER_BUILD_OPTS -f $SOURCE_DIR/$DOCKERFILE -t $DOCKER_TAG $SOURCE_DIR"
+    DOCKER_BUILD_CONTEXT=$SOURCE_DIR/$DOCKER_BUILD_CONTEXT
+    eval "docker build --no-cache $DOCKER_BUILD_OPTS -f $SOURCE_DIR/$DOCKERFILE -t $DOCKER_TAG $DOCKER_BUILD_CONTEXT"
     exit_on_error "Error building docker"
 
     deployment=$(get_deployment_filename "tar")

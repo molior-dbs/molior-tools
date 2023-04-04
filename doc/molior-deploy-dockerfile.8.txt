@@ -9,9 +9,10 @@ DESCRIPTION
 OPTIONS
  The deployment configuration (deploy/*.conf file) recognizes the following variables:
 
- DEPLOYMENT_TYPE    Specify 'docker' to use the docker plugin
- DOCKERFILE         Specify path to a Dockerfile (relative to source directory) [required]
- CONTAINER_NAME     Specify docker container name (default: PROJECT_VERSION)
+ DEPLOYMENT_TYPE         Specify 'docker' to use the docker plugin
+ DOCKERFILE              Specify path to a Dockerfile (relative to source directory) [required]
+ CONTAINER_NAME          Specify docker container name (default: PROJECT_VERSION)
+ DOCKER_BUILD_CONTEXT    Specify build context (relative to source directory)
 
 EXAMPLE
 
