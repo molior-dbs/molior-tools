@@ -31,9 +31,6 @@ create_fstab()
   fi
   echo "# $PROJECT fstab" > $target/etc/fstab
 
-  # remember btrfs uuid
-  btrfs_uuid=""
-
   # put root mount first to fstab (search in ROOTDEVICE, partitions, lvm)
   if [ -n "$ROOTDEVICE" ]; then
     if [ -z "$ROOTFS" ]; then
@@ -60,8 +57,8 @@ create_fstab()
         eval t_mnt=\$${d}PART${p}_MNT
         if [ -n "$t_mnt" ]; then
           if [ "$t_mnt" = "/" ]; then  # only include root partition
-            eval t_fs=\$${d}PART${p}_FS
-            if [ -z "$t_fs" ]; then
+            eval s=\$${d}PART${p}_FS
+            if [ -z "$s" ]; then
               break
             fi
             eval o=\$${d}PART${p}_OPTS
@@ -74,12 +71,8 @@ create_fstab()
             if [ -z "$uuid" ]; then
               log_error "Error rootfs uuid is empty for '$part'"
             fi
-            if [ "$t_fs" = "btrfs" ]; then
-              # remember for subvolumes
-              btrfs_uuid=$uuid
-            fi
             set -x
-            echo "UUID=$uuid $t_mnt $t_fs $o 0 1" >> $target/etc/fstab
+            echo "UUID=$uuid $t_mnt $s $o 0 1" >> $target/etc/fstab
             set +x
             found=1
             break
@@ -128,12 +121,12 @@ create_fstab()
   set +x
   for d in "" "DISK1_" "DISK2_" "DISK3_"
   do
-    eval t_disk=\$${d}DISK
-    if [ -z "$t_disk" ]; then
-      t_disk=$disk
-    fi
     for p in `seq 1 $MAXPART`
     do
+      eval t_disk=\$${d}DISK
+      if [ -z "$t_disk" ]; then
+        t_disk=$disk
+      fi
       eval t_fs=\$${d}PART${p}_FS
       if [ -n "$t_fs" ]; then
         eval t_mnt=\$${d}PART${p}_MNT
@@ -162,21 +155,6 @@ create_fstab()
         fi
         set +x
       fi
-    done
-
-    # create btrfs subvolume entries
-    for p in `seq 1 $MAXPART`
-    do
-      eval subvol_path=\$${d}BTRFS_SUBVOL${p}_PATH
-      if [ -z "$subvol_path" ]; then
-       continue
-      fi
-      eval t_opts=\$${d}BTRFS_SUBVOL${p}_OPTS
-      if [ -n "$t_opts" ]; then
-        t_opts=",$t_opts"
-      fi
-      t_opts="subvol=$subvol_path$t_opts"
-      entries="$entries\nUUID=$btrfs_uuid $subvol_path btrfs $t_opts 0 0"
     done
   done
   set -x
@@ -210,10 +188,6 @@ create_fstab()
         uuid=`blkid -o value -s UUID $part`
         if [ -z "$uuid" ]; then
           log_error "Error: empty uuid for '$part'"
-        fi
-        if [ "$t_fs" = "btrfs" ]; then
-          # remember for subvolumes
-          btrfs_uuid=$uuid
         fi
         set -x
         if [ "$s" = "swap" ]; then  # write swap directly
@@ -590,16 +564,21 @@ mount_fs()
     if [ -z "$subvol_path" ]; then
      continue
     fi
-    subvol=$subvol_path
-    set -x
-    btrfs subvolume create $target/$subvol >&2
-    set +x
-
+    subvol=$target$subvol_path
+    if [ ! -e $subvol ]; then
+      dir=${subvol%${subvol##*/}}
+      if [ ! -e $dir ]; then
+        mkdir -p $dir
+      fi
+      set -x
+      btrfs subvolume create $subvol
+      set +x
+    fi
     eval subvol_limit=\$BTRFS_SUBVOL${p}_LIMIT
     if [ -n "$subvol_limit" ]; then
       set -x
-      btrfs quota enable $target/$subvol >&2
-      btrfs qgroup limit $subvol_limit $target/$subvol >&2
+      btrfs quota enable $subvol
+      btrfs qgroup limit $subvol_limit $subvol
       set +x
     fi
   done
