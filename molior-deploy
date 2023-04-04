@@ -361,7 +361,12 @@ finish ()
     fi
   fi
 
-  rm -rf $WORK_DIR
+  if ! grep -q $WORK_DIR /proc/mounts; then
+      rm -rf $WORK_DIR
+  else
+      grep $WORK_DIR /proc/mounts
+      log_warn "not removing $WORK_DIR, still mounted"
+  fi
 
   diff=$((endtime-starttime))
   if [ "$success" -ne 1 ]; then
