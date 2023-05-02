@@ -1539,8 +1539,10 @@ workflow_deployment()
     if [ -z "$SHA256EXT" ]; then
       SHA256EXT=sha256
     fi
-    sha256sum $WORK_DIR/$deployment > $WORK_DIR/$deployment.$SHA256EXT
+    cd $WORK_DIR
+    sha256sum $deployment > $deployment.$SHA256EXT
     exit_on_error "Error sha256sum"
+    cd - >/dev/null
     mv $WORK_DIR/$deployment.$SHA256EXT $CUR_DIR
     if [ -n "$SUDO_UID" -a -n "$SUDO_GID" ]; then
       chown $SUDO_UID:$SUDO_GID $CUR_DIR/$deployment.$SHA256EXT
