@@ -703,8 +703,7 @@ umount_fs()
     return
   fi
 
-  for m in `grep $target /proc/mounts | cut -d ' ' -f 2 | sort -r`
-  do
+  for m in `grep $target /proc/mounts | cut -d ' ' -f 2 | sort -r`; do
     umount $m
   done
 
@@ -751,6 +750,10 @@ umount_fs()
       fi
     done
     set -x
+  fi
+
+  if [ -n "$btrfs_root_part" ]; then
+    umount $WORK_DIR/btrfs-root
   fi
 }
 
