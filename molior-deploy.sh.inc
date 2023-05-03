@@ -384,11 +384,11 @@ create_luks()
   fi
   eval cipher=\$LUKS_${name}_CIPHER
   if [ -z "$cipher" ]; then
-    cipher=aes-cbc-null
+    cipher=aes-xts-plain64
   fi
   eval keysize=\$LUKS_${name}_KEYSIZE
   if [ -z "$keysize" ]; then
-    keysize=128
+    keysize=256
   fi
   eval passphrase=\$LUKS_${name}_PASSPHRASE
   if [ -z "$passphrase" ]; then
@@ -476,6 +476,8 @@ create_fs()
   if [ -n "$LVM_VG" ]; then
     if [ "$LVM_PV" = "disk" ]; then
       create_lvm $disk
+    else
+      create_lvm $LVM_PV
     fi
     set +x
     for p in `seq 1 $MAXPART`
