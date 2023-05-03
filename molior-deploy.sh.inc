@@ -7,6 +7,9 @@ fs_has_lvm=0
 fs_has_luks=0
 fs_on_raid=0
 fs_has_btrfs=0
+btrfs_root_part=
+btrfs_uuid=""
+
 
 exit_on_error()
 {
@@ -57,8 +60,8 @@ create_fstab()
         eval t_mnt=\$${d}PART${p}_MNT
         if [ -n "$t_mnt" ]; then
           if [ "$t_mnt" = "/" ]; then  # only include root partition
-            eval s=\$${d}PART${p}_FS
-            if [ -z "$s" ]; then
+            eval t_fs=\$${d}PART${p}_FS
+            if [ -z "$t_fs" ]; then
               break
             fi
             eval o=\$${d}PART${p}_OPTS
@@ -72,13 +75,31 @@ create_fstab()
               log_error "Error rootfs uuid is empty for '$part'"
             fi
             set -x
-            echo "UUID=$uuid $t_mnt $s $o 0 1" >> $target/etc/fstab
+            echo "UUID=$uuid $t_mnt $t_fs $o 0 1" >> $target/etc/fstab
             set +x
             found=1
             break
           fi
         fi
       done
+
+      # create btrfs subvolume entries
+      for p in `seq 1 $MAXPART`
+      do
+        eval subvol_path=\$${d}BTRFS_SUBVOL${p}_PATH
+        if [ -z "$subvol_path" ]; then
+         continue
+        fi
+        eval t_opts=\$${d}BTRFS_SUBVOL${p}_OPTS
+        if [ -n "$t_opts" ]; then
+          t_opts=",$t_opts"
+        fi
+        t_opts="subvol=/root$t_opts"
+        echo "UUID=$btrfs_uuid $subvol_path btrfs $t_opts 0 0" >> $target/etc/fstab
+        found=1
+        break
+      done
+
       if [ $found -eq 1 ]; then
         break
       fi
@@ -115,21 +136,6 @@ create_fstab()
     done
     set -x
   fi
-
-  # create btrfs subvolume entries
-  for p in `seq 1 $MAXPART`
-  do
-    eval subvol_path=\$${d}BTRFS_SUBVOL${p}_PATH
-    if [ -z "$subvol_path" ]; then
-     continue
-    fi
-    eval t_opts=\$${d}BTRFS_SUBVOL${p}_OPTS
-    if [ -n "$t_opts" ]; then
-      t_opts=",$t_opts"
-    fi
-    t_opts="subvol=$subvol_path$t_opts"
-    entries="$entries\nUUID=$btrfs_uuid $subvol_path btrfs $t_opts 0 0"
-  done
 
   # put all other entries to fstab
   entries=""
@@ -170,6 +176,24 @@ create_fstab()
         fi
         set +x
       fi
+    done
+
+    # create btrfs subvolume entries
+    for p in `seq 1 $MAXPART`
+    do
+      eval subvol_path=\$${d}BTRFS_SUBVOL${p}_PATH
+      if [ -z "$subvol_path" ]; then
+       continue
+      fi
+      if [ "$subvol_path" = "/" ]; then  # skip root partition
+        continue
+      fi
+      eval t_opts=\$${d}BTRFS_SUBVOL${p}_OPTS
+      if [ -n "$t_opts" ]; then
+        t_opts=",$t_opts"
+      fi
+      t_opts="subvol=$subvol_path$t_opts"
+      entries="$entries\nUUID=$btrfs_uuid $subvol_path btrfs $t_opts 0 0"
     done
   done
   set -x
@@ -406,6 +430,16 @@ make_fs()
     log "mkfs $part"
     eval mkfs -t $s -f $opts $part >/dev/null
     exit_on_error "Error formatting partition $part as $s"
+    mkdir -p $WORK_DIR/btrfs-root
+    mount $part $WORK_DIR/btrfs-root
+    # remember for grub
+    btrfs_root_part=$part
+    # remember for subvolumes
+    uuid=`blkid -o value -s UUID $part`
+    if [ -z "$uuid" ]; then
+      log_error "Error: empty uuid for '$part'"
+    fi
+    btrfs_uuid=$uuid
 
   else # normal filesystems
     log "mkfs $part"
@@ -575,27 +609,32 @@ mount_fs()
   set +x
   for p in `seq 1 $MAXPART`
   do
+    set -x
     eval subvol_path=\$BTRFS_SUBVOL${p}_PATH
     if [ -z "$subvol_path" ]; then
      continue
     fi
-    subvol=$target$subvol_path
-    if [ ! -e $subvol ]; then
-      dir=${subvol%${subvol##*/}}
-      if [ ! -e $dir ]; then
-        mkdir -p $dir
-      fi
-      set -x
-      btrfs subvolume create $subvol
-      set +x
+    subvol_internal_path=$subvol_path
+    if [ "$subvol_internal_path" = "/" ]; then
+      subvol_internal_path="root"
+      rootpart=$btrfs_root_part
     fi
+    log "btrfs create subvolume: $subvol_path"
+    btrfs subvolume create $WORK_DIR/btrfs-root/$subvol_internal_path >&2
+    exit_on_error "Error creating btrfs subvolume"
+
     eval subvol_limit=\$BTRFS_SUBVOL${p}_LIMIT
     if [ -n "$subvol_limit" ]; then
-      set -x
-      btrfs quota enable $subvol
-      btrfs qgroup limit $subvol_limit $subvol
-      set +x
+      btrfs quota enable $WORK_DIR/btrfs-root/$subvol_internal_path
+      exit_on_error "Error enabling btrfs subvolume quota"
+      btrfs qgroup limit $subvol_limit $WORK_DIR/btrfs-root/$subvol_internal_path
+      exit_on_error "Error enabling btrfs subvolume limit"
     fi
+
+    mkdir -p $target/$subvol_path
+    mount --bind $WORK_DIR/btrfs-root/$subvol_internal_path $target/$subvol_path
+    exit_on_error "Error mounting btrfs subvolume"
+    set +x
   done
   set -x
 
@@ -813,21 +852,27 @@ get_deploy_config()
       eval s=\$${d}PART${p}_MKFSOPTS
       test -n "$s" && echovar ${d}PART${p}_MKFSOPTS "$s"
     done
+
+    for p in `seq 1 $MAXPART`
+    do
+      eval s=\$${d}PART${p}_LUKSNAME
+      if [ -n "$s" ]; then
+        echovar ${d}PART${p}_LUKSNAME "$s"
+        luks_name="$s"
+        eval s=\$LUKS_${luks_name}_FS
+        test -n "$s" && echovar LUKS_${luks_name}_FS "$s"
+        eval s=\$LUKS_${luks_name}_MNT
+        test -n "$s" && echovar LUKS_${luks_name}_MNT "$s"
+        # FIXME: LUKS_${luks_name}_MKFSOPTS
+      fi
+    done
   done
+
+  eval s=\$LVM_PV
+  test -n "$s" && echovar LVM_PV "$s"
 
   for p in `seq 1 $MAXPART`
   do
-    eval s=\$${d}PART${p}_LUKSNAME
-    if [ -n "$s" ]; then
-      echovar ${d}PART${p}_LUKSNAME "$s"
-      luks_name="$s"
-      eval s=\$LUKS_${luks_name}_FS
-      test -n "$s" && echovar LUKS_${luks_name}_FS "$s"
-      eval s=\$LUKS_${luks_name}_MNT
-      test -n "$s" && echovar LUKS_${luks_name}_MNT "$s"
-      # FIXME: LUKS_${luks_name}_MKFSOPTS
-    fi
-
     eval s=\$LVM_LV${p}_FS
     test -n "$s" && echovar LVM_LV${p}_FS "$s"
     lvm_fs="$s"
