@@ -116,6 +116,21 @@ create_fstab()
     set -x
   fi
 
+  # create btrfs subvolume entries
+  for p in `seq 1 $MAXPART`
+  do
+    eval subvol_path=\$${d}BTRFS_SUBVOL${p}_PATH
+    if [ -z "$subvol_path" ]; then
+     continue
+    fi
+    eval t_opts=\$${d}BTRFS_SUBVOL${p}_OPTS
+    if [ -n "$t_opts" ]; then
+      t_opts=",$t_opts"
+    fi
+    t_opts="subvol=$subvol_path$t_opts"
+    entries="$entries\nUUID=$btrfs_uuid $subvol_path btrfs $t_opts 0 0"
+  done
+
   # put all other entries to fstab
   entries=""
   set +x
