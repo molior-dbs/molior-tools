@@ -67,6 +67,14 @@ deinit_deployment_ova()
   fi
 }
 
+postinst_deployment_ova()
+{
+  if [ -z "$VM_DEBIAN_VERSION" ]; then
+      . $target/etc/os-release
+      VM_DEBIAN_VERSION=$VERSION_ID
+  fi
+}
+
 finalize_deployment_ova()
 {
   umount_bootstrap
@@ -89,6 +97,10 @@ $APT_SOURCES
   fi
   if [ -z "$VSPHERE_VERSION" ]; then
     VSPHERE_VERSION="13"
+  fi
+
+  if [ -z "$VM_DEBIAN_VERSION" ]; then
+      VM_DEBIAN_VERSION=11
   fi
 
     deployment=$vmname.ova
@@ -124,9 +136,9 @@ $APT_SOURCES
   <VirtualSystem ovf:id="$VM_ID">
     <Info>A Virtual system</Info>
     <Name>$VM_NAME</Name>
-    <OperatingSystemSection ovf:id="96" ovf:version="10" vmw:osType="debian10_64Guest">
+    <OperatingSystemSection ovf:id="96" ovf:version="$VM_DEBIAN_VERSION" vmw:osType="debian${VM_DEBIAN_VERSION}_64Guest">
       <Info>The operating system installed</Info>
-      <Description>Debian GNU/Linux 10 (64-bit)</Description>
+      <Description>Debian GNU/Linux $VM_DEBIAN_VERSION (64-bit)</Description>
     </OperatingSystemSection>
     <VirtualHardwareSection>
       <Info>Virtual hardware requirements</Info>
@@ -142,7 +154,7 @@ $APT_SOURCES
         <rasd:InstanceID>1</rasd:InstanceID>
         <rasd:ResourceType>3</rasd:ResourceType>
         <rasd:VirtualQuantity>$VM_CPUS</rasd:VirtualQuantity>
-        <vmw:CoresPerSocket ovf:required="false">1</vmw:CoresPerSocket>
+        <vmw:CoresPerSocket ovf:required="true">$VM_CPUS</vmw:CoresPerSocket>
       </Item>
       <Item>
         <rasd:AllocationUnits>byte * 2^20</rasd:AllocationUnits>
