@@ -474,10 +474,12 @@ create_fs()
   done
 
   if [ -n "$LVM_VG" ]; then
-    if [ "$LVM_PV" = "disk" ]; then
-      create_lvm $disk
-    else
-      create_lvm $LVM_PV
+    if [ -n "$LVM_PV" ]; then
+      if [ "$LVM_PV" = "disk" ]; then
+        create_lvm $disk
+      else
+        create_lvm $LVM_PV
+      fi
     fi
     set +x
     for p in `seq 1 $MAXPART`
