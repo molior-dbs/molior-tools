@@ -67,6 +67,14 @@ deinit_deployment_ova()
   fi
 }
 
+postinst_deployment_ova()
+{
+  if [ -z "$VM_DEBIAN_VERSION" ]; then
+      . $target/etc/os-release
+      VM_DEBIAN_VERSION=$VERSION_ID
+  fi
+}
+
 finalize_deployment_ova()
 {
   umount_bootstrap
@@ -89,13 +97,10 @@ $APT_SOURCES
   fi
   if [ -z "$VSPHERE_VERSION" ]; then
     VSPHERE_VERSION="13"
-    VM_DEBIAN_VERSION=10  # buster is compatible with esXI 6.5
-  else
-    # in case DEBIAN VERSION is undefined we read it; eg if using VSPHERE_VERSION > 13
-    if [ -z "$VM_DEBIAN_VERSION" ]; then
-        . $target/etc/os-release
-        VM_DEBIAN_VERSION=$VERSION_ID
-    fi
+  fi
+
+  if [ -z "$VM_DEBIAN_VERSION" ]; then
+      VM_DEBIAN_VERSION=11
   fi
 
     deployment=$vmname.ova
