@@ -152,6 +152,10 @@ postinst_deployment_upgrade()
     log_error "Error upgrading from $UPGRADE_BASE to $UPGRADE_VERSION"
   fi
 
+  if type post_upgrade_packages >/dev/null; then
+    post_upgrade_packages
+  fi
+
   if grep -q "^dpkg: error processing " $WORK_DIR/upgrade.log; then
       log_error "Error upgrading from $UPGRADE_BASE to $UPGRADE_VERSION"
   fi
