@@ -69,9 +69,14 @@ deinit_deployment_ova()
 
 postinst_deployment_ova()
 {
-  if [ -z "$VM_DEBIAN_VERSION" ]; then
-      . $target/etc/os-release
-      VM_DEBIAN_VERSION=$VERSION_ID
+  if [ -z "$VSPHERE_VERSION" ]; then
+    VSPHERE_VERSION="13"
+    VM_DEBIAN_VERSION=10
+  else
+      if [ -z "$VM_DEBIAN_VERSION" ]; then
+          . $target/etc/os-release
+          VM_DEBIAN_VERSION=$VERSION_ID
+      fi
   fi
 }
 
@@ -94,13 +99,6 @@ Installed Packages: `cat $WORK_DIR/packages.txt | wc -l`
 APT sources:
 $APT_SOURCES
 "
-  fi
-  if [ -z "$VSPHERE_VERSION" ]; then
-    VSPHERE_VERSION="13"
-  fi
-
-  if [ -z "$VM_DEBIAN_VERSION" ]; then
-      VM_DEBIAN_VERSION=11
   fi
 
     deployment=$vmname.ova
