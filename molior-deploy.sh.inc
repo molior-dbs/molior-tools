@@ -396,10 +396,10 @@ create_luks()
   fi
 
   dd if=/dev/zero of=$part bs=4K count=1
-  echo -n $passphrase | cryptsetup --cipher $cipher --key-size $keysize luksFormat $part -
+  echo -n $passphrase | cryptsetup --cipher $cipher --key-size $keysize luksFormat $part - >&2
   exit_on_error "Error formatting LUKS partition $part"
 
-  echo -n $passphrase | cryptsetup luksOpen $part $name-decrypted
+  echo -n $passphrase | cryptsetup luksOpen $part $name-decrypted >&2
   exit_on_error "Error opening LUKS partition $part"
 }
 
@@ -724,7 +724,7 @@ umount_fs()
           continue
         fi
         set +x
-        cryptsetup luksClose /dev/mapper/$u-decrypted
+        cryptsetup luksClose /dev/mapper/$u-decrypted >&2
         set -x
       fi
     done
@@ -747,7 +747,7 @@ umount_fs()
           continue
         fi
         set -x
-        cryptsetup luksClose /dev/mapper/$t-decrypted
+        cryptsetup luksClose /dev/mapper/$t-decrypted >&2
         set +x
       fi
     done
