@@ -624,6 +624,7 @@ mount_fs()
       rootpart=$btrfs_root_part
     fi
     log "btrfs create subvolume: $subvol_path"
+    mkdir -p `dirname $WORK_DIR/btrfs-root/$subvol_internal_path`
     btrfs subvolume create $WORK_DIR/btrfs-root/$subvol_internal_path >&2
     exit_on_error "Error creating btrfs subvolume"
 
