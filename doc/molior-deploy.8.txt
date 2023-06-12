@@ -128,6 +128,7 @@ DOCKER PARAMETERS
  DOCKER_UPGRADE_DEDUP_IGNORE    Do not deduplicate newline separated list of docker images when creating a upgrade deployment
  MOLIOR_DOCKER_LOGIN_USER       Login user and server for pulling images (username@docker-registry.example.com)
  MOLIOR_DOCKER_LOGIN_TOKEN      Login token for pulling images
+ MOLIOR_DOCKER_LOGINS           Use individual logins for multiple registries (list of user:pass@registry, separated by whitespace, replaces MOLIOR_DOCKER_LOGIN_USER/TOKEN above)
 
 
 NOTE

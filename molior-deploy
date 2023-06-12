@@ -1259,26 +1259,46 @@ install_docker_pull()
     if [ -f $target/tmp/docker-compose/.env ]; then
         container=`. $target/tmp/docker-compose/.env; eval echo $container`
     fi
-    if [ -n "$MOLIOR_DOCKER_LOGIN_USER" ] && [ -n "$MOLIOR_DOCKER_LOGIN_TOKEN" ]; then
-        if echo $MOLIOR_DOCKER_LOGIN_USER | grep -q "@"; then
-            docker_user=`echo $MOLIOR_DOCKER_LOGIN_USER | cut -d@ -f1`
+    if [ -n "$MOLIOR_DOCKER_LOGIN_USER" -a -n "$MOLIOR_DOCKER_LOGIN_TOKEN" ] || [ -n "$MOLIOR_DOCKER_LOGINS" ]; then
+        docker_registry=""
+        docker_user=""
+        docker_pass=""
+        if [ -n "$MOLIOR_DOCKER_LOGINS" ]; then
+            for docker_login in $MOLIOR_DOCKER_LOGINS
+            do
+                test -z "$docker_login" && continue
+                docker_registry=`echo $docker_login | cut -d@ -f2`
+
+                if echo "$container" | grep -q "^$docker_registry"; then
+                    l=`echo $docker_login | cut -d@ -f1`
+                    docker_user=`echo $l | cut -d: -f1`
+                    docker_pass=`echo $l | cut -d: -f2`
+                    break
+                fi
+            done
+        elif echo $MOLIOR_DOCKER_LOGIN_USER | grep -q "@"; then
             docker_registry=`echo $MOLIOR_DOCKER_LOGIN_USER | cut -d@ -f2`
+            docker_user=`echo $MOLIOR_DOCKER_LOGIN_USER | cut -d@ -f1`
+            docker_pass=$MOLIOR_DOCKER_LOGIN_TOKEN
         else
-            docker_user=$MOLIOR_DOCKER_LOGIN_USER
             docker_registry=`echo $container | cut -d: -f1`
+            docker_user=$MOLIOR_DOCKER_LOGIN_USER
+            docker_pass=$MOLIOR_DOCKER_LOGIN_TOKEN
         fi
-        if ! echo $docker_login_registries | grep -w -q $docker_registry; then
-            log "docker login '$docker_registry'"
-            echo chroot $target sh -c "docker login $docker_registry -u $docker_user -p ****" >&2
-            set +x
-            echo $MOLIOR_DOCKER_LOGIN_TOKEN | chroot $target sh -c "docker login $docker_registry -u $docker_user --password-stdin" >&2
-            ret=$?
-            set -x
-            if [ "$ret" -ne 0 ]; then
-                log_warn "Error docker login $docker_registry"
-                return $ret
+        if [ -n "$docker_user" ]; then
+            if ! echo $docker_login_registries | grep -w -q $docker_registry; then
+                log "docker login '$docker_registry'"
+                echo chroot $target sh -c "docker login $docker_registry -u $docker_user -p ****" >&2
+                set +x
+                echo $docker_pass | chroot $target sh -c "docker login $docker_registry -u $docker_user --password-stdin" >&2
+                ret=$?
+                set -x
+                if [ "$ret" -ne 0 ]; then
+                    log_warn "Error docker login $docker_registry"
+                    return $ret
+                fi
+                docker_login_registries="$docker_login_registries $docker_registry"
             fi
-            docker_login_registries="$docker_login_registries $docker_registry"
         fi
     fi
     log "docker pull $container ($i/$total_docker_images)"
