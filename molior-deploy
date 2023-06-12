@@ -1068,6 +1068,7 @@ install_deployment()
 
 install_progress()
 {
+    set +x
     total=""
     already=`grep "^Get:\|^Preparing to unpack\|^Setting up" $errlog -c`
     touch $WORK_DIR/.show_install_progress
@@ -1075,10 +1076,8 @@ install_progress()
     while [ -f $WORK_DIR/.show_install_progress ]; do
         sleep 2
         if [ -z "$total" ]; then
-            set +x
             total=`grep "newly installed" $errlog | tail -n1 | sed 's/.*, \([0-9]\+\) newly installed.*/\1/'`
             total=$((total * 3))
-            set -x
         fi
         if [ -z "$total" ]; then
             continue
