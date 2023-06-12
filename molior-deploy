@@ -731,6 +731,10 @@ setup_deployment()
     log_error "No deploy/ directory found in $SOURCE_DIR"
   fi
 
+  if [ -z "`ls -1 $SOURCE_DIR/deploy/*.conf 2>/dev/null`" ]; then
+      log_error "No deploy/*.conf files found in $SOURCE_DIR"
+  fi
+
   VARIANT=`echo $VARIANT | sed s/\.conf$//`
   variants=""
   count=0
