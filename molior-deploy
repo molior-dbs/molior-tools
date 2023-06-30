@@ -981,11 +981,8 @@ EOF
     fi
   fi
 
-  for key in $WORK_DIR/repo.asc*
-  do
-    chroot $target apt-key add - >/dev/null < $key
-    exit_on_error "Error adding apt key"
-  done
+  cat $WORK_DIR/repo.asc* | gpg --dearmor -o $target/etc/apt/trusted.gpg.d/molior.gpg
+  exit_on_error "Error adding apt key"
 
   echo "using nameservers:" >&2
   cat $target/etc/resolv.conf >&2

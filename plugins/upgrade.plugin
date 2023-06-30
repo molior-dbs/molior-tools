@@ -134,11 +134,8 @@ postinst_deployment_upgrade()
         exit_on_error "Error downloading $url"
       done
 
-      for key in $WORK_DIR/repo.asc*
-      do
-        chroot $target apt-key add - >/dev/null < $key
-        exit_on_error "Error adding apt key"
-      done
+      cat $WORK_DIR/repo.asc* | gpg --dearmor -o $target/etc/apt/trusted.gpg.d/molior.gpg
+      exit_on_error "Error adding apt key"
   fi
 
   log "updating APT database"
