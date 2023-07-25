@@ -65,6 +65,9 @@ postinst_deployment_upgrade()
 {
   # write base version / release version
   echo $PROJECT/$UPGRADE_BASE > $WORK_DIR/upgrade-package/baseversion
+  if [ -n "$UPGRADE_EXTRA_BASEVERSIONS" ]; then
+    echo "$UPGRADE_EXTRA_BASEVERSIONS" >> $WORK_DIR/upgrade-package/baseversion
+  fi
   echo $REVISION > $WORK_DIR/upgrade-package/releaseversion
 
   if [ -n "$DOCKER_COMPOSE_FILE" -a "$DOCKER_UPGRADE_NO_DEDUP" -ne 1 ]; then
