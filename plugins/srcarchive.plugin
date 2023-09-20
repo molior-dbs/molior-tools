@@ -50,10 +50,16 @@ for package in `cat /tmp/dpkg-final.list`; do
   mkdir -p $source_repo
   cd $source_repo
   echo "downloading source package for: $package"
-  apt-get source -dq $package
-  if [ "$?" -ne 0 ]; then
-    exit 1
-  fi
+  n=0
+  while [ "$n" -le 10 ]; do
+    n=$(expr "$n" + 1)
+    apt-get source -dq $package
+    if [ "$?" -eq 0 ]; then
+      break
+    elif [ "$?" -ne 0 -a "$n" -eq 10 ]; then
+      exit 1
+    fi
+  done
 done
 EOF
   chmod +x $target/tmp/download-sources
