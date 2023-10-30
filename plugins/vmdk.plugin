@@ -7,13 +7,12 @@ preinit_deployment_vmdk()
   REQUIRED_PACKAGES="kpartx qemu-utils"
   INSTALL_GRUB="yes"
   PARTSEP="p"
+  do_compress=0 # vmdk is already compressed
+  lvm_rename_existing=1
 }
 
 init_deployment_vmdk()
 {
-  do_compress=0 # vmdk is already compressed
-  lvm_rename_existing=1
-
   # FIXME check VM_SIZE
   echo " * creating ${VM_SIZE}MB virtual disk"
   VMDISK=$WORK_DIR/disk.vmdk
