@@ -173,7 +173,7 @@ postinst_deployment_upgrade()
   fi
 
   grep "^Get:" $WORK_DIR/upgrade.log | cut -d ' ' -f 2,5 | sed 's#.*/\(.\+/.\+\) \(.\+\)#\1 \2#' | sort > $WORK_DIR/dpkgs.list
-  log "copying `wc -l < $WORK_DIR/dpkgs.list` debian packages to APT repository"
+  log "copying `wc -l < $WORK_DIR/dpkgs.list` debian packages to upgrade package"
   while read line
   do
     path=`echo $line | cut -d ' ' -f 1`;

@@ -1301,7 +1301,9 @@ install_docker_pull()
             fi
         fi
     fi
-    log "docker pull $container ($i/$total_docker_images)"
+    l=$(($(echo -n $total_docker_images | wc -c) - $(echo -n $i | wc -c)))
+    p=$(perl -e "print ' ' x $l")
+    log "docker pull $p$i/$total_docker_images: $container"
     chroot $target sh -c "docker pull $container" >&2
     ret=$?
     if [ "$ret" -ne 0 ]; then
