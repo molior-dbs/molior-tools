@@ -301,6 +301,11 @@ EOF
   # set new project version
   echo "$PROJECT/$VERSION" > $WORK_DIR/upgrade-package/projectversion
 
+  for p in $INSTALL_PACKAGE $UPGRADE_EXTRA_REQUIRED_PACKAGES
+  do
+    echo $p >> $WORK_DIR/upgrade-package/required-packages
+  done
+
   log "creating checksum file"
   cd $WORK_DIR/upgrade-package
   echo "UPGRADE_DURATION=$UPGRADE_DURATION" >> upgrade.info
