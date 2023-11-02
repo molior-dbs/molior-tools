@@ -141,7 +141,7 @@ fi
 PLATFORM=$(platform $ARCH)
 HOST_PLATFORM=$(platform $HOSTARCH)
 
-SOURCESURL=$MOLIOR_SERVER/api/projectsources/$PROJECT/$VERSION
+SOURCESURL=$MOLIOR_SERVER/api2/project/$PROJECT/$VERSION/aptsources
 APT_SOURCES=`curl -s --retry 10 $SOURCESURL | grep -v '^#' | grep -v '^$'`
 if [ $? -ne 0 ]; then
   log_error "Error downloading $SOURCESURL"
