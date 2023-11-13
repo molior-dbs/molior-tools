@@ -288,7 +288,6 @@ if [ -n "$RAID_NAME" ]; then
       log_error "Error: disk $d not found, aborting installation."
     fi
   done
-  disk=`echo "$RAID_DEVICES" | cut -d" " -f1`
   found=1
 fi
 
@@ -341,7 +340,11 @@ done
 
 if [ "$INSTALLER_ASK_CONFIRM" != "no" ]; then
   echo
-  echo "${textprefix}Are you sure to install to $disk ?"
+  if [ -n "$RAID_NAME" ]; then
+    echo "${textprefix}Are you sure to install to $RAID_NAME ?"
+  else
+    echo "${textprefix}Are you sure to install to $disk ?"
+  fi
   echo -en "\033[1;31m"
   if [ -n "$LVM_VG" ]; then
     echo "${textprefix}Warning: this will erase all existing data including any LVM VG !"
@@ -378,7 +381,6 @@ echo -n -e $titlecolor
 echo "${textprefix}Creating filesystems ..."
 echo -n -e "\033[1;m"
 
-log "partitioning disk $disk"
 if [ -n "$LVM_VG" ]; then
   for vg in `vgs --no-heading -o vg_name`; do
     vgremove -f "$vg" >&2
@@ -393,13 +395,27 @@ if [ -n "$RAID_NAME" ]; then
   done
 fi
 
-wipefs -af $disk >/dev/null 2>&1
+if [ -n "$RAID_NAME" ]; then
+  for d in $RAID_DEVICES;
+  do
+    wipefs -af $d >/dev/null 2>&1
+  done
+else
+  wipefs -af $disk >/dev/null 2>&1
+fi
 
-blockdev --rereadpt $disk
-
-detect_partname_scheme
+if [ -n "$RAID_NAME" ]; then
+  for d in $RAID_DEVICES;
+  do
+    blockdev --rereadpt $d
+  done
+else
+  blockdev --rereadpt $disk
+fi
 
 create_partitions
+
+detect_partname_scheme
 
 create_fs   # this will set rootpart used below
 
@@ -534,34 +550,17 @@ if type installer_postinst >/dev/null 2>&1; then
 fi
 
 if [ -n "$RAID_NAME" ]; then
-  echo -n -e $titlecolor
-  echo "${textprefix}Finalize raid setup"
-  echo -n -e "\033[1;m"
-
-  mdadm $RAID_NAME --add `echo "$RAID_DEVICES" | cut -d" " -f2-`
-
-  # wait for sync starts
+  log "syncing raid array"
   while true; do
-    if grep -q "recovery" /proc/mdstat; then
+    if grep -q "idle" /sys/class/block/`echo $RAID_NAME | xargs basename`/md/sync_action; then
+      echo
       break
     else
+      echo -ne "\r${textprefix} `grep resync /proc/mdstat | awk '{$1=$1};1'`"
       sleep 1
     fi
   done
-
-  # wait for sync ends
-  while true; do
-    if grep -q "recovery" /proc/mdstat; then
-      sleep 1
-      p=`grep "recovery" /proc/mdstat | tr -s " " | cut -d" " -f5,7-`
-      echo -ne "\r${textprefix} * syncing raid disks: $p"
-    else
-      break
-    fi
-  done
-  echo
 fi
-
 umount $target/run/udev
 umount $target/dev
 umount $target/sys

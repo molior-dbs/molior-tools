@@ -289,20 +289,21 @@ create_fstab()
 
   if [ -n "$RAID_NAME" ];then
     # store raid configuration
+    mkdir -p $target/etc/mdadm
     mdadm --detail --scan >> $target/etc/mdadm/mdadm.conf
   fi
 }
 
 create_partitions()
 {
-  if [ -z "$disk" ]; then
-    log_error "Error: \$disk not set"
-  fi
-
   if [ -n "$RAID_NAME" ]; then
     log "creating raid $RAID_NAME"
-    echo y | mdadm --create --verbose $RAID_OPTS $RAID_NAME $disk missing
-    disk=`mdadm --detail --scan | cut -d" " -f2`
+    echo y | mdadm --create --verbose $RAID_NAME $RAID_OPTS $RAID_DEVICES
+    disk=`mdadm --detail --scan | awk {'print $2'}`  # set disk as raid virtual disk
+  fi
+
+  if [ -z "$disk" ]; then
+    log_error "Error: \$disk not set"
   fi
 
   sfdiskversion=`sfdisk -v | cut -d ' ' -f4`
