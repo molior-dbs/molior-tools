@@ -850,6 +850,8 @@ get_deploy_config()
     test -n "$s" && echovar ${d}SFDISK "$s"
     eval s=\$${d}DISK
     test -n "$s" && echovar ${d}DISK "$s"
+    eval s=\$${d}DISK_HINT
+    test -n "$s" && echovar ${d}DISK_HINT "$s"
     for p in `seq 1 $MAXPART`
     do
       eval s=\$${d}PART${p}_FS
@@ -932,6 +934,7 @@ get_deploy_config()
   echovar INSTALLER_DISK_MIN
   echovar INSTALLER_DOWNLOAD_URL
   echovar INSTALLER_INSTALL_DISK
+  echovar INSTALLER_INSTALL_DISK_HINT
   echovar INSTALLER_HOSTNAME_APPEND_MAC_IFACE
   echovar INSTALLER_EXTRA_MODULES
   echovar PARTSEP
@@ -1021,4 +1024,30 @@ EOFGRUB
 
   rm -rf $target/dev/disk/by-uuid
   umount_fs_devices
+}
+
+auto_select_disk()
+{
+  disk=""
+  eval disk="\$$1"
+  selection_policy="$2"
+  selectable_disks="$3"
+  disk_hint=""
+  eval disk_hint="\$${1}_HINT"
+  selected_disk=""
+
+  if [ -n "$selectable_disks" ]; then
+    if [ "$selection_policy" = "hint" ]; then
+      if [ "$disk_hint" = "largest" ]; then
+        selected_disk=$(lsblk -dn -x SIZE -o PATH $(echo "$selectable_disks" | tr "\n" " ") | tail -n1)
+      elif [ "$disk_hint" = "smallest" ]; then
+        selected_disk=$(lsblk -dn -x SIZE -o PATH $(echo "$selectable_disks" | tr "\n" " ") | head -n1)
+      fi
+    # Pick any physical disk for disks without specified hints.
+    elif [ "$selection_policy" = "any" ]; then
+      selected_disk=$(echo "$selectable_disks" | tail -n1)
+    fi
+  fi
+
+  echo "$selected_disk"
 }

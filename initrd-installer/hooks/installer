@@ -25,6 +25,7 @@ copy_exec /sbin/mkfs         /sbin/
 copy_exec /usr/sbin/chpasswd /sbin/
 copy_exec /usr/bin/eject     /sbin/
 copy_exec /sbin/wipefs       /sbin/
+copy_exec /usr/bin/lsblk     /bin/
 
 # overwrite busybox binaries
 copy_exec /bin/cpio          /mbin/

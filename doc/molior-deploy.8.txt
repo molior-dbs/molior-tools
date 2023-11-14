@@ -107,6 +107,20 @@ RAID PARAMETERS
  RAID_DEVICES       List all physical drives/partitions for raid setup (e.g. "/dev/sda /dev/sdb")
  RAID_OPTS          Specify all required options for the 'mdadm --create' command (e.g. "--level=1 --raid-devices=2 --metadata=1.0")
 
+DISK PARAMETERS
+ Multiple disks can be used during the installation by defining the following parameters.
+ Currently a maximum of 4 disks (INSTALLER_INSTALL_DISK + DISK1-3) are supported.
+
+ INSTALLER_INSTALL_DISK      Physical disk to use (e.g. /dev/sda)
+ INSTALLER_INSTALL_DISK_HINT Hint for automatic disk selection (largest or smallest)
+ DISK#_SFDISK                Input for sfdisk partitioning
+ DISK#_DISK                  Physical disk to use (e.g. /dev/sda)
+ DISK#_DISK_HINT             Hint for automatic disk selection (largest or smallest)
+ DISK#_PART#_FS              Filesystem of partition # (ext4, btrfs, ... or 'lvm' for LVM physical volume)
+ DISK#_PART#_MNT             Mountpoint of partition #
+ DISK#_PART#_OPTS            fstab options (i.e. "defaults,noatime")
+ DISK#_PART#_MKFSOPTS        Options for mkfs (i.e. "-O ^64bit,^metadata_csum")
+
 BOOT PARAMETERS
  LINUX_CMDLINE      Set Linux command line options (i.e. "biosdevname=0 net.ifnames=0 init=/lib/systemd/systemd)
 

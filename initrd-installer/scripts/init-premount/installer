@@ -271,6 +271,54 @@ if type installer_configure >/dev/null 2>&1; then
   installer_configure
 fi
 
+auto_select_disks=0
+for h in INSTALLER_INSTALL_DISK_HINT DISK1_DISK_HINT DISK2_DISK_HINT DISK3_DISK_HINT; do
+  eval disk_hint="\$$h"
+  if [ -n "$disk_hint" ]; then
+    auto_select_disks=1
+  fi
+done
+
+if [ "$auto_select_disks" -eq 1 ]; then
+  echo -e "\n${textprefix}Disk hint(s) detected"
+  echo -e "\n${textprefix}Automatically selecting installation disk(s) ...\n"
+
+  selectable_disks="$disks"
+
+  # Clear all existing physical disk assignments in case a hint has been detected. This
+  # is done in order to avoid the same physical disk being selected more than once.
+  for d in INSTALLER_INSTALL_DISK DISK1_DISK DISK2_DISK DISK3_DISK; do
+    eval unset "$d"
+  done
+
+  # In the first pass, select a physical disk only for disks with specified hints. In the
+  # second pass, select a physical disk for the remaining disks.
+  for p in hint any; do
+    for d in INSTALLER_INSTALL_DISK DISK1_DISK DISK2_DISK DISK3_DISK; do
+      if [ -z "$(eval echo "\$$d")" ]; then
+        eval $d="$(auto_select_disk $d $p $selectable_disks)"
+        eval selected_disk="\$$d"
+        if [ -n "$selected_disk" ]; then
+          echo "${textprefix}Selected disk $selected_disk for $d"
+          selectable_disks=$(echo "$selectable_disks" | sed s"|$selected_disk||")
+        else
+          if [ "$1" = "INSTALLER_INSTALL_DISK" ]; then
+            disk_part1_fs="$PART1_FS"
+          else
+            eval disk_part1_fs="\$$(echo "$d" | cut -d"_" -f1)_PART1_FS"
+          fi
+          # In case there is a partition with a filesystem defined for a particular
+          # disk, we assume that a physical disk must be selected for it. Hence we
+          # abort the installation if it wasn't.
+          if [ -n "$disk_part1_fs" ]; then
+            log_error "No disk could be selected for $d, aborting installation."
+          fi
+        fi
+      fi
+    done
+  done
+fi
+
 found=0
 if [ -n "$INSTALLER_INSTALL_DISK" ]; then
   disk=`readlink -f $INSTALLER_INSTALL_DISK`
@@ -342,6 +390,8 @@ if [ "$INSTALLER_ASK_CONFIRM" != "no" ]; then
   echo
   if [ -n "$RAID_NAME" ]; then
     echo "${textprefix}Are you sure to install to $RAID_NAME ?"
+  elif [ "$auto_select_disks" -eq 1 ]; then
+    echo "${textprefix}Are you sure to install to selected disks ?"
   else
     echo "${textprefix}Are you sure to install to $disk ?"
   fi
