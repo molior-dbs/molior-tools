@@ -246,11 +246,82 @@ INSTALL_PACKAGE=""
 PRESEED_FILE=""
 REQUIRED_MOLIORTOOLS_VERSION=""
 
+# logging
+
+if [ $no_color -ne 1 ]; then
+  color_info="\e[36m\e[1m"
+  color_notice="\e[34m\e[1m"
+  color_warn="\e[35m\e[1m"
+  color_error="\e[31m\e[1m"
+  color_ask="\e[33m\e[1m"
+  color_reset="\e[0m"
+else
+  color_info=""
+  color_notice=""
+  color_warn=""
+  color_error=""
+  color_ask=""
+  color_reset=""
+fi
+
+log()
+{
+  if [ "$LIST_ONLY" -eq 0 ]; then
+    echo " * $@"
+  fi
+}
+
+log_info()
+{
+  if [ "$LIST_ONLY" -eq 0 ]; then
+    /bin/echo -e "${color_info}I: $@ $color_reset"
+  fi
+}
+
+log_notice()
+{
+  if [ "$LIST_ONLY" -eq 0 ]; then
+    /bin/echo -e "${color_notice}N: $@ $color_reset"
+  fi
+}
+
+log_warn()
+{
+  if [ "$LIST_ONLY" -eq 0 ]; then
+    /bin/echo -e "${color_warn}W: $@ $color_reset"
+  fi
+}
+
+log_error()
+{
+  /bin/echo -e "${color_error}E: $@ $color_reset"
+  if [ -n "$target" -a "$user_abort" -eq 0 -a "$ask_cleanup" -eq 1 ]; then
+    log_info "examine situation: sudo chroot $target"
+  fi
+
+  # if RET is set to non zero, use it as exit code
+  if [ -n "$RET" ]; then
+      if [ "$RET" = "0" ]; then
+          RET=1
+      fi
+  else
+      RET=1
+  fi
+  exit $RET
+}
+
+# include helper functions
+. /usr/lib/molior-deploy/molior-deploy.sh.inc
+if ls /usr/lib/molior-deploy/molior-deploy.d/*.inc > /dev/null 2>&1; then
+    . /usr/lib/molior-deploy/molior-deploy.d/*.inc
+fi
+
 # init
 success=0
 CUR_DIR=`pwd`
 
 WORK_DIR=`mktemp -p $MOLIOR_TMPDIR -d molior-XXXXXXXX`
+exit_on_error "Error creating temporary directory in '$MOLIOR_TMPDIR'"
 chmod 755 $WORK_DIR
 errlog=$WORK_DIR/output.log
 
@@ -264,11 +335,6 @@ target=""
 
 # binftms to be disabled
 BADFMTS="cli jar jarwrapper python2.7 python3.5"
-
-. /usr/lib/molior-deploy/molior-deploy.sh.inc
-if ls /usr/lib/molior-deploy/molior-deploy.d/*.inc > /dev/null 2>&1; then
-    . /usr/lib/molior-deploy/molior-deploy.d/*.inc
-fi
 
 if [ "$debug_mode" -ne 1 -a "$LIST_ONLY" -ne 1 ]; then
   exec 3>&2
@@ -400,69 +466,6 @@ abort()
 
 trap finish EXIT
 trap abort INT
-
-if [ $no_color -ne 1 ]; then
-  color_info="\e[36m\e[1m"
-  color_notice="\e[34m\e[1m"
-  color_warn="\e[35m\e[1m"
-  color_error="\e[31m\e[1m"
-  color_ask="\e[33m\e[1m"
-  color_reset="\e[0m"
-else
-  color_info=""
-  color_notice=""
-  color_warn=""
-  color_error=""
-  color_ask=""
-  color_reset=""
-fi
-
-
-log()
-{
-  if [ "$LIST_ONLY" -eq 0 ]; then
-    echo " * $@"
-  fi
-}
-
-log_info()
-{
-  if [ "$LIST_ONLY" -eq 0 ]; then
-    /bin/echo -e "${color_info}I: $@ $color_reset"
-  fi
-}
-
-log_notice()
-{
-  if [ "$LIST_ONLY" -eq 0 ]; then
-    /bin/echo -e "${color_notice}N: $@ $color_reset"
-  fi
-}
-
-log_warn()
-{
-  if [ "$LIST_ONLY" -eq 0 ]; then
-    /bin/echo -e "${color_warn}W: $@ $color_reset"
-  fi
-}
-
-log_error()
-{
-  /bin/echo -e "${color_error}E: $@ $color_reset"
-  if [ -n "$target" -a "$user_abort" -eq 0 -a "$ask_cleanup" -eq 1 ]; then
-    log_info "examine situation: sudo chroot $target"
-  fi
-
-  # if RET is set to non zero, use it as exit code
-  if [ -n "$RET" ]; then
-      if [ "$RET" = "0" ]; then
-          RET=1
-      fi
-  else
-      RET=1
-  fi
-  exit $RET
-}
 
 ask()
 {
