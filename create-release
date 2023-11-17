@@ -33,6 +33,23 @@ SKIP_CONFIRM=0
 SKIP_EDIT=0
 REMOTE=origin
 
+usage()
+{
+  echo "create-release"
+  echo
+  echo "Usage: $0 [OPTIONS] [VERSION]"
+  echo "Options:"
+  echo "  -np|--no-push       Do not push"
+  echo "  --remote            Remote (default: origin)"
+  echo "  --skip-edit         Skip changelog edit"
+  echo "  --skip-confirm      Skip confirm action"
+  echo "  --auto-increment    Auto increment version"
+  echo "  --force-bad-version Force using bad version"
+  echo "  -h|--help) 	      Print help"
+  echo
+  exit 0
+}
+
 while true
 do
     case "$1" in
@@ -42,7 +59,8 @@ do
         --skip-confirm)      SKIP_CONFIRM=1; shift 1;;
         --auto-increment)    AUTO_INCREMENT=1; shift 1;;
         --force-bad-version) DCH_OPTIONS="${DCH_OPTIONS} --force-bad-version"; shift;;
-        *)                   break ;;
+        -h|--help) 	     usage;;
+        *)                   break;;
     esac
 done
 
