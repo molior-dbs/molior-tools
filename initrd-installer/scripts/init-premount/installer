@@ -309,8 +309,9 @@ if [ "$auto_select_disks" -eq 1 ]; then
           fi
           # In case there is a partition with a filesystem defined for a particular
           # disk, we assume that a physical disk must be selected for it. Hence we
-          # abort the installation if it wasn't.
-          if [ -n "$disk_part1_fs" ]; then
+          # abort the installation if it wasn't. Do this check only on the second
+          # pass.
+          if [ -n "$disk_part1_fs" ] && [ "$p" = "any" ]; then
             log_error "No disk could be selected for $d, aborting installation."
           fi
         fi
