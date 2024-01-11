@@ -1501,10 +1501,23 @@ workflow_base()
       fi
     else # $do_installation -eq 0
       # no installation, run only postinst_deployment
+
+      # enable DNS in chroot for postinst
+      if [ -e $target/etc/resolv.conf -o -h $target/etc/resolv.conf ]; then
+        mv $target/etc/resolv.conf $target/etc/resolv.conf.molior-deploy.bak
+      fi
+      cp -L /etc/resolv.conf $target/etc/resolv.conf
+
       if type postinst_deployment >/dev/null; then
         postinst_deployment
       elif type postinst_deployment_$DEPLOYMENT_TYPE >/dev/null; then
         postinst_deployment_$DEPLOYMENT_TYPE
+      fi
+
+      # restore resolv.conf
+      rm -f $target/etc/resolv.conf
+      if [ -e $target/etc/resolv.conf.molior-deploy.bak -o -h $target/etc/resolv.conf.molior-deploy.bak ]; then
+        mv $target/etc/resolv.conf.molior-deploy.bak $target/etc/resolv.conf
       fi
     fi
 
