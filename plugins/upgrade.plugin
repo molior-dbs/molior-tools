@@ -167,6 +167,10 @@ postinst_deployment_upgrade()
       log_error "Error upgrading from $UPGRADE_BASE to $UPGRADE_VERSION"
   fi
 
+  # ensure DNS is still enabled
+  rm -f $target/etc/resolv.conf
+  cp -L /etc/resolv.conf $target/etc/resolv.conf
+
   if [ -n "$UPGRADE_EXTRA_PACKAGES" ]; then
       DEBIAN_FRONTEND=noninteractive chroot $target apt-get install -y --download-only $UPGRADE_EXTRA_PACKAGES 2>&1 | tee -a $WORK_DIR/upgrade.log >&2
       ret=$?
