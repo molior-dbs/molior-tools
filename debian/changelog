@@ -1,3 +1,29 @@
+molior-tools (1.4.2) stretch; urgency=medium
+
+  * build for molior 1.5
+  * restore DNS configuration after a dist-upgrade
+  * fix DNS resolution during postinst_deployment
+  * Do not throw an error when no disk is selected during the first
+    selection pass
+  * Add option to provide hints to automatically select disks
+  * create-release: add help
+  * molior-deploy: handle tempdir creation errors
+  * raid: fix setup
+  * molior-sbuild: use new apt sources api
+  * molior-deploy: improve logging
+  * Add option to specify build context for Docker
+  * Set do_compress and lvm_rename_existing in preinit
+  * molior-deploy: add required installed packages info
+  * enhance plugin srcarchive
+  * upgrade: support multiple base versions
+  * replace apt-key add with custom drop in gpg list
+  * molior-deploy: do not log progress verbosely
+  * molior-deploy: handle empty deploy dir
+  * molior-deploy: support login for multiple docker registries
+  * ...
+
+ -- André Roth <neolynx@gmail.com>  Sun, 14 Jan 2024 20:11:01 +0100
+
 molior-tools (1.4.1) stretch; urgency=medium
 
   * EFI: place the grub binary in the correct directory for booting
