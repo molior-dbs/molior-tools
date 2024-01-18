@@ -807,6 +807,47 @@ setup_deployment()
   log_notice "Selected deployment variant/type: $VARIANT/$DEPLOYMENT_TYPE"
   . $SOURCE_DIR/deploy/$VARIANT.conf
 
+  if [ -n "$DEPLOY_CONF_PKG" ]; then
+      baseurls=`echo "$APT_SOURCES" | grep $SOURCEMIRROR/repos/ | awk '{print $2}'`
+      for baseurl in $baseurls
+      do
+        SOURCES_VERSION=`basename $baseurl`
+        curl -n -f -s --retry 10 -o $WORK_DIR/Sources.func $baseurl/dists/$dist/main/source/Sources
+        if [ `wc -l $WORK_DIR/Sources 2>/dev/null | cut -d' ' -f1` -eq 0 ]; then
+          # try next baseurl
+          continue
+        fi
+        srcinfo=`/usr/lib/molior-tools/find-latest-version.pl $DEPLOY_CONF_PKG < $WORK_DIR/Sources.func`
+        if [ $? -ne 0 ]; then
+          # try next baseurl
+          continue
+        fi
+        FUNC_FILENAME=`echo $srcinfo | cut -d ' ' -f 1`/`echo $srcinfo | cut -d ' ' -f 2`
+        FUNC_REVISION=`echo $srcinfo | cut -d ' ' -f 3`
+        if [ -n "$FUNC_FILENAME" ]; then
+            FUNC_SOURCEMIRROR=$baseurl
+          # found package
+          break
+        fi
+      done
+      rm -f $WORK_DIR/Sources.func
+      if [ -z "$FUNC_FILENAME" ]; then
+        log_error "Error finding '$DEPLOY_CONF_PKG' source package in apt sources"
+      fi
+      log "downloading source package with functions: $FUNC_SOURCEMIRROR/$FUNC_FILENAME"
+      cd $WORK_DIR
+      curl -n -f --retry 10 -O -J $FUNC_SOURCEMIRROR/$FUNC_FILENAME
+      exit_on_error "Error downloading $FUNC_SOURCEMIRROR/$FUNC_FILENAME"
+
+      tar xvf `basename $FUNC_FILENAME` $DEPLOY_CONF_PKG/deploy/common.vars --strip-components 2
+      exit_on_error "Error extracting $DEPLOY_CONF_PKG/deploy/common.vars from `basename $FUNC_FILENAME`"
+
+      rm -f $WORK_DIR/`basename $FUNC_FILENAME`
+
+      log "sourcing deploy/common.vars from $DEPLOY_CONF_PKG $FUNC_REVISION"
+      . $WORK_DIR/common.vars
+  fi
+
   check_required_version
 
   # load plugin
