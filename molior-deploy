@@ -834,9 +834,9 @@ setup_deployment()
       if [ -z "$FUNC_FILENAME" ]; then
         log_error "Error finding '$DEPLOY_CONF_PKG' source package in apt sources"
       fi
-      log "downloading source package with functions: $FUNC_SOURCEMIRROR/$FUNC_FILENAME"
+      log "downloading deploy conf package: $FUNC_SOURCEMIRROR/$FUNC_FILENAME"
       cd $WORK_DIR
-      curl -n -f --retry 10 -O -J $FUNC_SOURCEMIRROR/$FUNC_FILENAME
+      curl -n -f -s --retry 10 -O -J $FUNC_SOURCEMIRROR/$FUNC_FILENAME
       exit_on_error "Error downloading $FUNC_SOURCEMIRROR/$FUNC_FILENAME"
 
       tar xvf `basename $FUNC_FILENAME` $DEPLOY_CONF_PKG/deploy/common.vars --strip-components 2
