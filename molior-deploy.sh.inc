@@ -1031,9 +1031,11 @@ auto_select_disk()
   disk=""
   eval disk="\$$1"
   selection_policy="$2"
-  selectable_disks="$3"
   disk_hint=""
   eval disk_hint="\$${1}_HINT"
+  # NOTE: after we get arguments 1 and 2 we shift twice to get all the others in selectable_disks
+  shift 2
+  selectable_disks="$@"
   selected_disk=""
 
   if [ -n "$selectable_disks" ]; then
