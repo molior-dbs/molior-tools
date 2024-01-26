@@ -74,7 +74,7 @@ postinst_deployment_upgrade()
     # remember pre upgrade docker images
     log_info "Installing $VERSION docker containers ..."
     cp $target/$DOCKER_COMPOSE_FILE $WORK_DIR/docker-compose.yml.old
-    oldimages=`grep -v -P '^[ \t]*#' $target/$DOCKER_COMPOSE_FILE | grep "image:" | awk '{ print $2 }' | sort | uniq`
+    oldimages=`grep -v -P '^[ \t]*#' $target/$DOCKER_COMPOSE_FILE | grep "image:" | awk '{ print $2 }' | LC_ALL=C sort | uniq`
     if [ -f $target/$DOCKER_COMPOSE_ENV_PATH/.env ]; then
         oldimages=`. $target/$DOCKER_COMPOSE_ENV_PATH/.env; for i in $oldimages; do eval echo $i; done`
     fi
@@ -207,7 +207,7 @@ postinst_docker_upgrade()
         fi
     else
         # second pass, save the changed docker images
-        newimages=`grep -v -P '^[ \t]*#' $target/$DOCKER_COMPOSE_FILE | grep "image:" | awk '{ print $2 }' | sort | uniq`
+        newimages=`grep -v -P '^[ \t]*#' $target/$DOCKER_COMPOSE_FILE | grep "image:" | awk '{ print $2 }' | LC_ALL=C sort | uniq`
         if [ -f $target/$DOCKER_COMPOSE_ENV_PATH/.env ]; then
             newimages=`. $target/$DOCKER_COMPOSE_ENV_PATH/.env; for i in $newimages; do eval echo $i; done`
         fi
