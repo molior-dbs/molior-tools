@@ -1064,7 +1064,6 @@ EOF
           opts="rw,noexec,nosuid,nodev"
         fi
         mkdir -p $target/$from $target/$to
-        log "bind mount $target/$from $target/$to"
         mount -o $opts,bind $target/$from $target/$to
       done
     fi
@@ -1672,7 +1671,6 @@ elif [ $deployment_only -eq 1 ]; then
         opts="rw,noexec,nosuid,nodev"
       fi
       mkdir -p $target/$from $target/$to
-      log "bind mount $target/$from $target/$to"
       mount -o $opts,bind $target/$from $target/$to
     done
   fi

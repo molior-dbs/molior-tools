@@ -695,7 +695,6 @@ mount_fs()
 unmount()
 {
   if mountpoint -q "$1"; then
-    log "umount $1"
     umount "$1"
     exit_on_error "Error umounting $1"
   fi
