@@ -14,7 +14,7 @@ preinit_deployment_upgrade()
 init_deployment_upgrade()
 {
   init_deployment_dir
-  UPGRADE_BASE=`echo $VARIANT | sed -n 's/^[a-zA-Z0-9-]\+-upgrade-\([a-zA-Z0-9-]\+\)/\1/p'`
+  UPGRADE_BASE=`echo $VARIANT | perl -pe 's/^[a-zA-Z0-9-]+?-upgrade-//' | sed s/.conf$//`
   # changing VERSION to contain the base version to be upgraded from
   # this will do a debootstrap and deployment install for the old
   # to be upgraded version
