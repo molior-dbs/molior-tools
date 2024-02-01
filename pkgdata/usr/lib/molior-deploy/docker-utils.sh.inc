@@ -4,6 +4,8 @@
 extract_layers()
 {
     tar -mp --delay-directory-restore -xf $1
+    # convert symlinks to hardlinks (shared leayers)
+    find . -type l -exec sh -c 'mv {} {}.old; ln `readlink {}.old | cut -d/ -f2-` {}; rm -f {}.old' \;
     dirs=`find -maxdepth 1 -type d`
     for dir in $dirs
     do
@@ -27,6 +29,9 @@ assemble_layers()
         if [ "$dir" = "." ]; then
             continue
         fi
+        if [ ! -d $dir/layer ]; then
+            continue
+        fi
         cd $dir/layer
         tar cf ../layer.tar .
         exit_on_error "Error assembling docker image layer"
@@ -48,11 +53,15 @@ docker_deduplicate()
             mkdir old
             cd old
                 tar -mp --delay-directory-restore -xf $old_tar
+                # convert symlinks to hardlinks (shared leayers)
+                find . -type l -exec sh -c 'mv {} {}.old; ln `readlink {}.old | cut -d/ -f2-` {}; rm -f {}.old' \;
             cd ..
 
             mkdir new
             cd new
                 tar -mp --delay-directory-restore -xf $new_tar
+                # convert symlinks to hardlinks (shared leayers)
+                find . -type l -exec sh -c 'mv {} {}.old; ln `readlink {}.old | cut -d/ -f2-` {}; rm -f {}.old' \;
             cd ..
         cd ..
 
@@ -93,11 +102,13 @@ docker_reduplicate()
     mkdir $tmpdir/dedupwork
     cd $tmpdir
         cd dedupwork
+            # extract old container images
             mkdir old
             cd old
                 extract_layers $old_tar
             cd ..
 
+            # extract dedup container images
             mkdir new
             cd new
                 extract_layers $dedup_tar
