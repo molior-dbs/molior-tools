@@ -1251,7 +1251,7 @@ install_docker_start()
   fi
 
   # start docker
-  chroot $target sh -c '. /etc/default/docker; TZ=UTC exec /usr/sbin/dockerd --iptables=false -H unix:// $DOCKER_OPTS' >&2 &
+  chroot $target sh -c '. /etc/default/docker; TZ=UTC exec dockerd --iptables=false -H unix:// $DOCKER_OPTS' >&2 &
   dockerpid=$!
   sleep 5  # Give it time to start and maybe crash
   if ! kill -0 "$dockerpid"; then
