@@ -41,21 +41,34 @@ create_fstab()
     set +x
     for d in "" "DISK1_" "DISK2_" "DISK3_"
     do
+      if [ -z "$d" ]; then
+          eval t_type="\$DISK0_TYPE"
+      else
+          eval t_type="\$${d}TYPE"
+      fi
+
       found=0
       for p in `seq 1 $MAXPART`
       do
+        p="PART${p}_"
+
+        # for raw disks without partitions, do not use PART_ in variable names
+        if [ "$t_type" = "raw" ]; then
+            p=""
+        fi
+
         eval t_disk=\$${d}DISK
         if [ -z "$t_disk" ]; then
           t_disk=$disk
         fi
-        eval t_mnt=\$${d}PART${p}_MNT
+        eval t_mnt=\$${d}${p}MNT
         if [ -n "$t_mnt" ]; then
           if [ "$t_mnt" = "/" ]; then  # only include root partition
-            eval t_fs=\$${d}PART${p}_FS
+            eval t_fs=\$${d}${p}FS
             if [ -z "$t_fs" ]; then
               break
             fi
-            eval o=\$${d}PART${p}_OPTS
+            eval o=\$${d}${p}OPTS
             if [ -z "$o" ]; then
               o="defaults,errors=remount-ro,noatime"
             fi
@@ -74,6 +87,11 @@ create_fstab()
             found=1
             break
           fi
+        fi
+
+        # if raw disk, stop looping over partitions
+        if [ "$t_type" = "raw" ]; then
+            break
         fi
       done
 
@@ -136,22 +154,35 @@ create_fstab()
   set +x
   for d in "" "DISK1_" "DISK2_" "DISK3_"
   do
+    if [ -z "$d" ]; then
+        eval t_type="\$DISK0_TYPE"
+    else
+        eval t_type="\$${d}TYPE"
+    fi
+
     for p in `seq 1 $MAXPART`
     do
+      p="PART${p}_"
+
+      # for raw disks without partitions, do not use PART_ in variable names
+      if [ "$t_type" = "raw" ]; then
+          p=""
+      fi
+
       eval t_disk=\$${d}DISK
       if [ -z "$t_disk" ]; then
         t_disk=$disk
       fi
-      eval t_fs=\$${d}PART${p}_FS
+      eval t_fs=\$${d}${p}FS
       if [ -n "$t_fs" ]; then
-        eval t_mnt=\$${d}PART${p}_MNT
+        eval t_mnt=\$${d}${p}MNT
         if [ "$t_mnt" = "/" ]; then  # skip root partition
           continue
         fi
         if [ -z "$t_mnt" -a "$t_fs" != "swap" ]; then
           continue
         fi
-        eval t_opts=\$${d}PART${p}_OPTS
+        eval t_opts=\$${d}${p}OPTS
         if [ -z "$t_opts" ]; then
           t_opts="defaults"
         fi
@@ -172,6 +203,11 @@ create_fstab()
           entries="$entries\nUUID=$uuid $t_mnt $t_fs $t_opts 0 2"
         fi
         set +x
+      fi
+
+      # if raw disk, stop looping over partitions
+      if [ "$t_type" = "raw" ]; then
+          break
       fi
     done
 
@@ -284,6 +320,7 @@ create_fstab()
     done
   fi
 
+  # FIXME
   if [ -n "$RAID_NAME" ];then
     # store raid configuration
     mkdir -p $target/etc/mdadm
@@ -488,26 +525,44 @@ create_fs()
 {
   for d in "" "DISK1_" "DISK2_" "DISK3_"
   do
+    if [ -z "$d" ]; then
+        eval t_type="\$DISK0_TYPE"
+    else
+        eval t_type="\$${d}TYPE"
+    fi
+
     for p in `seq 1 $MAXPART`
     do
+      p="PART${p}_"
+
+      # for raw disks without partitions, do not use PART_ in variable names
+      if [ "$t_type" = "raw" ]; then
+          p=""
+      fi
+
       eval t_disk=\$${d}DISK
       if [ -z "$t_disk" ]; then
         t_disk=$disk
       fi
-      eval t_fs=\$${d}PART${p}_FS
+      eval t_fs=\$${d}${p}FS
       if [ -n "$t_fs" ]; then
         t_partsep=""
         if echo "$t_disk" | grep -q "[0-9]$"; then
           t_partsep="p"
         fi
         part=$t_disk$t_partsep$p
-        eval t=\$${d}PART${p}_MNT
+        eval t=\$${d}${p}MNT
         if [ "$t" = "/" ]; then
           rootpart=$part
         fi
-        eval u=\$${d}PART${p}_LUKSNAME
-        eval opts=\$${d}PART${p}_MKFSOPTS
+        eval u=\$${d}${p}LUKSNAME
+        eval opts=\$${d}${p}MKFSOPTS
         make_fs "$t_fs" "$part" "$u" "$opts"
+      fi
+
+      # if raw disk, stop looping over partitions
+      if [ "$t_type" = "raw" ]; then
+          break
       fi
     done
   done
@@ -562,6 +617,7 @@ create_fs()
 
 get_fsinfo()
 {
+    # FIXME
     # for d in "" "DISK1_" "DISK2_" "DISK3_"
     # do
   if [ -n "$SFDISK" ]; then
@@ -600,6 +656,7 @@ get_fsinfo()
     set -x
   fi
 
+  # FIXME
   if [ -n "$RAID_NAME" ]; then
     fs_on_raid=1
   fi
@@ -622,18 +679,32 @@ mount_fs()
   filesystems=""
   for d in "" "DISK1_" "DISK2_" "DISK3_"
   do
+    if [ -z "$d" ]; then
+        eval t_type="\$DISK0_TYPE"
+    else
+        eval t_type="\$${d}TYPE"
+    fi
+
     eval t_disk=\$${d}DISK
     if [ -z "$t_disk" ]; then
       t_disk=$disk
     fi
+
     for p in `seq 1 $MAXPART`
     do
-      eval t_mnt=\$${d}PART${p}_MNT
+      p="PART${p}_"
+
+      # for raw disks without partitions, do not use PART_ in variable names
+      if [ "$t_type" = "raw" ]; then
+          p=""
+      fi
+
+      eval t_mnt=\$${d}${p}MNT
       if [ -n "$t_mnt" ]; then
         if [ "$t_mnt" = "/" ]; then
           continue
         fi
-        eval t_fs=\$${d}PART${p}_FS
+        eval t_fs=\$${d}${p}FS
         if [ -z "$t_fs" ]; then
           continue
         fi
@@ -648,6 +719,11 @@ mount_fs()
         filesystems="$filesystems\n$t_mnt|$part|$t_fs"
 
         # TODO: mount luks
+      fi
+
+      # if raw disk, stop looping over partitions
+      if [ "$t_type" = "raw" ]; then
+          break
       fi
     done
   done
@@ -886,22 +962,59 @@ get_deploy_config()
   echovar ROOTFSOPTS
   for d in "" "DISK1_" "DISK2_" "DISK3_"
   do
+    if [ -z "$d" ]; then
+        eval t_type="\$DISK0_TYPE"
+    else
+        eval t_type="\$${d}TYPE"
+    fi
+
     eval s=\$${d}SFDISK
     test -n "$s" && echovar ${d}SFDISK "$s"
     eval s=\$${d}DISK
     test -n "$s" && echovar ${d}DISK "$s"
     eval s=\$${d}DISK_HINT
     test -n "$s" && echovar ${d}DISK_HINT "$s"
+
+    if [ -z "$d" ]; then
+        test -n "$t_type" && echovar $DISK0_TYPE "$t_type"
+    else
+        test -n "$t_type" && echovar ${d}TYPE "$t_type"
+    fi
+
+    if [ "$t_type" = "raid" ]; then
+      eval t_raidname="\$${d}RAIDNAME"
+      echovar ${d}RAIDNAME "$t_raidname"
+      t_raid_id=`echo $t_raidname | tr a-z A-Z`
+      eval s=\$RAID_${t_raid_id}_LEVEL
+      test -n "$s" && echovar RAID_${t_raid_id}_LEVEL "$s"
+      eval s=\$RAID_${t_raid_id}_DISKS
+      test -n "$s" && echovar RAID_${t_raid_id}_DISKS "$s"
+      eval s=\$RAID_${t_raid_id}_METADATA
+      test -n "$s" && echovar RAID_${t_raid_id}_METADATA "$s"
+    fi
+
     for p in `seq 1 $MAXPART`
     do
-      eval s=\$${d}PART${p}_FS
-      test -n "$s" && echovar ${d}PART${p}_FS "$s"
-      eval s=\$${d}PART${p}_MNT
-      test -n "$s" && echovar ${d}PART${p}_MNT "$s"
-      eval s=\$${d}PART${p}_OPTS
-      test -n "$s" && echovar ${d}PART${p}_OPTS "$s"
-      eval s=\$${d}PART${p}_MKFSOPTS
-      test -n "$s" && echovar ${d}PART${p}_MKFSOPTS "$s"
+      p="PART${p}_"
+
+      # for raw disks without partitions, do not use PART_ in variable names
+      if [ "$t_type" = "raw" ]; then
+          p=""
+      fi
+
+      eval s=\$${d}${p}FS
+      test -n "$s" && echovar ${d}${p}FS "$s"
+      eval s=\$${d}${p}MNT
+      test -n "$s" && echovar ${d}${p}MNT "$s"
+      eval s=\$${d}${p}OPTS
+      test -n "$s" && echovar ${d}${p}OPTS "$s"
+      eval s=\$${d}${p}MKFSOPTS
+      test -n "$s" && echovar ${d}${p}MKFSOPTS "$s"
+
+      # if raw disk, stop looping over partitions
+      if [ "$t_type" = "raw" ]; then
+          break
+      fi
     done
 
     for p in `seq 1 $MAXPART`
