@@ -6,7 +6,6 @@ preinit_deployment_qcow2()
   REQUIRED_HOST_COMMANDS="kpartx qemu-img qemu-nbd"
   REQUIRED_PACKAGES="kpartx qemu-utils"
   INSTALL_GRUB="yes"
-  PARTSEP="p"
 }
 
 init_deployment_qcow2()

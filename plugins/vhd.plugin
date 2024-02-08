@@ -6,7 +6,6 @@ preinit_deployment_vhd()
   REQUIRED_HOST_COMMANDS="kpartx qemu-img qemu-nbd"
   REQUIRED_PACKAGES="kpartx qemu-utils"
   INSTALL_GRUB="yes"
-  PARTSEP="p"
   lvm_rename_existing=1
   VHD_EXTENSION=vhd
 }

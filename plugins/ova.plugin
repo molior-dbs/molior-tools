@@ -6,7 +6,6 @@ preinit_deployment_ova()
   REQUIRED_HOST_COMMANDS="$REQUIRED_HOST_COMMANDS qemu-img qemu-nbd bc"
   REQUIRED_PACKAGES="$REQUIRED_PACKAGES qemu-utils bc"
   INSTALL_GRUB="yes"
-  PARTSEP="p"
   do_compress=0
   lvm_rename_existing=1
 }

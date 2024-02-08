@@ -3,7 +3,6 @@
 
 preinit_deployment_image()
 {
-  PARTSEP="p"
   lvm_rename_existing=1
 }
 

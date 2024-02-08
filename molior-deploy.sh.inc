@@ -18,15 +18,6 @@ exit_on_error()
   fi
 }
 
-detect_partname_scheme()
-{
-  if [ -z "$PARTSEP" ]; then
-    if echo $disk | grep -q "[0-9]$"; then
-      PARTSEP="p"
-    fi
-  fi
-}
-
 create_fstab()
 {
   if [ -z "$target" ]; then
@@ -68,7 +59,10 @@ create_fstab()
             if [ -z "$o" ]; then
               o="defaults,errors=remount-ro,noatime"
             fi
-            eval t_partsep=\$${d}PARTSEP
+            t_partsep=""
+            if echo "$t_disk" | grep -q "[0-9]$"; then
+              t_partsep="p"
+            fi
             part=$t_disk$t_partsep$p
             uuid=`blkid -o value -s UUID $part`
             if [ -z "$uuid" ]; then
@@ -161,7 +155,10 @@ create_fstab()
         if [ -z "$t_opts" ]; then
           t_opts="defaults"
         fi
-        eval t_partsep=\$${d}PARTSEP
+        t_partsep=""
+        if echo "$t_disk" | grep -q "[0-9]$"; then
+          t_partsep="p"
+        fi
         part=$t_disk$t_partsep$p
         uuid=`blkid -o value -s UUID $part`
         if [ -z "$uuid" ]; then
@@ -461,7 +458,10 @@ create_fs()
       fi
       eval t_fs=\$${d}PART${p}_FS
       if [ -n "$t_fs" ]; then
-        eval t_partsep=\$${d}PARTSEP
+        t_partsep=""
+        if echo "$t_disk" | grep -q "[0-9]$"; then
+          t_partsep="p"
+        fi
         part=$t_disk$t_partsep$p
         eval t=\$${d}PART${p}_MNT
         if [ "$t" = "/" ]; then
@@ -602,7 +602,10 @@ mount_fs()
         if [ "$t_fs" = "encrypted-swap" ]; then
           continue
         fi
-        eval t_partsep=\$${d}PARTSEP
+        t_partsep=""
+        if echo "$t_disk" | grep -q "[0-9]$"; then
+          t_partsep="p"
+        fi
         part=$t_disk$t_partsep$p
         filesystems="$filesystems\n$t_mnt|$part|$t_fs"
 
@@ -936,7 +939,6 @@ get_deploy_config()
   echovar INSTALLER_INSTALL_DISK_HINT
   echovar INSTALLER_HOSTNAME_APPEND_MAC_IFACE
   echovar INSTALLER_EXTRA_MODULES
-  echovar PARTSEP
   echovar RAID_NAME
   echovar RAID_DEVICES
   echovar RAID_OPTS
