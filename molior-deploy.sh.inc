@@ -412,6 +412,7 @@ create_partitions()
         done
 
         # create RAID
+        wipefs -af $t_raid_disks >/dev/null 2>&1
         echo y | mdadm --create /dev/$t_raidname --verbose --level=$t_raid_level $t_args --raid-devices=$i $t_raid_disks
     fi
   done
