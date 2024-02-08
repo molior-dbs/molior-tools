@@ -311,7 +311,7 @@ create_partitions()
     wipearg="--wipe=always"
   fi
 
-  for d in "" "DISK1_" "DISK2_" "DISK2_"
+  for d in "" "DISK1_" "DISK2_" "DISK3_"
   do
     eval t_sfdisk="\$${d}SFDISK"
     if [ -n "$t_sfdisk" ]; then
