@@ -285,7 +285,7 @@ EOF
     cp $INITRDINST/syslinux.cfg $WORK_DIR/out/
   fi
 
-  kernel_version=$(chroot $WORK_DIR/instroot/ dpkg -L $LINUX_IMAGE_NAME | grep vmlinuz | xargs basename | sed 's/vmlinuz-//')
+  kernel_version=$(readlink $WORK_DIR/instroot/vmlinuz | sed 's/.*vmlinuz-//')
 
   cp -L $WORK_DIR/instroot/boot/initrd.img-$kernel_version $WORK_DIR/out/initrd.img
   cp -L $WORK_DIR/instroot/boot/vmlinuz-$kernel_version $WORK_DIR/out/vmlinuz
