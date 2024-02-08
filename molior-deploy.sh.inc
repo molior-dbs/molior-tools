@@ -334,8 +334,7 @@ create_fstab()
     done
   fi
 
-  # FIXME
-  if [ -n "$RAID_NAME" ];then
+  if [ -n "$RAID_NAME" ] || [ -n "$fs_on_raid" ] && [ "$fs_on_raid" -eq 1 ] ;then
     # store raid configuration
     mkdir -p $target/etc/mdadm
     mdadm --detail --scan >> $target/etc/mdadm/mdadm.conf
