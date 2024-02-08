@@ -271,6 +271,8 @@ if type installer_configure >/dev/null 2>&1; then
   installer_configure
 fi
 
+get_fsinfo
+
 auto_select_disks=0
 for h in INSTALLER_INSTALL_DISK_HINT DISK1_DISK_HINT DISK2_DISK_HINT DISK3_DISK_HINT; do
   eval disk_hint="\$$h"
@@ -438,7 +440,7 @@ if [ -n "$LVM_VG" ]; then
   done
 fi
 
-if [ -n "$RAID_NAME" ]; then
+if [ -n "$RAID_NAME" ] || [ -n "$fs_on_raid" ] && [ "$fs_on_raid" -eq 1 ]; then
   for raid in `mdadm --detail --scan | cut -d " " -f2`;
   do
     mdadm --stop $raid
@@ -446,6 +448,7 @@ if [ -n "$RAID_NAME" ]; then
   done
 fi
 
+# FIXME
 if [ -n "$RAID_NAME" ]; then
   for d in $RAID_DEVICES;
   do
@@ -568,7 +571,7 @@ if type installer_setup_bootloader >/dev/null 2>&1; then
 else
   if [ "$TARGET_BOOTTYPE" = "efi" ]; then
     if modprobe efivars; then
-      if [ -n "$RAID_NAME" ]; then
+      if [ -n "$RAID_NAME" ] || [ -n "$fs_on_raid" ] && [ "$fs_on_raid" -eq 1 ]; then
         # fix for grub-install error where efibootmgr complains about missing -d (disk) parameter
         chroot $target grub-install --modules mdraid1x --recheck --force --removable
       else
@@ -580,7 +583,7 @@ else
       mv $target/boot/efi/efi/debian/grubx64.efi $target/boot/efi/EFI/BOOT/bootx64.efi
     fi
   else
-    if [ -n "$RAID_NAME" ]; then
+    if [ -n "$RAID_NAME" ] || [ -n "$fs_on_raid" ] && [ "$fs_on_raid" -eq 1 ]; then
       echo "`chroot $target grub-probe -t drive -d $RAID_NAME` $RAID_NAME" > $target/boot/grub/device.map
       chroot $target grub-install --modules part_msdos --force --no-floppy $disk >/dev/null 2>&1
     else

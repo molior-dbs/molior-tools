@@ -50,6 +50,7 @@ create_fstab()
       found=0
       for p in `seq 1 $MAXPART`
       do
+        part_id=$p
         p="PART${p}_"
 
         # for raw disks without partitions, do not use PART_ in variable names
@@ -72,11 +73,17 @@ create_fstab()
             if [ -z "$o" ]; then
               o="defaults,errors=remount-ro,noatime"
             fi
-            t_partsep=""
-            if echo "$t_disk" | grep -q "[0-9]$"; then
-              t_partsep="p"
+
+            if [ "$t_type" = "raw" ]; then
+              part=$t_disk
+            else
+              t_partsep=""
+              if echo "$t_disk" | grep -q "[0-9]$"; then
+                t_partsep="p"
+              fi
+              part=$t_disk$t_partsep$part_id
             fi
-            part=$t_disk$t_partsep$p
+
             uuid=`blkid -o value -s UUID $part`
             if [ -z "$uuid" ]; then
               log_error "Error rootfs uuid is empty for '$part'"
@@ -162,6 +169,7 @@ create_fstab()
 
     for p in `seq 1 $MAXPART`
     do
+      part_id=$p
       p="PART${p}_"
 
       # for raw disks without partitions, do not use PART_ in variable names
@@ -186,11 +194,17 @@ create_fstab()
         if [ -z "$t_opts" ]; then
           t_opts="defaults"
         fi
-        t_partsep=""
-        if echo "$t_disk" | grep -q "[0-9]$"; then
-          t_partsep="p"
+
+        if [ "$t_type" = "raw" ]; then
+          part=$t_disk
+        else
+          t_partsep=""
+          if echo "$t_disk" | grep -q "[0-9]$"; then
+            t_partsep="p"
+          fi
+          part=$t_disk$t_partsep$part_id
         fi
-        part=$t_disk$t_partsep$p
+
         uuid=`blkid -o value -s UUID $part`
         if [ -z "$uuid" ]; then
           log_error "Error: empty uuid for '$part'"
@@ -533,6 +547,7 @@ create_fs()
 
     for p in `seq 1 $MAXPART`
     do
+      part_id=$p
       p="PART${p}_"
 
       # for raw disks without partitions, do not use PART_ in variable names
@@ -546,11 +561,15 @@ create_fs()
       fi
       eval t_fs=\$${d}${p}FS
       if [ -n "$t_fs" ]; then
-        t_partsep=""
-        if echo "$t_disk" | grep -q "[0-9]$"; then
-          t_partsep="p"
+        if [ "$t_type" = "raw" ]; then
+          part=$t_disk
+        else
+          t_partsep=""
+          if echo "$t_disk" | grep -q "[0-9]$"; then
+            t_partsep="p"
+          fi
+          part=$t_disk$t_partsep$part_id
         fi
-        part=$t_disk$t_partsep$p
         eval t=\$${d}${p}MNT
         if [ "$t" = "/" ]; then
           rootpart=$part
@@ -704,6 +723,7 @@ mount_fs()
 
     for p in `seq 1 $MAXPART`
     do
+      part_id=$p
       p="PART${p}_"
 
       # for raw disks without partitions, do not use PART_ in variable names
@@ -723,11 +743,17 @@ mount_fs()
         if [ "$t_fs" = "encrypted-swap" ]; then
           continue
         fi
-        t_partsep=""
-        if echo "$t_disk" | grep -q "[0-9]$"; then
-          t_partsep="p"
+
+        if [ "$t_type" = "raw" ]; then
+          part=$t_disk
+        else
+          t_partsep=""
+          if echo "$t_disk" | grep -q "[0-9]$"; then
+            t_partsep="p"
+          fi
+          part=$t_disk$t_partsep$part_id
         fi
-        part=$t_disk$t_partsep$p
+
         filesystems="$filesystems\n$t_mnt|$part|$t_fs"
 
         # TODO: mount luks
