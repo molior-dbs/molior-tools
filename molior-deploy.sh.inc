@@ -313,18 +313,56 @@ create_partitions()
 
   for d in "" "DISK1_" "DISK2_" "DISK3_"
   do
-    eval t_sfdisk="\$${d}SFDISK"
-    if [ -n "$t_sfdisk" ]; then
-      if [ -z "${d}" ]; then
-        t_disk=$disk
-      else
-        eval t_disk="\$${d}DISK"
-      fi
+    if [ -z "$d" ]; then
+        eval t_type="\$DISK0_TYPE"
+    else
+        eval t_type="\$${d}TYPE"
+    fi
+    if [ -z "$t_type" ] || [ "$t_type" = "part" ]; then
+        eval t_sfdisk="\$${d}SFDISK"
+        if [ -n "$t_sfdisk" ]; then
+          if [ -z "${d}" ]; then
+            t_disk=$disk
+          else
+            eval t_disk="\$${d}DISK"
+          fi
 
-      log "creating partitions on $t_disk"
-      # check if sfdisk supports wipearg, i.e. > 2.27.1
-      echo "$t_sfdisk" | sfdisk --force $wipearg $t_disk >/dev/null
-      exit_on_error "Error creating partitions"
+          log "creating partitions on $t_disk"
+          # check if sfdisk supports wipearg, i.e. > 2.27.1
+          echo "$t_sfdisk" | sfdisk --force $wipearg $t_disk >/dev/null
+          exit_on_error "Error creating partitions"
+        fi
+    elif [ "$t_type" = "raid" ]; then
+        eval t_raidname="\$${d}RAIDNAME"
+        t_raid_id=`echo $t_raidname | tr a-z A-Z`
+        eval t_raid_level="\$RAID_${t_raid_id}_LEVEL"
+        eval t_raid_disks="\$RAID_${t_raid_id}_DISKS"
+        eval t_raid_metadata="\$RAID_${t_raid_id}_METADATA"
+
+        log "creating RAID $t_raidname (level: $t_raid_level)"
+
+        # if requested, find all disks with are not install disk of source install medium
+        if [ "$t_raid_disks" = "remaining" ]; then
+            t_raid_disks=`lsblk -dn -o PATH | grep -v $disk`
+            if [ -n "$SOURCEDISK" ]; then
+                t_raid_disks=`echo "$t_raid_disks" | grep -v $SOURCEDISK`
+            fi
+        fi
+
+        # add metadata args if needed
+        t_args=""
+        if [ -n "$t_raid_metadata" ]; then
+            t_args="--metadata=$t_raid_metadata"
+        fi
+
+        # count number of disks
+        i=0
+        for d in $t_raid_disks; do
+          i=$((i+1))
+        done
+
+        # create RAID
+        echo y | mdadm --create /dev/$t_raidname --verbose --level=$t_raid_level $t_args --raid-devices=$i $t_raid_disks
     fi
   done
 }
