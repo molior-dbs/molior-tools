@@ -617,28 +617,40 @@ create_fs()
 
 get_fsinfo()
 {
-    # FIXME
-    # for d in "" "DISK1_" "DISK2_" "DISK3_"
-    # do
-  if [ -n "$SFDISK" ]; then
-    fs_has_partitions=1
-    set +x
+  for d in "" "DISK1_" "DISK2_" "DISK3_"
+  do
+    if [ -z "$d" ]; then
+        eval t_type="\$DISK0_TYPE"
+    else
+        eval t_type="\$${d}TYPE"
+    fi
+
+    if [ -n "$SFDISK" ]; then
+      fs_has_partitions=1
+    fi
+
+    if [ "$t_type" = "raid" ]; then
+        fs_on_raid=1
+    fi
+
     for p in `seq 1 $MAXPART`
     do
-      eval s=\$PART${p}_FS
-      if [ "$s" = "luks" ]; then
-        set -x
-        fs_has_luks=1
-        set +x
-      fi
-      if [ "$s" = "btrfs" ]; then
-        set -x
-        fs_has_btrfs=1
-        set +x
-      fi
-    done
-    set -x
-  fi
+        p="PART${p}_"
+
+        # for raw disks without partitions, do not use PART_ in variable names
+        if [ "$t_type" = "raw" ]; then
+            p=""
+        fi
+
+        eval t_fs=\$${d}${p}FS
+        if [ "$t_fs" = "luks" ]; then
+          fs_has_luks=1
+        fi
+        if [ "$t_fs" = "btrfs" ]; then
+          fs_has_btrfs=1
+        fi
+     done
+  done
 
   if [ -n "$LVM_VG" ]; then
     fs_has_lvm=1
@@ -656,7 +668,7 @@ get_fsinfo()
     set -x
   fi
 
-  # FIXME
+  # legacy raid
   if [ -n "$RAID_NAME" ]; then
     fs_on_raid=1
   fi
