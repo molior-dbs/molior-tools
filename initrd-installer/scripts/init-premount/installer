@@ -466,8 +466,6 @@ fi
 
 create_partitions
 
-detect_partname_scheme
-
 create_fs   # this will set rootpart used below
 
 target=/mnt/target
