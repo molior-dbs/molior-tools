@@ -500,13 +500,13 @@ esac
 
 case $INSTALLER_COMPRESSION in
    none)
-       pv /mnt/source/image$INSTALLER_ARCHIVE_EXT | $unpack_cmd 2>/dev/null
+       pv -f -F "   * %p" --width 42 /mnt/source/image$INSTALLER_ARCHIVE_EXT | $unpack_cmd 2>/dev/null
    ;;
    xz)
-       pv /mnt/source/image$INSTALLER_ARCHIVE_EXT$INSTALLER_COMPRESSION_EXT | xz -dc - | $unpack_cmd 2>/dev/null
+       pv -f -F "   * %p" --width 42 /mnt/source/image$INSTALLER_ARCHIVE_EXT$INSTALLER_COMPRESSION_EXT | xz -dc - | $unpack_cmd 2>/dev/null
    ;;
    gz|gzip)
-       pv /mnt/source/image$INSTALLER_ARCHIVE_EXT$INSTALLER_COMPRESSION_EXT | gzip -dc - | $unpack_cmd 2>/dev/null
+       pv -f -F "   * %p" --width 42 /mnt/source/image$INSTALLER_ARCHIVE_EXT$INSTALLER_COMPRESSION_EXT | gzip -dc - | $unpack_cmd 2>/dev/null
    ;;
    *)
        log_error "Compression '$INSTALLER_COMPRESSION' not supported"
