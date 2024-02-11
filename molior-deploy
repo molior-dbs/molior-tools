@@ -932,7 +932,7 @@ bootstrap_deployment()
       postfix=""
     fi
     i=$((i + 1))
-    curl -n -f -s --retry 10 -o $WORK_DIR/repo.asc$postfix $url
+    curl -L -n -f -s --retry 10 -o $WORK_DIR/repo.asc$postfix $url
     exit_on_error "Error downloading $url"
   done
   gpg -q --import --no-default-keyring --keyring=trustedkeys.gpg $WORK_DIR/repo.asc
