@@ -71,9 +71,25 @@ COMMON PARAMETERS
  SHA256EXT                     Extention to use for sha256 file (default: sha256)
  DEPLOY_CONF_PKG               Name of source package to download and source deploy/common.vars from it
 
+DISK PARAMETERS
+ Multiple disks can be used during the installation by defining the following parameters.
+ Currently a maximum of 4 disks (INSTALLER_INSTALL_DISK + DISK1-3) are supported.
+
+ INSTALLER_INSTALL_DISK      Physical disk to use (e.g. /dev/sda)
+ INSTALLER_INSTALL_DISK_HINT Hint for automatic disk selection (largest or smallest)
+
+ DISK#_TYPE                  Set Disk type (default: part, raid, raw)
+ DISK#_SFDISK                Input for sfdisk partitioning
+ DISK#_DISK                  Physical disk to use (e.g. /dev/sda)
+ DISK#_DISK_HINT             Hint for automatic disk selection (largest or smallest)
+ DISK#_PART#_FS              Filesystem of partition # (ext4, btrfs, ... or 'lvm' for LVM physical volume)
+ DISK#_PART#_MNT             Mountpoint of partition #
+ DISK#_PART#_OPTS            fstab options (i.e. "defaults,noatime")
+ DISK#_PART#_MKFSOPTS        Options for mkfs (i.e. "-O ^64bit,^metadata_csum")
+
 FILESYSTEM PARAMETERS
  Partitions and filesystems may be created by defining the following parameters.
- LVM partition is supported and can be combines with legacy partitions.
+ LVM partitioning is supported and can be combines with legacy partitions. Also RAID configuration is supported.
  Up to 16 partitions / logical volumes are currently supported, and 1 physical volume or a full disk for LVM.
 
  SFDISK             Input for sfdisk partitioning
@@ -82,6 +98,7 @@ FILESYSTEM PARAMETERS
  PART#_OPTS         fstab options (i.e. "defaults,noatime")
  PART#_MKFSOPTS     Options for mkfs (i.e. "-O ^64bit,^metadata_csum")
 
+LVM PARAMETERS
  LVM_VG             LVM volume group name
  LVM_PV             LVM physical volume (partition device or 'disk' for full disk)
 
@@ -93,34 +110,28 @@ FILESYSTEM PARAMETERS
  LVM_LV#_OPTS       LVM logical volume # fstab options (i.e. "defaults,noatime")
  LVM_LV#_MKFSOPTS   Options for mkfs (i.e. "-O ^64bit,^metadata_csum")
 
+BIND MOUNTS
  BIND_MOUNTS        Set extra bind mounts for installation, space separated list of from:to:options (i.e. "/var/tmp:/tmp"). Entries will be created in fstab
  EXTRA_BIND_MOUNTS  Set extra bind mounts to be added to fstab (not available during installation)
 
+BTRFS PARAMETERS
  BTRFS_SUBVOL#_PATH  btrfs subvolume to be created on specified path (for example /opt)
  BTRFS_SUBVOL#_LIMIT btrfs subvolume quota limit (postfixed by M,G,...)
 
-
 RAID PARAMETERS
- Software RAID via the 'mdadm' may be created by defining the following parameters.
- Warning: during the installation all existing software raid disks will be reset.
+ Software RAID via the 'mdadm' may be created by defining the following parameters. A raid device is available by setting a subsequent DISK#_DISK to
+ /dev/md# and use it for partitioning or LVM.
 
- RAID_NAME          Set the raid device name (e.g. "/dev/md0")
- RAID_DEVICES       List all physical drives/partitions for raid setup (e.g. "/dev/sda /dev/sdb")
- RAID_OPTS          Specify all required options for the 'mdadm --create' command (e.g. "--level=1 --raid-devices=2 --metadata=1.0")
+ DISK#_TYPE=raid    Set Disk type to raid
 
-DISK PARAMETERS
- Multiple disks can be used during the installation by defining the following parameters.
- Currently a maximum of 4 disks (INSTALLER_INSTALL_DISK + DISK1-3) are supported.
+ DISK#_RAIDNAME     Set RAID name (in lowercase: md0, md1, ...)
+ RAID_MD#_LEVEL     Set RAID level for raid name md#
+ RAID_MD#_DISKS     Set RAID disks (space separated) for raid name md# (e.g. /dev/sdb or "remaining" for all disks except install disk)
+ RAID_MD#_METADATA  Optionally, set metadata version to use (e.g. 1.0)
 
- INSTALLER_INSTALL_DISK      Physical disk to use (e.g. /dev/sda)
- INSTALLER_INSTALL_DISK_HINT Hint for automatic disk selection (largest or smallest)
- DISK#_SFDISK                Input for sfdisk partitioning
- DISK#_DISK                  Physical disk to use (e.g. /dev/sda)
- DISK#_DISK_HINT             Hint for automatic disk selection (largest or smallest)
- DISK#_PART#_FS              Filesystem of partition # (ext4, btrfs, ... or 'lvm' for LVM physical volume)
- DISK#_PART#_MNT             Mountpoint of partition #
- DISK#_PART#_OPTS            fstab options (i.e. "defaults,noatime")
- DISK#_PART#_MKFSOPTS        Options for mkfs (i.e. "-O ^64bit,^metadata_csum")
+ RAID_NAME          Obsolete. Set the raid device name (e.g. "/dev/md0")
+ RAID_DEVICES       Obsolete. List all physical drives/partitions for raid setup (e.g. "/dev/sda /dev/sdb")
+ RAID_OPTS          Obsolete. Specify all required options for the 'mdadm --create' command (e.g. "--level=1 --raid-devices=2 --metadata=1.0")
 
 BOOT PARAMETERS
  LINUX_CMDLINE      Set Linux command line options (i.e. "biosdevname=0 net.ifnames=0 init=/lib/systemd/systemd)
