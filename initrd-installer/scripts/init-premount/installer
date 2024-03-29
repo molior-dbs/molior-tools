@@ -602,6 +602,8 @@ if type installer_postinst >/dev/null 2>&1; then
 fi
 
 if [ -n "$RAID_NAME" ]; then
+  echo 1000000 > /proc/sys/dev/raid/speed_limit_min
+  echo 10000000 > /proc/sys/dev/raid/speed_limit_max
   log "syncing raid array"
   while true; do
     if grep -q "idle" /sys/class/block/`echo $RAID_NAME | xargs basename`/md/sync_action; then
