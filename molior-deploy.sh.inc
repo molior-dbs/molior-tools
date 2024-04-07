@@ -393,7 +393,7 @@ create_partitions()
 
         # if requested, find all disks with are not install disk of source install medium
         if [ "$t_raid_disks" = "remaining" ]; then
-            t_raid_disks=`lsblk -dn -o PATH | grep -v $disk`
+            t_raid_disks=`lsblk -dn -o PATH,TYPE | grep disk$ | grep -v ^$disk | awk {'print $1'}`
             if [ -n "$SOURCEDISK" ]; then
                 t_raid_disks=`echo "$t_raid_disks" | grep -v $SOURCEDISK`
             fi
