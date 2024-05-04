@@ -1269,12 +1269,17 @@ install_docker_start()
     cp $target/$DOCKER_COMPOSE_ENV_FILE $target/tmp/docker-compose/.env
   fi
 
-  # start docker
-  chroot $target sh -c '. /etc/default/docker; TZ=UTC exec dockerd --iptables=false -H unix:// $DOCKER_OPTS' >&2 &
-  dockerpid=$!
-  sleep 5  # Give it time to start and maybe crash
-  if ! kill -0 "$dockerpid"; then
-      log_error "Error starting docker!"
+  if chroot $target dpkg -s podman-docker >/dev/null 2>&1; then
+    log "using podman-docker wrapper"
+  else
+    log "starting dockerd"
+    # start docker
+    chroot $target sh -c '. /etc/default/docker; TZ=UTC exec dockerd --iptables=false -H unix:// $DOCKER_OPTS' >&2 &
+    dockerpid=$!
+    sleep 5  # Give it time to start and maybe crash
+    if ! kill -0 "$dockerpid"; then
+      log_error "Error starting dockerd!"
+    fi
   fi
 }
 
@@ -1392,8 +1397,10 @@ install_docker_stop()
   rm -rf $target/tmp/docker-compose
 
   # stop docker
-  kill_with_retry $dockerpid 3
-  exit_on_error "kill dockerpid=$dockerpid unsuccessful"
+  if [ -n "$dockerpid" ]; then
+    kill_with_retry $dockerpid 3
+    exit_on_error "kill dockerpid=$dockerpid unsuccessful"
+  fi
 
   # wait for dockerd do terminate
   sleep 5
