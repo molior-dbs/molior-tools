@@ -49,7 +49,7 @@ usage()
   echo "  -F OUTPUT_FILE    Custom deployment output's filename"
   echo "  -d                Debug APT package resolver. Print debug output to stdout instead of file"
   echo "  -t                Text output only, do not print colored output"
-  echo "  -r                Create rootfs only, do not create final deployment (to be used for -b)"
+  echo "  -r                Keep rootfs of final deployment (to be used for -b)"
   echo "  -b ROOTFS_TAR     Use existing rootfs (tar) as base for deployment (separately created with -r)"
   echo "  -L                Keep log file"
   echo "  -U                Use unstable APT sources (CI Builds)"
@@ -67,7 +67,7 @@ usage()
 }
 
 origopts=$@
-while getopts "n:s:v:p:m:a:V:o:F:b:rtAlcfdOLUuSDCT:" opt; do
+while getopts "n:s:v:p:m:a:V:o:F:b:i:rtAlcfdOLUuSDCT:" opt; do
   case $opt in
     n)
       PACKAGE_NAME=$OPTARG
@@ -147,8 +147,7 @@ while getopts "n:s:v:p:m:a:V:o:F:b:rtAlcfdOLUuSDCT:" opt; do
       shift 1
       ;;
     r)
-      base_only=1
-      deployment_only=0
+      KEEP_ROOTFS=1
       shift 1
       ;;
     b)
@@ -245,9 +244,11 @@ DEPLOYMENT_TYPE=image
 INSTALL_PACKAGE=""
 PRESEED_FILE=""
 REQUIRED_MOLIORTOOLS_VERSION=""
+if [ "$KEEP_ROOTFS" != "1" ]; then
+    KEEP_ROOTFS=0
+fi
 
 # logging
-
 if [ $no_color -ne 1 ]; then
   color_info="\e[36m\e[1m"
   color_notice="\e[34m\e[1m"
@@ -1612,6 +1613,16 @@ workflow_base()
 workflow_deployment()
 {
   log_info "Creating deployment ..."
+
+  # save rootfs alongside deployment
+  if [ "$KEEP_ROOTFS" -eq 1 ]; then
+      log "archiving rootfs"
+      umount_bootstrap
+      tar -C $WORK_DIR/root -cJf $WORK_DIR/rootfs.tar.xz .
+      exit_on_error "error writing rootfs.tar.xz"
+      mount_bootstrap
+  fi
+
   if type finalize_deployment >/dev/null; then
     finalize_deployment
   elif type finalize_deployment_$DEPLOYMENT_TYPE >/dev/null; then
@@ -1661,6 +1672,13 @@ workflow_deployment()
 
   if [ -n "$SUDO_UID" -a -n "$SUDO_GID" ]; then
     chown $SUDO_UID:$SUDO_GID $CUR_DIR/$deployment
+  fi
+
+  if [ "$KEEP_ROOTFS" -eq 1 ]; then
+      mv $WORK_DIR/rootfs.tar.xz $CUR_DIR/rootfs_${PROJECT}_${VERSION}_${REVISION}_$VARIANT.tar.xz
+      if [ -n "$SUDO_UID" -a -n "$SUDO_GID" ]; then
+        chown $SUDO_UID:$SUDO_GID $CUR_DIR/rootfs_${PROJECT}_${VERSION}_${REVISION}_$VARIANT.tar.xz
+      fi
   fi
 
   # deinitialize stuff
