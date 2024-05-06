@@ -850,13 +850,18 @@ setup_deployment()
       curl -n -f -s --retry 10 -O -J $FUNC_SOURCEMIRROR/$CONFPKG_NAME
       exit_on_error "Error downloading $FUNC_SOURCEMIRROR/$CONFPKG_NAME"
 
-      tar xf `basename $CONFPKG_NAME` $deploy_conf/$source_file
-      exit_on_error "Error extracting $deploy_conf/$source_file from `basename $CONFPKG_NAME`"
+      tar xf `basename $CONFPKG_NAME`
+      exit_on_error "Error extracting `basename $CONFPKG_NAME`"
 
       rm -f `basename $CONFPKG_NAME`
 
       log "sourcing $source_file from $deploy_conf $CONFPKG_REV"
+      # provide new SOURCE_DIR for conf pkf includes to work
+      old_SOURCE_DIR=$SOURCE_DIR
+      SOURCE_DIR=$deploy_conf
       . $deploy_conf/$source_file
+      SOURCE_DIR=$old_SOURCE_DIR
+
       cd - >/dev/null
       rm -rf $confdir
     done
