@@ -9,10 +9,8 @@ user_abort=0
 deploy_all=0
 keep_log=0
 no_color=0
-base_only=0
 unstable_sources=0
 dist=stable
-deployment_only=0
 lvm_rename_existing=0
 DEPLOYMENT_SHA256=0
 OVERLAY_VERSION=""
@@ -49,8 +47,8 @@ usage()
   echo "  -F OUTPUT_FILE    Custom deployment output's filename"
   echo "  -d                Debug APT package resolver. Print debug output to stdout instead of file"
   echo "  -t                Text output only, do not print colored output"
-  echo "  -r                Keep rootfs of final deployment (to be used for -b)"
-  echo "  -b ROOTFS_TAR     Use existing rootfs (tar) as base for deployment (separately created with -r)"
+  echo "  -r                Keep rootfs of final deployment (to be used for -i)"
+  echo "  -i ROOTFS_TAR     Use existing rootfs (tar) as base for post install (tar created with -r)"
   echo "  -L                Keep log file"
   echo "  -U                Use unstable APT sources (CI Builds)"
   echo "  -u                Use unstable top level package (INSTALL_PACKAGE in deploy file)"
@@ -150,9 +148,7 @@ while getopts "n:s:v:p:m:a:V:o:F:b:i:rtAlcfdOLUuSDCT:" opt; do
       KEEP_ROOTFS=1
       shift 1
       ;;
-    b)
-      base_only=0
-      deployment_only=1
+    i)
       BASE_ROOTFS=$OPTARG
       shift 2
       ;;
@@ -1039,10 +1035,8 @@ EOF
     echo "$APT_SOURCES_EXTRA" > $target/etc/apt/sources.list.d/extra.list
   fi
 
-  if [ $base_only -eq 0 ]; then
-    if [ $do_fstab -eq 1 ]; then
-      create_fstab
-    fi
+  if [ $do_fstab -eq 1 ]; then
+    create_fstab
   fi
 
   cat $WORK_DIR/repo.asc* | gpg --dearmor -o $target/etc/apt/trusted.gpg.d/molior.gpg
@@ -1073,20 +1067,18 @@ EOF
   apt_get_chroot_with_retry --yes dist-upgrade >&2
   exit_on_error "apt-get dist-upgrade failed"
 
-  if [ $base_only -eq 0 ]; then
-    if [ -n "$BIND_MOUNTS" ]; then
-      for m in $BIND_MOUNTS
-      do
-        from=`echo $m | cut -d: -f1`
-        to=`echo $m | cut -d: -f2`
-        opts=`echo $m | cut -d: -f3`
-        if [ -z "$opts" ]; then
-          opts="rw,noexec,nosuid,nodev"
-        fi
-        mkdir -p $target/$from $target/$to
-        mount -o $opts,bind $target/$from $target/$to
-      done
-    fi
+  if [ -n "$BIND_MOUNTS" ]; then
+    for m in $BIND_MOUNTS
+    do
+      from=`echo $m | cut -d: -f1`
+      to=`echo $m | cut -d: -f2`
+      opts=`echo $m | cut -d: -f3`
+      if [ -z "$opts" ]; then
+        opts="rw,noexec,nosuid,nodev"
+      fi
+      mkdir -p $target/$from $target/$to
+      mount -o $opts,bind $target/$from $target/$to
+    done
   fi
 }
 
@@ -1440,6 +1432,43 @@ check_required_version()
     fi
 }
 
+run_postinst()
+{
+    # enable DNS in chroot for postinst
+    if [ -e $target/etc/resolv.conf -o -h $target/etc/resolv.conf ]; then
+      mv $target/etc/resolv.conf $target/etc/resolv.conf.molior-deploy.bak
+    fi
+    cp -L /etc/resolv.conf $target/etc/resolv.conf
+
+    # run postinst_deployment
+    if type postinst_deployment >/dev/null; then
+      postinst_deployment
+    elif type postinst_deployment_$DEPLOYMENT_TYPE >/dev/null; then
+      postinst_deployment_$DEPLOYMENT_TYPE
+    fi
+
+    # ensure DNS is still enabled
+    rm -f $target/etc/resolv.conf
+    cp -L /etc/resolv.conf $target/etc/resolv.conf
+
+    # install docker containers
+    if [ -n "$DOCKER_CONTAINERS" -o -n "$DOCKER_COMPOSE_FILE" ]; then
+      log_info "Installing docker containers ..."
+      install_docker
+    fi
+
+    # run postinst_internal_deployment
+    if type postinst_internal_deployment_$DEPLOYMENT_TYPE >/dev/null; then
+      postinst_internal_deployment_$DEPLOYMENT_TYPE
+    fi
+
+    # restore resolv.conf
+    rm -f $target/etc/resolv.conf
+    if [ -e $target/etc/resolv.conf.molior-deploy.bak -o -h $target/etc/resolv.conf.molior-deploy.bak ]; then
+      mv $target/etc/resolv.conf.molior-deploy.bak $target/etc/resolv.conf
+    fi
+}
+
 # 1st stage: create the base rootfs
 workflow_base()
 {
@@ -1488,126 +1517,75 @@ workflow_base()
   fi
 
   log_info "Initializing deployment ..."
-  if [ $base_only -eq 1 ]; then
-    log "creating rootfs only"
-  fi
 
-  if [ $base_only -eq 0 -o $deployment_only -eq 1 ]; then
-    # if we intent to create LVM VG with the same name as on the host, rename the host one
-    if [ -n "$LVM_VG" -a $lvm_rename_existing -eq 1 ]; then
-      if vgs ${LVM_VG} >/dev/null 2>&1; then
-        log_warn "Warning: renaming locally existing LVM VG $LVM_VG to ${LVM_VG}_molior_renamed"
-        vgrename -A y $LVM_VG ${LVM_VG}_molior_renamed >&2
-        exit_on_error "Error renaming LVM VG $LVM_VG"
-      fi
+  # if we intent to create LVM VG with the same name as on the host, rename the host one
+  if [ -n "$LVM_VG" -a $lvm_rename_existing -eq 1 ]; then
+    if vgs ${LVM_VG} >/dev/null 2>&1; then
+      log_warn "Warning: renaming locally existing LVM VG $LVM_VG to ${LVM_VG}_molior_renamed"
+      vgrename -A y $LVM_VG ${LVM_VG}_molior_renamed >&2
+      exit_on_error "Error renaming LVM VG $LVM_VG"
     fi
   fi
 
-  if [ $base_only -eq 0 -o $deployment_only -eq 1 ]; then
-    # create filesystems
-    if type init_deployment >/dev/null; then
-      init_deployment
-    elif type init_deployment_$DEPLOYMENT_TYPE >/dev/null; then
-      init_deployment_$DEPLOYMENT_TYPE
-    fi
+  # create filesystems
+  if type init_deployment >/dev/null; then
+    init_deployment
+  elif type init_deployment_$DEPLOYMENT_TYPE >/dev/null; then
+    init_deployment_$DEPLOYMENT_TYPE
   fi
 
   get_fsinfo
 
-  if [ $deployment_only -eq 1 ]; then
+  if [ -n "$BASE_ROOTFS" ]; then
     log "creating deployment from rootfs $BASE_ROOTFS"
     tar xf $BASE_ROOTFS -C $target
     exit_on_error "Error extracting '$BASE_ROOTFS'"
-  else  # if [ $deployment_only -eq 0 ]; then
-    if [ $do_installation -eq 1 ]; then
-      log_info "Installing base OS ..."
-      bootstrap_deployment
 
-      # run preinst_deployment
-      if type preinst_deployment >/dev/null; then
-        preinst_deployment
-      elif type preinst_deployment_$DEPLOYMENT_TYPE >/dev/null; then
-        preinst_deployment_$DEPLOYMENT_TYPE
-      fi
+    log "updating APT database"
+    chroot $target apt-get -o Acquire::Languages=none update >&2
+    exit_on_error "apt-get update failed"
 
-      if [ $do_software_installation -eq 1 ]; then
-        log_info "Installing software ..."
-        install_deployment
-      fi
+    # run postinst_deployment
+    run_postinst
+  elif [ $do_installation -eq 1 ]; then
+    log_info "Installing base OS ..."
+    bootstrap_deployment
 
-      # enable DNS in chroot for postinst
-      if [ -e $target/etc/resolv.conf -o -h $target/etc/resolv.conf ]; then
-        mv $target/etc/resolv.conf $target/etc/resolv.conf.molior-deploy.bak
-      fi
-      cp -L /etc/resolv.conf $target/etc/resolv.conf
-
-      # run postinst_deployment
-      if type postinst_deployment >/dev/null; then
-        postinst_deployment
-      elif type postinst_deployment_$DEPLOYMENT_TYPE >/dev/null; then
-        postinst_deployment_$DEPLOYMENT_TYPE
-      fi
-
-      # ensure DNS is still enabled
-      rm -f $target/etc/resolv.conf
-      cp -L /etc/resolv.conf $target/etc/resolv.conf
-
-      # install docker containers
-      if [ -n "$DOCKER_CONTAINERS" -o -n "$DOCKER_COMPOSE_FILE" ]; then
-        log_info "Installing docker containers ..."
-        install_docker
-      fi
-
-      # run postinst_internal_deployment
-      if type postinst_internal_deployment_$DEPLOYMENT_TYPE >/dev/null; then
-        postinst_internal_deployment_$DEPLOYMENT_TYPE
-      fi
-
-      # restore resolv.conf
-      rm -f $target/etc/resolv.conf
-      if [ -e $target/etc/resolv.conf.molior-deploy.bak -o -h $target/etc/resolv.conf.molior-deploy.bak ]; then
-        mv $target/etc/resolv.conf.molior-deploy.bak $target/etc/resolv.conf
-      fi
-    else # $do_installation -eq 0
-      # no installation, run only postinst_deployment
-
-      # enable DNS in chroot for postinst
-      if [ -e $target/etc/resolv.conf -o -h $target/etc/resolv.conf ]; then
-        mv $target/etc/resolv.conf $target/etc/resolv.conf.molior-deploy.bak
-      fi
-      cp -L /etc/resolv.conf $target/etc/resolv.conf
-
-      if type postinst_deployment >/dev/null; then
-        postinst_deployment
-      elif type postinst_deployment_$DEPLOYMENT_TYPE >/dev/null; then
-        postinst_deployment_$DEPLOYMENT_TYPE
-      fi
-
-      # restore resolv.conf
-      rm -f $target/etc/resolv.conf
-      if [ -e $target/etc/resolv.conf.molior-deploy.bak -o -h $target/etc/resolv.conf.molior-deploy.bak ]; then
-        mv $target/etc/resolv.conf.molior-deploy.bak $target/etc/resolv.conf
-      fi
+    # run preinst_deployment
+    if type preinst_deployment >/dev/null; then
+      preinst_deployment
+    elif type preinst_deployment_$DEPLOYMENT_TYPE >/dev/null; then
+      preinst_deployment_$DEPLOYMENT_TYPE
     fi
 
-    if [ -n "$MOLIOR_PROJECTINFO_FILE" ]; then
-        mkdir -p `dirname $target/$MOLIOR_PROJECTINFO_FILE`
-        echo $PROJECT/$VERSION > $target/$MOLIOR_PROJECTINFO_FILE
-        exit_on_error "Error writing project/version to $target/$MOLIOR_PROJECTINFO_FILE"
+    if [ $do_software_installation -eq 1 ]; then
+      log_info "Installing software ..."
+      install_deployment
     fi
 
-    if [ $base_only -eq 0 ]; then
-      # install grub if requested
-      if [ -n "$INSTALL_GRUB" ]; then
-        if [ "$INSTALL_GRUB" = "yes" ]; then
-          log_info "Installing grub bootloader ..."
-          install_grub_bootloader
-        fi
-      fi
-    fi
+    # run postinst_deployment, this will also install docker containers
+    run_postinst
 
-    cleanup_deployment
+  else # $do_installation -eq 0
+    # no installation, run only postinst_deployment
+    run_postinst
   fi
+
+  if [ -n "$MOLIOR_PROJECTINFO_FILE" ]; then
+      mkdir -p `dirname $target/$MOLIOR_PROJECTINFO_FILE`
+      echo $PROJECT/$VERSION > $target/$MOLIOR_PROJECTINFO_FILE
+      exit_on_error "Error writing project/version to $target/$MOLIOR_PROJECTINFO_FILE"
+  fi
+
+  # install grub if requested
+  if [ -n "$INSTALL_GRUB" ]; then
+    if [ "$INSTALL_GRUB" = "yes" ]; then
+      log_info "Installing grub bootloader ..."
+      install_grub_bootloader
+    fi
+  fi
+
+  cleanup_deployment
 }
 
 workflow_deployment()
@@ -1693,44 +1671,32 @@ workflow_deployment()
 
 workflow_base
 
-if [ $base_only -eq 1 ]; then
-  deployment=$(get_deployment_filename "tar")
-  log "creating $deployment"
-
-  umount_bootstrap
-
-  tar -cf $deployment -C $target .
-  exit_on_error "Error creating tar"
-  success=1
-elif [ $deployment_only -eq 1 ]; then
-  if [ $do_fstab -eq 1 ]; then
-    create_fstab
-  fi
-
-  if [ -n "$BIND_MOUNTS" ]; then
-    for m in $BIND_MOUNTS
-    do
-      from=`echo $m | cut -d: -f1`
-      to=`echo $m | cut -d: -f2`
-      opts=`echo $m | cut -d: -f3`
-      if [ -z "$opts" ]; then
-        opts="rw,noexec,nosuid,nodev"
-      fi
-      mkdir -p $target/$from $target/$to
-      mount -o $opts,bind $target/$from $target/$to
-    done
-  fi
-
-  # install grub if requested
-  if [ -n "$INSTALL_GRUB" ]; then
-    if [ "$INSTALL_GRUB" = "yes" ]; then
-      log_info "Installing grub bootloader ..."
-      mount_bootstrap
-      install_grub_bootloader
-      umount_bootstrap
-    fi
-  fi
-  workflow_deployment
-else
-  workflow_deployment
+if [ $do_fstab -eq 1 ]; then
+  create_fstab
 fi
+
+if [ -n "$BIND_MOUNTS" ]; then
+  for m in $BIND_MOUNTS
+  do
+    from=`echo $m | cut -d: -f1`
+    to=`echo $m | cut -d: -f2`
+    opts=`echo $m | cut -d: -f3`
+    if [ -z "$opts" ]; then
+      opts="rw,noexec,nosuid,nodev"
+    fi
+    mkdir -p $target/$from $target/$to
+    mount -o $opts,bind $target/$from $target/$to
+  done
+fi
+
+# install grub if requested
+if [ -n "$INSTALL_GRUB" ]; then
+  if [ "$INSTALL_GRUB" = "yes" ]; then
+    log_info "Installing grub bootloader ..."
+    mount_bootstrap
+    install_grub_bootloader
+    umount_bootstrap
+  fi
+fi
+
+workflow_deployment
