@@ -1180,7 +1180,7 @@ init_deployment_dir()
   do_fstab=0
   target=$WORK_DIR/root
   mkdir -p $target
-  log "creating rootfs in $target"
+  log "rootfs: $target"
 }
 
 # Try to kill pid=$1 nretries=$2 times
@@ -1500,7 +1500,7 @@ workflow_base()
   fi
 
   if [ -n "$REQUIRED_HOST_COMMANDS" ]; then
-    log "checking required commands: "$REQUIRED_HOST_COMMANDS
+    log "checking host environmen"
     ok=1
     for cmd in $REQUIRED_HOST_COMMANDS
     do
@@ -1512,7 +1512,7 @@ workflow_base()
     if [ "$ok" -eq 0 ]; then
       ask_cleanup=0
       user_abort=1
-      log_error "Please install missing packages (i.e. sudo apt install $REQUIRED_PACKAGES)"
+      log_error "Please install missing packages (i.e. sudo apt install" $REQUIRED_PACKAGES ")"
     fi
   fi
 
@@ -1537,9 +1537,11 @@ workflow_base()
   get_fsinfo
 
   if [ -n "$BASE_ROOTFS" ]; then
-    log "creating deployment from rootfs $BASE_ROOTFS"
+    log "extracting `basename $BASE_ROOTFS`"
     tar xf $BASE_ROOTFS -C $target
     exit_on_error "Error extracting '$BASE_ROOTFS'"
+
+    mount_bootstrap
 
     log "updating APT database"
     chroot $target apt-get -o Acquire::Languages=none update >&2

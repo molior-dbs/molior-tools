@@ -8,7 +8,7 @@ Standards-Version: 3.9.3
 Package: molior-tools
 Section: misc
 Architecture: all
-Suggests: docker, virtualbox, syslinux-utils, genisoimage, pigz, rlwrap
+Suggests: docker, virtualbox, syslinux-utils, genisoimage, pigz, debsecan
 Depends: ${perl:Depends}, ${misc:Depends}, ${python3:Depends},
   libapt-pkg-perl, libparse-debian-packages-perl, wget, pv, fdisk, dosfstools,
   debootstrap, xz-utils, devscripts, equivs, curl, lsb-release,

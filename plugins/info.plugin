@@ -3,8 +3,8 @@
 
 preinit_deployment_info()
 {
-  REQUIRED_HOST_COMMANDS="dot zip"
-  REQUIRED_PACKAGES="graphviz zip"
+  REQUIRED_HOST_COMMANDS="dot zip debsecan"
+  REQUIRED_PACKAGES="graphviz zip debsecan"
 }
 
 init_deployment_info()
@@ -19,26 +19,17 @@ postinst_internal_deployment_info()
   mkdir $WORK_DIR/info
 
   packages_file=${PROJECT}_${REVISION}_packages.txt
-  manual_packages_file=${PROJECT}_${REVISION}_packages-manual.txt
-  debsecan_complete_file=${PROJECT}_${REVISION}_debsecan-complete_`date +%d%m%Y-%H%M%S`.txt
-  debsecan_file=${PROJECT}_${REVISION}_debsecan_`date +%d%m%Y-%H%M%S`.txt
-  debsums_file=${PROJECT}_${REVISION}_debsums-modified.txt
-  debtree_file=${PROJECT}_${REVISION}_debtree.dot
-  debtree_complete_file=${PROJECT}_${REVISION}_debtree-complete.dot
-  debtree_svg=${PROJECT}_${REVISION}_debtree.svg
-  debtree_png=${PROJECT}_${REVISION}_debtree.png
-  du_file=${PROJECT}_${REVISION}_disk_usage.txt
-  deploy_file=${PROJECT}_${REVISION}_deploy.conf
+  manual_packages_file=packages-manual.txt
+  debsecan_complete_file=debsecan-complete_`date +%d%m%Y-%H%M%S`.txt
+  debsecan_file=debsecan_`date +%d%m%Y-%H%M%S`.txt
+  debsums_file=debsums-modified.txt
+  debtree_file=debtree.dot
+  debtree_complete_file=debtree-complete.dot
+  debtree_svg=debtree.svg
+  debtree_png=debtree.png
+  du_file=disk_usage.txt
 
-  if [ -z "$INCLUDE_ROOTFS" ]; then
-      INCLUDE_ROOTFS=0
-  fi
-
-  if [ "$INCLUDE_ROOTFS" -eq 1 ]; then
-      cd $target
-      tar $TAR_PXZ --one-file-system -cf $WORK_DIR/info/rootfs.tar.xz .
-      cd - >/dev/null
-  fi
+  echo "$PROJECT/$VERSION/$REVISION/$VARIANT" > $WORK_DIR/info/deployment
 
   kernel_config_file=""
   if [ -L $target/vmlinuz ]; then
@@ -47,6 +38,7 @@ postinst_internal_deployment_info()
       kernel_config_file=`basename $KERNEL_CONFIG`
     fi
   fi
+  test -z "$kernel_config_file" || cp $target/boot/$kernel_config_file $WORK_DIR/info/
 
   chroot $target dpkg -l > $WORK_DIR/info/$packages_file
   exit_on_error "Error running dpkg -l"
@@ -57,6 +49,32 @@ postinst_internal_deployment_info()
   test -f $target/etc/os-release && cp $target/etc/os-release $WORK_DIR/info/os-release
   cp $target/etc/apt/sources.list $WORK_DIR/info/apt-sources.list
 
+  cp $target/var/lib/dpkg/status $WORK_DIR/info/dpkg.status
+
+  test -f $target/etc/fstab && cp $target/etc/fstab $WORK_DIR/info/
+
+  du -hs `find $target -maxdepth 1 -type d -printf '%P\n' | sed -e "/^proc/d" -e "/^sys/d" -e "/^dev/d"` > $WORK_DIR/info/$du_file
+
+  export SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+  debsecan --status $target/var/lib/dpkg/status > $WORK_DIR/info/$debsecan_complete_file
+  exit_on_error "Error running debsecan"
+
+  if [ "$SUITE" != "stretch" ]; then
+      debsecan --status $target/var/lib/dpkg/status --only-fixed --suite $SUITE > $WORK_DIR/info/$debsecan_file
+      exit_on_error "Error running debsecan"
+  else
+      log "Debsecan is skipped for $SUITE."
+  fi
+
+  # check if package deployment was minimized, reinstall to get /usr/share/doc
+  if [ -f $target/etc/dpkg/dpkg.cfg.d/excludes ]; then
+    log "reinstalling packages"
+    rm -f $target/etc/dpkg/dpkg.cfg.d/excludes
+    chroot $target apt-get update >&2
+    chroot $target sh -c 'DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends --reinstall --yes $(dpkg --get-selections | grep -v deinstall | cut -f1)' >&2
+    exit_on_error "Error reinstalling packages"
+  fi
+
   cd $target/usr/share/doc
   find -maxdepth 2 -name copyright | cpio -p --make-directories $WORK_DIR/info/copyrights
   # copy linked packages
@@ -64,17 +82,10 @@ postinst_internal_deployment_info()
   find -maxdepth 2 -name changelog* | cpio -Lp --make-directories $WORK_DIR/info/changelogs
   cd - >/dev/null
 
-  test -z "$kernel_config_file" || cp $target/boot/$kernel_config_file $WORK_DIR/info
-
-# FIXME: fstab is empty with deployment type dir above
-#  test ! -f $target/etc/fstab || cp $target/etc/fstab $WORK_DIR/info
 
   # make sure required essential packages are installed
   DEBIAN_FRONTEND=noninteractive chroot $target apt-get install -y bash init-system-helpers findutils ucf >&2
   DEBIAN_FRONTEND=noninteractive chroot $target apt-get install -y util-linux >&2
-  cd $target
-  du -hs `find $target -maxdepth 1 -type d -printf '%P\n' | sed -e "/^proc/d" -e "/^sys/d" -e "/^dev/d"` > $WORK_DIR/info/$du_file
-  cd - >/dev/null
 
   if ! grep -qw debsums $WORK_DIR/info/$packages_file; then
     DEBIAN_FRONTEND=noninteractive chroot $target apt-get -y install debsums >&2
@@ -87,42 +98,20 @@ postinst_internal_deployment_info()
     exit_on_error "Error removing: debsums"
   fi
 
-  DEBIAN_FRONTEND=noninteractive chroot $target apt-get -y install debsecan >&2
-  exit_on_error "Error installing: debsecan"
-
-  export SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
-  chroot $target debsecan > $WORK_DIR/info/$debsecan_complete_file
-  exit_on_error "Error running debsecan"
-
-  if [ "$SUITE" != "stretch" ]; then
-      chroot $target debsecan --only-fixed --suite $SUITE > $WORK_DIR/info/$debsecan_file
-      exit_on_error "Error running debsecan"
-  else
-      log "Debsecan is skipped for $SUITE."
-  fi
-
-  chroot $target apt-get -y purge debsecan >&2
-  exit_on_error "Error removing: debsecan"
-
-  chroot $target apt-get -y autoremove --purge >&2
-  exit_on_error "Error running autoremove"
-
   chroot $target apt-get -y install debtree >&2
   exit_on_error "Error installing: debtree"
 
-  if [ $do_installation -eq 1 ]; then
-      chroot $target debtree -I -R -r --no-recommends --no-skip --show-all --no-versions $INSTALL_PACKAGE > $WORK_DIR/info/$debtree_complete_file
-      exit_on_error "Error running debtree"
+  chroot $target debtree -I -R -r --no-recommends --no-skip --show-all --no-versions $INSTALL_PACKAGE > $WORK_DIR/info/$debtree_complete_file
+  exit_on_error "Error running debtree"
 
-      chroot $target debtree -I -R -r --no-recommends --no-versions $INSTALL_PACKAGE > $WORK_DIR/info/$debtree_file
-      exit_on_error "Error running debtree"
+  chroot $target debtree -I -R -r --no-recommends --no-versions $INSTALL_PACKAGE > $WORK_DIR/info/$debtree_file
+  exit_on_error "Error running debtree"
 
-      dot -Tsvg $WORK_DIR/info/$debtree_file > $WORK_DIR/info/$debtree_svg
-      exit_on_error "Error running dot"
+  dot -Tsvg $WORK_DIR/info/$debtree_file > $WORK_DIR/info/$debtree_svg
+  exit_on_error "Error running dot"
 
-      dot -Tpng $WORK_DIR/info/$debtree_file > $WORK_DIR/info/$debtree_png
-      exit_on_error "Error running dot"
-  fi
+  dot -Tpng $WORK_DIR/info/$debtree_file > $WORK_DIR/info/$debtree_png
+  exit_on_error "Error running dot"
 }
 
 finalize_deployment_info()

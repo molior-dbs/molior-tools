@@ -9,14 +9,15 @@ DESCRIPTION
  - package dependency graph
  - disk usage
  - changelogs and licenses
- - optionally, the rootfs itself
 
 
 PARAMETERS
  The deployment configuration (deploy/*.conf file) recognizes the following variables:
 
  DEPLOYMENT_TYPE    Specify 'info' to use the info plugin
- INCLUDE_ROOTFS     Set to 1 to include the rootfs
+ INSTALL_PACKAGE    Specify package name to install (same as in the deployment this info package is meant for, or, preferrably use the -i option and use existing rootfs instead of package installation)
+ ARCH               Specify the deployment architecture (if not amd64)
+
 
 EXAMPLE
 
@@ -24,7 +25,7 @@ EXAMPLE
 
    DEPLOYMENT_TYPE=info
    ARCH=armhf
-   TARGET_HOSTNAME=roofs1
+   ORIG_DEPLOYMENT=installer-prod
    INSTALL_PACKAGE=toplevel-package
 
 AUTHORS
