@@ -1193,7 +1193,12 @@ install_grub_bootloader()
   fi
   log "grub-install ($t)"
   if [ "$TARGET_BOOTTYPE" = "efi" ]; then
-    chroot $target grub-install --removable --recheck --force --no-floppy --target x86_64-efi >&2
+    if [ "$ARCH" = "amd64" ]; then
+      GRUBEFITYPE=x86_64-efi
+    elif [ "$ARCH" = "arm64" ]; then
+      GRUBEFITYPE=arm64-efi
+    else
+    chroot $target grub-install --removable --recheck --force --no-floppy --target $GRUBEFITYPE >&2
     exit_on_error "installing grub failed"
   else
     chroot $target grub-install --modules part_msdos --recheck --force --no-floppy $disk >&2
