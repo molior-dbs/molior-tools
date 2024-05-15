@@ -1,3 +1,28 @@
+molior-tools (1.5.0~alpha3) stretch; urgency=medium
+
+  * installer: fix arm grub installation
+  * molior-deploy: fix comparison
+  * molior-deploy: change default deploy-conf file
+  * molior-deploy: provide apply_deploy_conf function
+  * molior-deploy: improve info plugin
+  * molior-deploy: add option -i to use existing rootfs
+  * molior-deploy: change option -r to deployment rootfs
+  * deploy: add support for podman-docker wrapper (alt to docker)
+  * luks encryption: fix luks signature removal
+  * molior-deploy: extract whole deploy conf package
+  * add missing dependencies
+  * installer: exclude non-disk devices from remaining (eg. rom)
+  * installer: improve raid sync performance
+  * update manpage
+  * molior-deploy: update manpage
+  * molior-deploy: allow multiple deploy conf packages
+  * molior-deploy: follow http redirects for extra apt key downloads
+  * installer: improve progress bar
+  * raid: wipe raid disks
+  * ...
+
+ -- André Roth <neolynx@gmail.com>  Wed, 15 May 2024 18:10:42 +0200
+
 molior-tools (1.4.2) stretch; urgency=medium
 
   * build for molior 1.5
