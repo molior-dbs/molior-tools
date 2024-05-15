@@ -609,7 +609,8 @@ apply_deploy_conf()
   do
     SOURCES_VERSION=`basename $baseurl`
     curl -n -f -s --retry 10 -o $WORK_DIR/Sources.func $baseurl/dists/$dist/main/source/Sources
-    if [ `wc -l $WORK_DIR/Sources 2>/dev/null | cut -d' ' -f1` -eq 0 ]; then
+    lines=`wc -l $WORK_DIR/Sources 2>/dev/null | cut -d' ' -f1`
+    if [ -n "$lines" ] && [ "$lines" -eq 0 ]; then
       # try next baseurl
       continue
     fi
