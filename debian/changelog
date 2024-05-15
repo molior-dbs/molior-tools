@@ -1,3 +1,10 @@
+molior-tools (1.5.0~alpha4) stretch; urgency=medium
+
+  * molior-tools: release 1.5.0~alpha3
+  * installer: fix arm grub installation
+
+ -- André Roth <neolynx@gmail.com>  Wed, 15 May 2024 21:14:36 +0200
+
 molior-tools (1.5.0~alpha3) stretch; urgency=medium
 
   * installer: fix arm grub installation
