@@ -595,6 +595,63 @@ umount_bootstrap()
   fi
 }
 
+apply_deploy_conf()
+{
+  deploy_conf=$1
+  if echo $deploy_conf | grep -q ":"; then
+    source_file=`echo $deploy_conf | cut -d: -f2`
+    deploy_conf=`echo $deploy_conf | cut -d: -f1`
+  else
+    source_file=deploy/common.vars
+  fi
+  baseurls=`echo "$APT_SOURCES" | grep $SOURCEMIRROR/repos/ | awk '{print $2}'`
+  for baseurl in $baseurls
+  do
+    SOURCES_VERSION=`basename $baseurl`
+    curl -n -f -s --retry 10 -o $WORK_DIR/Sources.func $baseurl/dists/$dist/main/source/Sources
+    if [ `wc -l $WORK_DIR/Sources 2>/dev/null | cut -d' ' -f1` -eq 0 ]; then
+      # try next baseurl
+      continue
+    fi
+    srcinfo=`/usr/lib/molior-tools/find-latest-version.pl $deploy_conf < $WORK_DIR/Sources.func`
+    if [ $? -ne 0 ]; then
+      # try next baseurl
+      continue
+    fi
+    CONFPKG_NAME=`echo $srcinfo | cut -d ' ' -f 1`/`echo $srcinfo | cut -d ' ' -f 2`
+    CONFPKG_REV=`echo $srcinfo | cut -d ' ' -f 3`
+    if [ -n "$CONFPKG_NAME" ]; then
+        FUNC_SOURCEMIRROR=$baseurl
+      # found package
+      break
+    fi
+  done
+  rm -f $WORK_DIR/Sources.func
+  if [ -z "$CONFPKG_NAME" ]; then
+    log_error "Error finding '$deploy_conf' source package in apt sources"
+  fi
+  log "downloading deploy conf package: $FUNC_SOURCEMIRROR/$CONFPKG_NAME"
+  confdir=`mktemp -d $WORK_DIR/conf-XXXXX`
+  cd $confdir
+  curl -n -f -s --retry 10 -O -J $FUNC_SOURCEMIRROR/$CONFPKG_NAME
+  exit_on_error "Error downloading $FUNC_SOURCEMIRROR/$CONFPKG_NAME"
+
+  tar xf `basename $CONFPKG_NAME`
+  exit_on_error "Error extracting `basename $CONFPKG_NAME`"
+
+  rm -f `basename $CONFPKG_NAME`
+
+  log "sourcing $source_file from $deploy_conf $CONFPKG_REV"
+  # provide new SOURCE_DIR for conf pkf includes to work
+  old_SOURCE_DIR=$SOURCE_DIR
+  SOURCE_DIR=$deploy_conf
+  . $deploy_conf/$source_file
+  SOURCE_DIR=$old_SOURCE_DIR
+
+  cd - >/dev/null
+  rm -rf $confdir
+}
+
 setup_deployment()
 {
   DEPLOYMENT_TIMESTAMP=`date -R`
@@ -809,58 +866,7 @@ setup_deployment()
   if [ -n "$DEPLOY_CONF_PKG" ]; then
     for deploy_conf in $DEPLOY_CONF_PKG
     do
-      if echo $deploy_conf | grep -q ":"; then
-        source_file=`echo $deploy_conf | cut -d: -f2`
-        deploy_conf=`echo $deploy_conf | cut -d: -f1`
-      else
-        source_file=deploy/common.vars
-      fi
-      baseurls=`echo "$APT_SOURCES" | grep $SOURCEMIRROR/repos/ | awk '{print $2}'`
-      for baseurl in $baseurls
-      do
-        SOURCES_VERSION=`basename $baseurl`
-        curl -n -f -s --retry 10 -o $WORK_DIR/Sources.func $baseurl/dists/$dist/main/source/Sources
-        if [ `wc -l $WORK_DIR/Sources 2>/dev/null | cut -d' ' -f1` -eq 0 ]; then
-          # try next baseurl
-          continue
-        fi
-        srcinfo=`/usr/lib/molior-tools/find-latest-version.pl $deploy_conf < $WORK_DIR/Sources.func`
-        if [ $? -ne 0 ]; then
-          # try next baseurl
-          continue
-        fi
-        CONFPKG_NAME=`echo $srcinfo | cut -d ' ' -f 1`/`echo $srcinfo | cut -d ' ' -f 2`
-        CONFPKG_REV=`echo $srcinfo | cut -d ' ' -f 3`
-        if [ -n "$CONFPKG_NAME" ]; then
-            FUNC_SOURCEMIRROR=$baseurl
-          # found package
-          break
-        fi
-      done
-      rm -f $WORK_DIR/Sources.func
-      if [ -z "$CONFPKG_NAME" ]; then
-        log_error "Error finding '$deploy_conf' source package in apt sources"
-      fi
-      log "downloading deploy conf package: $FUNC_SOURCEMIRROR/$CONFPKG_NAME"
-      confdir=`mktemp -d $WORK_DIR/conf-XXXXX`
-      cd $confdir
-      curl -n -f -s --retry 10 -O -J $FUNC_SOURCEMIRROR/$CONFPKG_NAME
-      exit_on_error "Error downloading $FUNC_SOURCEMIRROR/$CONFPKG_NAME"
-
-      tar xf `basename $CONFPKG_NAME`
-      exit_on_error "Error extracting `basename $CONFPKG_NAME`"
-
-      rm -f `basename $CONFPKG_NAME`
-
-      log "sourcing $source_file from $deploy_conf $CONFPKG_REV"
-      # provide new SOURCE_DIR for conf pkf includes to work
-      old_SOURCE_DIR=$SOURCE_DIR
-      SOURCE_DIR=$deploy_conf
-      . $deploy_conf/$source_file
-      SOURCE_DIR=$old_SOURCE_DIR
-
-      cd - >/dev/null
-      rm -rf $confdir
+        apply_deploy_conf $deploy_conf
     done
   fi
 
