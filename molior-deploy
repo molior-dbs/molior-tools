@@ -1507,7 +1507,7 @@ workflow_base()
   fi
 
   if [ -n "$REQUIRED_HOST_COMMANDS" ]; then
-    log "checking host environmen"
+    log "checking host environment"
     ok=1
     for cmd in $REQUIRED_HOST_COMMANDS
     do

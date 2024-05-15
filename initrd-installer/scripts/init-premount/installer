@@ -61,7 +61,7 @@ logo()
   echo "$textprefix  | | | | | | (_) | | | (_) | |   "
   echo "$textprefix  |_| |_| |_|\\___/|_|_|\\___/|_|   "
   echo
-  echo "$textprefix        --- Installer ---    $MOLIOR_TOOLS_VERSION"
+  echo "$textprefix--- Installer for $PROJECT $REVISION ---"
   echo -e "\033[1;m"
 }
 
@@ -417,6 +417,7 @@ if [ "$INSTALLER_ASK_CONFIRM" != "no" ]; then
   fi
 fi
 
+sleep 2
 logo
 sleep 1
 starttime=$(date +"%s")
@@ -578,9 +579,20 @@ else
         chroot $target grub-install --recheck --force
       fi
     else # no EFI support in current boot mode
-      chroot $target grub-install --recheck --force --target x86_64-efi
+      if [ "$ARCH" = "amd64" ]; then
+        GRUBEFITYPE=x86_64-efi
+        GRUBFILE=grubx64.efi
+        EFIFILE=bootx64.efi
+      elif [ "$ARCH" = "arm64" ]; then
+        GRUBEFITYPE=arm64-efi
+        GRUBFILE=grubaa64.efi
+        EFIFILE=bootaa64.efi
+      else
+        log_error "Unsupported EFI Architecture: $ARCH"
+      fi
+      chroot $target grub-install --recheck --force --target $GRUBEFITYPE
       mkdir -p $target/boot/efi/EFI/BOOT
-      mv $target/boot/efi/efi/debian/grubx64.efi $target/boot/efi/EFI/BOOT/bootx64.efi
+      mv $target/boot/efi/efi/debian/$GRUBFILE $target/boot/efi/EFI/BOOT/$EFIFILE
     fi
   else
     if [ -n "$RAID_NAME" ] || [ -n "$fs_on_raid" ] && [ "$fs_on_raid" -eq 1 ]; then
