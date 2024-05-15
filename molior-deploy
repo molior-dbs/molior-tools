@@ -602,7 +602,7 @@ apply_deploy_conf()
     source_file=`echo $deploy_conf | cut -d: -f2`
     deploy_conf=`echo $deploy_conf | cut -d: -f1`
   else
-    source_file=deploy/common.vars
+    source_file=deploy/common.inc
   fi
   baseurls=`echo "$APT_SOURCES" | grep $SOURCEMIRROR/repos/ | awk '{print $2}'`
   for baseurl in $baseurls
