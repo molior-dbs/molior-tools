@@ -292,6 +292,7 @@ log_warn()
 log_error()
 {
   /bin/echo -e "${color_error}E: $@ $color_reset"
+  set +x
   if [ -n "$target" -a "$user_abort" -eq 0 -a "$ask_cleanup" -eq 1 ]; then
     log_info "examine situation: sudo chroot $target"
   fi
@@ -357,6 +358,7 @@ apt_get_chroot_with_retry ()
 
 finish ()
 {
+  set +x
   endtime=$(date +"%s")
   if [ "$ask_cleanup" -eq 1 ]; then
     if [ "$success" -ne 1 ]; then
