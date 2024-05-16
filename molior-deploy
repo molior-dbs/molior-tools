@@ -22,6 +22,7 @@ output_build_vars=0
 omit_local_suffix=0
 debug_mode=0
 docker_login_registries=""
+deploy_conf_level=0
 
 MOLIOR_TOOLS_VERSION=`cat /usr/lib/molior-tools/version`
 
@@ -597,9 +598,13 @@ umount_bootstrap()
   fi
 }
 
-apply_deploy_conf()
+include_deploy_conf()
 {
   deploy_conf=$1
+
+  # allow recursive calls
+  deploy_conf_level=$((deploy_conf_level + 1))
+
   if echo $deploy_conf | grep -q ":"; then
     source_file=`echo $deploy_conf | cut -d: -f2`
     deploy_conf=`echo $deploy_conf | cut -d: -f1`
@@ -633,8 +638,9 @@ apply_deploy_conf()
   if [ -z "$CONFPKG_NAME" ]; then
     log_error "Error finding '$deploy_conf' source package in apt sources"
   fi
-  log "downloading deploy conf package: $FUNC_SOURCEMIRROR/$CONFPKG_NAME"
+  log "downloading $FUNC_SOURCEMIRROR/$CONFPKG_NAME"
   confdir=`mktemp -d $WORK_DIR/conf-XXXXX`
+  old_dir=$PWD
   cd $confdir
   curl -n -f -s --retry 10 -O -J $FUNC_SOURCEMIRROR/$CONFPKG_NAME
   exit_on_error "Error downloading $FUNC_SOURCEMIRROR/$CONFPKG_NAME"
@@ -645,14 +651,17 @@ apply_deploy_conf()
   rm -f `basename $CONFPKG_NAME`
 
   log "sourcing $source_file from $deploy_conf $CONFPKG_REV"
-  # provide new SOURCE_DIR for conf pkf includes to work
-  old_SOURCE_DIR=$SOURCE_DIR
-  SOURCE_DIR=$deploy_conf
-  . $deploy_conf/$source_file
-  SOURCE_DIR=$old_SOURCE_DIR
-
+  # provide new SOURCE_DIR for conf pkg includes to work (recursively)
+  eval orig_SOURCE_DIR_$deploy_conf_level=$SOURCE_DIR
+  SOURCE_DIR=$confdir/$deploy_conf
+  cd `dirname $deploy_conf/$source_file`
+  . $SOURCE_DIR/$source_file
   cd - >/dev/null
+  eval SOURCE_DIR=\$orig_SOURCE_DIR_$deploy_conf_level
+
+  cd $old_dir
   rm -rf $confdir
+  deploy_conf_level=$((deploy_conf_level - 1))
 }
 
 setup_deployment()
@@ -864,14 +873,9 @@ setup_deployment()
     done
   fi
   log_notice "Selected deployment variant/type: $VARIANT/$DEPLOYMENT_TYPE"
+  cd `dirname $SOURCE_DIR/deploy/$VARIANT.conf`
   . $SOURCE_DIR/deploy/$VARIANT.conf
-
-  if [ -n "$DEPLOY_CONF_PKG" ]; then
-    for deploy_conf in $DEPLOY_CONF_PKG
-    do
-        apply_deploy_conf $deploy_conf
-    done
-  fi
+  cd - >/dev/null
 
   check_required_version
 
