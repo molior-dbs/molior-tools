@@ -1704,14 +1704,4 @@ if [ -n "$BIND_MOUNTS" ]; then
   done
 fi
 
-# install grub if requested
-if [ -n "$INSTALL_GRUB" ]; then
-  if [ "$INSTALL_GRUB" = "yes" ]; then
-    log_info "Installing grub bootloader ..."
-    mount_bootstrap
-    install_grub_bootloader
-    umount_bootstrap
-  fi
-fi
-
 workflow_deployment
