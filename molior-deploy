@@ -193,7 +193,7 @@ if [ -z "$VERSION" ]; then
   usage
 fi
 
-if [ "$deploy_all" -eq 1 ]; then
+if [ $LIST_ONLY -eq 0 -a "$deploy_all" -eq 1 ]; then
   opts=`echo $origopts | sed -e "s/$PROJECT//" -e "s/$VERSION//" -e 's/-f//'`
   for variant in `eval molior-deploy $opts -l $PROJECT $VERSION`
   do
@@ -339,6 +339,19 @@ if [ "$debug_mode" -ne 1 -a "$LIST_ONLY" -ne 1 ]; then
   exec 3>&2
   exec 2>$errlog
 fi
+
+echo >&2
+echo "                 _ _                     _            _             " >&2
+echo " _ __ ___   ___ | (_) ___  _ __       __| | ___ _ __ | | ___  _   _ " >&2
+echo "| '_ \` _ \ / _ \| | |/ _ \| '__|____ / _\` |/ _ \\ '_ \| |/ _ \| | | |" >&2
+echo "| | | | | | (_) | | | (_) | | |_____| (_| |  __/ |_) | | (_) | |_| |" >&2
+echo "|_| |_| |_|\___/|_|_|\___/|_|        \__,_|\___| .__/|_|\___/ \__, |" >&2
+echo "                                               |_|            |___/ " >&2
+echo >&2
+
+echo $0 $@ >&2
+echo "molior-tools version: $MOLIOR_TOOLS_VERSION" >&2
+echo >&2
 
 if [ "$LIST_ONLY" -eq 1 ]; then
   ask_cleanup=0

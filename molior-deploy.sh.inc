@@ -1216,7 +1216,7 @@ EOFGRUB
     sed -i "s%^GRUB_CMDLINE_LINUX=.*$%GRUB_CMDLINE_LINUX=\"$LINUX_CMDLINE\"%" $target/etc/default/grub
   fi
   mkdir -p $target/dev/disk/by-uuid
-  ln -s $rootpart $target/dev/disk/by-uuid/$uuid
+  ln -sf $rootpart $target/dev/disk/by-uuid/$uuid
   chroot $target update-grub
 
   rm -rf $target/dev/disk/by-uuid

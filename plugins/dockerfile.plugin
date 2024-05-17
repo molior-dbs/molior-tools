@@ -7,6 +7,11 @@ preinit_deployment_dockerfile()
     REQUIRED_HOST_COMMANDS="docker"
 }
 
+init_deployment_dockerfile()
+{
+    log "preparing docker build"
+}
+
 finalize_deployment_dockerfile()
 {
     CONTAINER_VERSION=`echo $REVISION | tr '~+' '-'`
@@ -16,14 +21,17 @@ finalize_deployment_dockerfile()
 
     DOCKER_TAG=`echo $CONTAINER_NAME:$CONTAINER_VERSION | tr A-Z a-z`
     DOCKER_BUILD_CONTEXT=$SOURCE_DIR/$DOCKER_BUILD_CONTEXT
-    eval "docker build --no-cache $DOCKER_BUILD_OPTS -f $SOURCE_DIR/$DOCKERFILE -t $DOCKER_TAG $DOCKER_BUILD_CONTEXT"
+    log "building $DOCKERFILE"
+    eval "docker build --no-cache $DOCKER_BUILD_OPTS -f $SOURCE_DIR/$DOCKERFILE -t $DOCKER_TAG $DOCKER_BUILD_CONTEXT" >&2
     exit_on_error "Error building docker"
 
+    log "exporting docker image"
     deployment=$(get_deployment_filename "tar")
-    eval "docker save $DOCKER_SAVE_OPTS -o $WORK_DIR/$deployment $DOCKER_TAG"
+    docker save -o $WORK_DIR/$deployment $DOCKER_TAG >&2
     exit_on_error "Error saving docker"
 
-    docker rmi $DOCKER_TAG
+    log "removing docker image"
+    docker rmi -f $(docker images $DOCKER_TAG -a -q) >&2
     exit_on_error "Error removing docker image"
 }
 
