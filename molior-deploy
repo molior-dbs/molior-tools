@@ -628,6 +628,9 @@ include_deploy_conf()
   else
     source_file=deploy/common.inc
   fi
+
+  log "downloading deploy conf package: $deploy_conf"
+
   baseurls=`echo "$APT_SOURCES" | grep $SOURCEMIRROR/repos/ | awk '{print $2}'`
   for baseurl in $baseurls
   do
@@ -655,7 +658,6 @@ include_deploy_conf()
   if [ -z "$CONFPKG_NAME" ]; then
     log_error "Error finding '$deploy_conf' source package in apt sources"
   fi
-  log "downloading $FUNC_SOURCEMIRROR/$CONFPKG_NAME"
   confdir=`mktemp -d $WORK_DIR/conf-XXXXX`
   old_dir=$PWD
   cd $confdir
@@ -667,7 +669,7 @@ include_deploy_conf()
 
   rm -f `basename $CONFPKG_NAME`
 
-  log "sourcing $source_file from $deploy_conf $CONFPKG_REV"
+  log "sourcing from $deploy_conf ($CONFPKG_REV): $source_file"
   # provide new SOURCE_DIR for conf pkg includes to work (recursively)
   eval orig_SOURCE_DIR_$deploy_conf_level=$SOURCE_DIR
   SOURCE_DIR=$confdir/$deploy_conf
@@ -1295,13 +1297,12 @@ install_docker_start()
   if chroot $target dpkg -s podman-docker >/dev/null 2>&1; then
     log "using podman-docker wrapper"
   else
-    log "starting dockerd"
     # start docker
     chroot $target sh -c '. /etc/default/docker; TZ=UTC exec dockerd --iptables=false -H unix:// $DOCKER_OPTS' >&2 &
     dockerpid=$!
     sleep 5  # Give it time to start and maybe crash
     if ! kill -0 "$dockerpid"; then
-      log_error "Error starting dockerd!"
+      log_error "Error starting dockerd"
     fi
   fi
 }
