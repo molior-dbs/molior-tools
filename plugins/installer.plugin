@@ -156,8 +156,7 @@ prepare_initrd_deployment()
   chroot $WORK_DIR/instroot apt-get clean >&2
 
   initrd=$WORK_DIR/instroot/etc/initramfs-tools
-  rm -rf $initrd
-  cp -ar $INITRDINST $initrd
+  cp -ar $INITRDINST/* $initrd/
   if [ -n "$INSTALLER_EXTRA_INITRD" ]; then
     if [ -d "$SOURCE_DIR/$INSTALLER_EXTRA_INITRD" ]; then
       cp -Lr $SOURCE_DIR/$INSTALLER_EXTRA_INITRD/* $initrd/
@@ -282,6 +281,7 @@ EOF
     cp $WORK_DIR/instroot/usr/lib/ISOLINUX/isolinux.bin $WORK_DIR/out/
     cp $WORK_DIR/instroot/usr/lib/syslinux/modules/bios/menu.c32 $WORK_DIR/out/
     cp $WORK_DIR/instroot/usr/lib/syslinux/modules/bios/ldlinux.c32 $WORK_DIR/out/
+    # FIXME: syslinux.cfg only needed here in out/, not in initrd ?
     cp $INITRDINST/syslinux.cfg $WORK_DIR/out/
   fi
 
