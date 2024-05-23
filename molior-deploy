@@ -442,11 +442,15 @@ finish ()
     fi
   fi
 
+  if grep -q $WORK_DIR /proc/mounts; then
+      umount `grep $WORK_DIR /proc/mounts | cut -d' ' -f2 | sort -r`
+  fi
+
   if ! grep -q $WORK_DIR /proc/mounts; then
       rm -rf $WORK_DIR
   else
+      log_warn "not removing $WORK_DIR, still mounted:"
       grep $WORK_DIR /proc/mounts
-      log_warn "not removing $WORK_DIR, still mounted"
   fi
 
   diff=$((endtime-starttime))
