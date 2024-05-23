@@ -1312,7 +1312,7 @@ install_docker_pull()
   ret=0
   if [ -z "$DOCKER_COMPOSE_FILE" ] && [ -z "$DOCKER_CONTAINERS" ]; then
     log_warn "No docker containers or compose file specified."
-    ret=-1
+    ret=1
     return $ret
   fi
 
@@ -1320,7 +1320,7 @@ install_docker_pull()
     docker_containers=`grep -v -P '^[ \t]*#' $target/$DOCKER_COMPOSE_FILE | grep "image:" | awk '{ print $2 }' | LC_ALL=C sort | uniq`
     if [ -z "$docker_containers" ]; then
       log_warn "Cannot find images in DOCKER_COMPOSE_FILE $target/$DOCKER_COMPOSE_FILE"
-      ret=-1
+      ret=1
       return $ret
     fi
   fi
@@ -1331,7 +1331,7 @@ install_docker_pull()
 
   if [ -z "$docker_containers" ]; then
     log_warn "Cannot find docker containers to pull"
-    ret=-1
+    ret=1
     return $ret
   fi
 
@@ -1482,7 +1482,7 @@ run_postinst()
     cp -L /etc/resolv.conf $target/etc/resolv.conf
 
     # install docker containers
-    if [ -n "$DOCKER_CONTAINERS" -o -n "$DOCKER_COMPOSE_FILE" ]; then
+    if [ -n "`echo "$DOCKER_CONTAINERS" | sed '/^$/d'`" -o -n "$DOCKER_COMPOSE_FILE" ]; then
       log_info "Installing docker containers ..."
       install_docker
     fi
