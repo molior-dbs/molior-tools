@@ -20,6 +20,7 @@ exit_on_error()
 
 create_fstab()
 {
+  log "creating fstab"
   if [ -z "$target" ]; then
     log_error "Error: \$target not set"
   fi

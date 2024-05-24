@@ -1704,10 +1704,6 @@ workflow_deployment()
 
 workflow_base
 
-if [ $do_fstab -eq 1 ]; then
-  create_fstab
-fi
-
 if [ -n "$BIND_MOUNTS" ]; then
   for m in $BIND_MOUNTS
   do
