@@ -13,8 +13,9 @@ init_deployment_srcarchive()
 
 postinst_internal_deployment_srcarchive()
 {
+  log_info "Getting source archives ..."
   awk '/^deb/ {gsub("^deb","deb-src",$0); print}' $target/etc/apt/sources.list >$target/etc/apt/sources.list.d/sources-src.list
-  log "updating APT database"
+  log "updating APT database with source packages"
   chroot $target apt-get update >&2
 
   mkdir $WORK_DIR/srcarchive
@@ -28,7 +29,6 @@ postinst_internal_deployment_srcarchive()
   sort $dpkg_initial_list >$dpkg_initial_list.tmp
   mv $dpkg_initial_list.tmp $dpkg_initial_list
   if [ ! -z "$EXCLUDE_FROM_SRCARCHIVE" ]; then
-    log "excluding packages from source archive:" $EXCLUDE_FROM_SRCARCHIVE
     for package in $EXCLUDE_FROM_SRCARCHIVE; do
       echo $package >>$dpkg_exclude_list
     done
