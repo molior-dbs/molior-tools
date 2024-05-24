@@ -8,6 +8,12 @@ preinit_deployment_dockerfileinfo()
     REQUIRED_HOST_COMMANDS="docker dot zip"
     do_installation=0
     do_compress=0
+    do_fstab=0
+}
+
+init_deployment_dockerfileinfo()
+{
+    log "preparing docker build"
 }
 
 finalize_deployment_dockerfileinfo()
@@ -24,12 +30,12 @@ finalize_deployment_dockerfileinfo()
 
     log "building docker image"
     DOCKER_TAG=`echo $CONTAINER_NAME:$CONTAINER_VERSION | tr A-Z a-z`
-    eval "docker build --no-cache $DOCKER_BUILD_OPTS -f $DOCKERFILE_TMP -t $DOCKER_TAG $SOURCE_DIR"
+    eval "docker build --no-cache $DOCKER_BUILD_OPTS -f $DOCKERFILE_TMP -t $DOCKER_TAG $SOURCE_DIR" >&2
     exit_on_error "Error building docker"
 
     log "creating docker container"
     container_id=$(docker create $DOCKER_TAG /bin/true)
-    eval "docker export $container_id -o $WORK_DIR/container.tar $DOCKER_EXPORT_OPTS"
+    docker export $container_id -o $WORK_DIR/container.tar >&2
     exit_on_error "Error exporting docker container"
 
     log "extracting container"
