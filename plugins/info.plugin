@@ -98,10 +98,10 @@ postinst_internal_deployment_info()
     exit_on_error "Error removing: debsums"
   fi
 
-  chroot $target apt-get -y install debtree >&2
-  exit_on_error "Error installing: debtree"
-
   if [ -n "$INSTALL_PACKAGE" ]; then
+      chroot $target apt-get -y install debtree >&2
+      exit_on_error "Error installing: debtree"
+
       chroot $target debtree -I -R -r --no-recommends --no-skip --show-all --no-versions $INSTALL_PACKAGE > $WORK_DIR/info/$debtree_complete_file
       exit_on_error "Error running debtree"
 

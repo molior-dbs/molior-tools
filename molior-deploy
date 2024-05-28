@@ -921,10 +921,6 @@ setup_deployment()
     fi
   fi
 
-  if [ -z "$INSTALL_PACKAGE" ]; then
-    INSTALL_PACKAGE=$PACKAGE_NAME-$VARIANT
-  fi
-
   if [ -z "$DEPLOYMENT_COMPRESSION" ]; then
       DEPLOYMENT_COMPRESSION=xz
   fi
