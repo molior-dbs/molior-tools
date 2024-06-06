@@ -483,7 +483,7 @@ create_luks()
     passphrase="install"
   fi
 
-  wipefs -af $part 2>&1
+  wipefs -af $part >/dev/null 2>&1
   echo -n $passphrase | cryptsetup --cipher $cipher --key-size $keysize luksFormat $part - >&2
   exit_on_error "Error formatting LUKS partition $part"
 
