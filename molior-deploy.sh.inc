@@ -392,9 +392,9 @@ create_partitions()
 
         log "creating RAID $t_raidname (level: $t_raid_level)"
 
-        # if requested, find all disks with are not install disk of source install medium
+        # if requested, find all disks which are not install disk of source install medium; exclude virtual media with 0 size
         if [ "$t_raid_disks" = "remaining" ]; then
-            t_raid_disks=`lsblk -dn -o PATH,TYPE | grep disk$ | grep -v ^$disk | awk {'print $1'}`
+            t_raid_disks=`lsblk -bdn -o PATH,TYPE,SIZE | grep -v ^$disk | grep -w disk | grep -v -w 0 | awk {'print $1'}`
             if [ -n "$SOURCEDISK" ]; then
                 t_raid_disks=`echo "$t_raid_disks" | grep -v $SOURCEDISK`
             fi
