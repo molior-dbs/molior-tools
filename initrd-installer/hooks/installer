@@ -16,24 +16,24 @@ esac
 
 . /usr/share/initramfs-tools/hook-functions
 
-copy_exec /bin/mountpoint    /bin/
-copy_exec /usr/bin/pv        /bin/
-copy_exec /usr/bin/tr        /bin/
-copy_exec /bin/head          /bin/
-copy_exec /sbin/sfdisk       /sbin/
-copy_exec /sbin/mkfs         /sbin/
-copy_exec /usr/sbin/chpasswd /sbin/
-copy_exec /usr/bin/eject     /sbin/
-copy_exec /sbin/wipefs       /sbin/
-copy_exec /usr/bin/lsblk     /bin/
+copy_exec /usr/bin/mountpoint /bin/mountpoint
+copy_exec /usr/bin/pv         /bin/pv
+copy_exec /usr/bin/tr         /bin/tr
+copy_exec /usr/bin/head       /bin/head
+copy_exec /usr/sbin/sfdisk    /sbin/sfdisk
+copy_exec /usr/sbin/mkfs      /sbin/mkfs
+copy_exec /usr/sbin/chpasswd  /sbin/chpasswd
+copy_exec /usr/bin/eject      /sbin/eject
+copy_exec /usr/sbin/wipefs    /sbin/wipefs
+copy_exec /usr/bin/lsblk      /bin/lsblk
 
 # overwrite busybox binaries
-copy_exec /bin/cpio          /mbin/
-copy_exec /bin/tar           /mbin/
-copy_exec /usr/bin/xz        /mbin/
-copy_exec /bin/gzip          /mbin/
-copy_exec /bin/umount        /mbin/
-copy_exec /sbin/mke2fs       /mbin/
+copy_exec /usr/bin/cpio       /mbin/cpio
+copy_exec /usr/bin/tar        /mbin/tar
+copy_exec /usr/bin/xz         /mbin/xz
+copy_exec /usr/bin/gzip       /mbin/gzip
+copy_exec /usr/bin/umount     /mbin/umount
+copy_exec /usr/sbin/mke2fs    /mbin/mke2fs
 
 # kernel modules
 manual_add_modules efivarfs

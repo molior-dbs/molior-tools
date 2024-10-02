@@ -168,12 +168,12 @@ prepare_initrd_deployment()
 
   if [ "$fs_has_luks" -eq 1 ]; then
     # FIXME: use manual_add_modules in hooks file ?
-    echo "copy_exec /sbin/cryptsetup /sbin" >> $initrd/hooks/installer
+    echo "copy_exec /usr/sbin/cryptsetup /sbin/cryptsetup" >> $initrd/hooks/installer
     echo dm_crypt >> $initrd/modules
   fi
 
   if [ "$fs_has_btrfs" -eq 1 ]; then
-    echo "copy_exec /sbin/mkfs.btrfs /sbin" >> $initrd/hooks/installer
+    echo "copy_exec /usr/sbin/mkfs.btrfs /sbin/mkfs.btrfs" >> $initrd/hooks/installer
     echo btrfs >> $initrd/modules
   fi
 
@@ -228,8 +228,8 @@ esac
 . /usr/share/initramfs-tools/hook-functions
 
 manual_add_modules efivars
-copy_exec      /sbin/mkfs.fat  /sbin/
-copy_file link /sbin/mkfs.vfat /sbin/
+copy_exec      /usr/sbin/mkfs.fat  /sbin/mkfs.fat
+copy_file link /usr/sbin/mkfs.vfat /sbin/mkfs.vfat
 EOF
     chmod +x $initrd/hooks/mkfs.vfat
   fi
