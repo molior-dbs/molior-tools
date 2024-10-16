@@ -571,7 +571,7 @@ if type installer_setup_bootloader >/dev/null 2>&1; then
   installer_setup_bootloader
 else
   if [ "$TARGET_BOOTTYPE" = "efi" ]; then
-    if modprobe efivars; then
+    if modprobe efivarfs; then
       if [ -n "$RAID_NAME" ] || [ -n "$fs_on_raid" ] && [ "$fs_on_raid" -eq 1 ]; then
         # fix for grub-install error where efibootmgr complains about missing -d (disk) parameter
         chroot $target grub-install --modules mdraid1x --recheck --force --removable
