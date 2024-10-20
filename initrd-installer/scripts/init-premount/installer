@@ -656,4 +656,12 @@ fi
 if [ "$INSTALLER_ASK_REBOOT" != "no" ]; then
   echo -n "${textprefix}=> Please remove the installation media and press 'Enter' to reboot "
   read x
+  if [ "$x" = "shell" ]; then
+    exec 4>&2 # backup logfile
+    exec 2>&3
+    stty echo
+    busybox sh
+    exec 2>&4 4>&- # restore logfile
+    exit 0
+  fi
 fi
