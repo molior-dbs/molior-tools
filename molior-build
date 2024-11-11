@@ -64,7 +64,8 @@ def get_basemirror(server, project, version):
 
 @click.command()
 @click.option('-d', '--debug', is_flag=True, help="Enable debug mode")
-def main(debug):
+@click.option('-nc', '--no-clean', is_flag=True, help="Do not clean sourcecode before building")
+def main(debug, no_clean):
 
     arch = get_cpu_architecture()
 
@@ -92,6 +93,8 @@ def main(debug):
 
     if debug:
         cmd += " -d"
+    if no_clean:
+        cmd += " -nc"
 
     process = Popen(split(cmd))
     process.wait()
