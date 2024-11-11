@@ -5,6 +5,7 @@ molior-sbuild          usr/bin/
 molior-project-manager usr/bin/
 molior-create          usr/bin/
 molior-trigger         usr/bin/
+molior-build           usr/bin/
 
 molior-deploy          usr/sbin/
 add-molior-repo        usr/sbin/

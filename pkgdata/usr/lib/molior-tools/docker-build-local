@@ -1,0 +1,173 @@
+#!/bin/sh
+
+debug=0
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    -d|--debug)
+      debug=1
+      shift 1
+      ;;
+    -*)
+      echo "Unknown option: $1"
+      exit 1
+      ;;
+    *)
+      if [ -z "$PROJECT" ]; then
+        PROJECT=$1
+      elif [ -z "$PROJECTVERSION" ]; then
+        PROJECTVERSION=$1
+      elif [ -z "$MOLIOR_SERVER" ]; then
+        MOLIOR_SERVER=$1
+      else
+        echo "Unknown argument: $1"
+        exit 1
+      fi
+      shift 1
+      ;;
+  esac
+done
+
+if [ -z "$PROJECT" ] || [ -z "$PROJECTVERSION" ] || [ -z "$MOLIOR_SERVER" ]; then
+        echo "Usage: $0 [-d|--debug] PROJECT PROJECTVERSION MOLIOR_SERVER" >&2
+        exit 1
+fi
+
+if [ ! -d "/app/src" ]; then
+    echo "Error: /app/src directory does not exist"
+    exit 2
+fi
+
+cd /app/src
+
+log_title ()
+{
+    message=$1
+    shift
+    if ! echo $@ | grep -q "no-header-newline"; then
+      /bin/echo
+    fi
+    color=36
+    if echo $@ | grep -q "error"; then
+      color=31
+    fi
+    /bin/echo -e "\e[${color}m\e[1m++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\e[0m"
+    /bin/echo -en "\e[${color}m\e[1m"
+    printf "| %-44s %s |" "molior-build: $message" "`date -R`"
+    /bin/echo -e "\e[0m"
+    /bin/echo -e "\e[${color}m\e[1m++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\e[0m"
+    if ! echo $@ | grep -q "no-footer-newline"; then
+      /bin/echo
+    fi
+}
+
+log ()
+{
+    message="$@"
+    /bin/echo -e "$message"
+}
+
+log_error ()
+{
+    message="$@"
+    /bin/echo -e "\e[31m\e[1m$message\e[0m"
+}
+
+interrupted=0
+buildcmd=""
+
+sigint()
+{
+    echo
+    interrupted=1
+}
+trap sigint INT
+
+finish ()
+{
+    RET=$?  # must be first
+    set +e
+
+    if [ $RET -ne 0 ] && [ $interrupted -ne 1 ]; then
+      log_title "Building failed" no-footer-newline error
+    fi
+
+    if [ $debug -eq 1 ] && [ $interrupted -ne 1 ]; then
+      echo
+      echo Dropping to a shell ...
+      echo
+      if [ -n "$buildcmd" ]; then
+          echo " - run 'rebuild' to build the debian package again ..."
+          echo
+          echo "alias rebuild='$buildcmd -nc'" > ~build/.bash_aliases
+      fi
+      su build -s /bin/bash
+    fi
+    exit $RET
+}
+trap finish EXIT
+
+log_title "Installing Build Dependencies" no-header-newline
+
+log "APT Sources:"
+curl --max-time 30 -s "$MOLIOR_SERVER/api2/project/$PROJECT/$PROJECTVERSION/aptsources" > /etc/apt/sources.list
+if [ "$?" -ne 0 ]; then
+  echo "E: Error getting apt sources from $MOLIOR_SERVER/api2/project/$PROJECT/$PROJECTVERSION/aptsources" >&2
+  exit 3
+fi
+cat /etc/apt/sources.list | sed -e '/^#/d' -e '/^$/d' -e 's/^/ - /'
+
+echo
+apt-get update
+if [ "$?" -ne 0 ]; then
+  if [ $interrupted -ne 1 ]; then
+    echo "E: Error updating apt sources" >&2
+  fi
+  exit 4
+fi
+
+echo
+apt-get build-dep --yes .
+if [ "$?" -ne 0 ]; then
+  if [ $interrupted -ne 1 ]; then
+    echo "E: Error installing build dependencies" >&2
+  fi
+  exit 5
+fi
+
+
+log_title "Building debian package"
+buildargs=""
+if [ "$ARCH_ANY_ONLY" = "True" ]; then
+    buildargs="--build=any"
+fi
+
+# use real user and group
+usermod -u `stat -c %u /app/src` build >/dev/null
+if getent group `stat -c %g /app/src` >/dev/null; then
+    usermod -g `stat -c %g /app/src` build >/dev/null
+else
+    groupmod -g `stat -c %g /app/src` build 2>/dev/null
+fi
+chown build /app
+
+buildcmd="dpkg-buildpackage -us -uc -ui -b $buildargs"
+su build -c "$buildcmd"
+if [ "$?" -ne 0 ]; then
+  if [ $interrupted -ne 1 ]; then
+    echo "E: Error building debian package $dsc_url" >&2
+  fi
+  exit 6
+fi
+
+su build -c "debclean"
+
+log_title "Copying build output"
+out=/app/src/dpkgs
+su build -c "mkdir -p $out"
+cp -a /app/*.deb /app/*.changes /app/*.buildinfo $out/
+if [ -n "`ls /app/*.ddeb 2>/dev/null`" ]; then
+    cp -a /app/*.ddeb $out/
+fi
+
+ls -1 $out/ | sed "s/^/ - `basename $out`\//"
+echo

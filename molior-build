@@ -1,0 +1,101 @@
+#!/usr/bin/python3
+
+import os
+import yaml
+import platform
+import requests
+import click
+
+from subprocess import Popen
+from shlex import split
+
+
+def read_moliorrc():
+    conf = {}
+    with open(os.path.expanduser("~/.moliorrc"), 'r') as file:
+        for line in file.readlines():
+            line = line.strip()
+            if not line:
+                continue
+            if "=" not in line:
+                continue
+            if line[0] == "#":
+                continue
+            k, v = line.split("=", 2)
+            conf[k.strip()] = v.strip()
+    return conf
+
+
+def read_molioryml():
+    data = {}
+    with open('debian/molior.yml', 'r') as file:
+        data = yaml.safe_load(file)
+    return data
+
+
+def get_cpu_architecture():
+    arch = platform.machine()
+
+    if arch == "x86_64" or arch == "AMD64":
+        return "amd64"
+    elif arch == "aarch64":
+        return "arm64"
+    elif arch == "i386":
+        return "i386"
+    elif arch == "arm":
+        if os.uname().machine.startswith("armv7"):
+            return "armhf"
+    return arch
+
+
+def get_basemirror(server, project, version):
+    url = f"{server}/api2/project/{project}/{version}"
+    response = requests.get(url)
+
+    suite = None
+    release = None
+    if response.status_code == 200:
+        json_data = response.json()
+        basemirror = json_data["basemirror"]
+        if "/" in basemirror:
+            suite, release = basemirror.split("/", 2)
+    return suite, release
+
+
+@click.command()
+@click.option('-d', '--debug', is_flag=True, help="Enable debug mode")
+def main(debug):
+
+    arch = get_cpu_architecture()
+
+    project = None
+    version = None
+    m = read_molioryml()
+    for target in m["targets"]:
+        project = target
+        for v in m["targets"][project]:
+            version = v
+            break
+        break
+    # FIXME: check project/version ok
+
+    c = read_moliorrc()
+    # FIXME: check config ok
+
+    suite, release = get_basemirror(c['MOLIOR_URL'], project, version)
+
+    pwd = os.getcwd()
+    cmd = f"docker run -it --rm -v {pwd}:/app/src " \
+          "-v /usr/lib/molior-tools/docker-build-local:/usr/local/sbin/docker-build-local " \
+          f"{c['MOLIOR_REGISTRY']}/molior-{release}-{arch} " \
+          f"docker-build-local {project} {version} {c['MOLIOR_URL']}"
+
+    if debug:
+        cmd += " -d"
+
+    process = Popen(split(cmd))
+    process.wait()
+
+
+if __name__ == "__main__":
+    main()
