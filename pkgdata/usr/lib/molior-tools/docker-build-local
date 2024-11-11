@@ -1,10 +1,15 @@
 #!/bin/sh
 
 debug=0
+noclean=0
 while [ "$#" -gt 0 ]; do
   case "$1" in
     -d|--debug)
       debug=1
+      shift 1
+      ;;
+    -nc|--no-clean)
+      noclean=1
       shift 1
       ;;
     -*)
@@ -96,9 +101,12 @@ finish ()
       echo Dropping to a shell ...
       echo
       if [ -n "$buildcmd" ]; then
+          if [ $noclean -ne 1 ]; then
+              buildcmd="$buildcmd -nc"
+          fi
           echo " - run 'rebuild' to build the debian package again ..."
           echo
-          echo "alias rebuild='$buildcmd -nc'" > ~build/.bash_aliases
+          echo "alias rebuild='$buildcmd'" > ~build/.bash_aliases
       fi
       su build -s /bin/bash
     fi
@@ -134,11 +142,11 @@ if [ "$?" -ne 0 ]; then
   exit 5
 fi
 
-
 log_title "Building debian package"
+
 buildargs=""
-if [ "$ARCH_ANY_ONLY" = "True" ]; then
-    buildargs="--build=any"
+if [ $noclean -eq 1 ]; then
+    buildargs="$buildargs -nc"
 fi
 
 # use real user and group
@@ -159,9 +167,12 @@ if [ "$?" -ne 0 ]; then
   exit 6
 fi
 
-su build -c "debclean"
+if [ $noclean -ne 1 ]; then
+  su build -c "debclean"
+fi
 
-log_title "Copying build output"
+echo
+log "Build Successful:"
 out=/app/src/dpkgs
 su build -c "mkdir -p $out"
 cp -a /app/*.deb /app/*.changes /app/*.buildinfo $out/
