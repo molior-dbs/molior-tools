@@ -564,6 +564,7 @@ create_fs()
       fi
       eval t_fs=\$${d}${p}FS
       if [ -n "$t_fs" ]; then
+
         if [ "$t_type" = "raw" ]; then
           part=$t_disk
         else
@@ -573,19 +574,32 @@ create_fs()
           fi
           part=$t_disk$t_partsep$part_id
         fi
+
         eval t=\$${d}${p}MNT
         if [ "$t" = "/" ]; then
           rootpart=$part
         fi
+
         eval u=\$${d}${p}LUKSNAME
         eval opts=\$${d}${p}MKFSOPTS
         make_fs "$t_fs" "$part" "$u" "$opts"
+
+        if [ "$t_fs" = "luks" ]; then
+          eval v=\$LUKS_${u}_FS
+          if [ "$v" = "btrfs" ]; then  # support btrfs on luks
+            set -x
+            make_fs "$v" "/dev/mapper/$u-decrypted" "" ""
+            set +x
+          fi
+        fi
+
       fi
 
       # if raw disk, stop looping over partitions
       if [ "$t_type" = "raw" ]; then
           break
       fi
+
     done
   done
 
@@ -667,7 +681,15 @@ get_fsinfo()
         eval t_fs=\$${d}${p}FS
         if [ "$t_fs" = "luks" ]; then
           fs_has_luks=1
+          eval luks_name=\$${d}${p}LUKSNAME
+          if [ -n "$luks_name" ]; then
+            eval fs=\$LUKS_${luks_name}_FS
+            if [ "$fs" = "btrfs" ]; then
+              fs_has_btrfs=1
+            fi
+          fi
         fi
+
         if [ "$t_fs" = "btrfs" ]; then
           fs_has_btrfs=1
         fi
