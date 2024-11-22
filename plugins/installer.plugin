@@ -285,7 +285,17 @@ EOF
     cp $INITRDINST/syslinux.cfg $WORK_DIR/out/
   fi
 
-  kernel_version=$(readlink $WORK_DIR/instroot/vmlinuz | sed 's/.*vmlinuz-//')
+  for kernel_symlink in "$WORK_DIR/instroot/vmlinuz" "$WORK_DIR/instroot/boot/vmlinuz"; do
+    if [ -L "$kernel_symlink" ]; then
+      kernel_version=$(readlink "$kernel_symlink" | sed 's/.*vmlinuz-//')
+      if [ -n "$kernel_version" ]; then
+        break
+      fi
+    fi
+  done
+  if [ -z "$kernel_version" ]; then
+    log_error "Could not parse kernel version"
+  fi
 
   cp -L $WORK_DIR/instroot/boot/initrd.img-$kernel_version $WORK_DIR/out/initrd.img
   cp -L $WORK_DIR/instroot/boot/vmlinuz-$kernel_version $WORK_DIR/out/vmlinuz
