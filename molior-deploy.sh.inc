@@ -346,7 +346,11 @@ create_partitions()
 {
   if [ -n "$RAID_NAME" ]; then
     log "creating raid $RAID_NAME"
-    echo y | mdadm --create --verbose $RAID_NAME $RAID_OPTS $RAID_DEVICES
+    missing_device=
+    if [ "$raid_add_missing_device" -eq 1 ]; then
+      missing_device=missing
+    fi
+    echo y | mdadm --create --verbose $RAID_NAME $RAID_OPTS $RAID_DEVICES $missing_device
     disk=`mdadm --detail --scan | awk {'print $2'}`  # set disk as raid virtual disk
   fi
 
@@ -1156,6 +1160,7 @@ get_deploy_config()
   echovar RAID_NAME
   echovar RAID_DEVICES
   echovar RAID_OPTS
+  echovar RAID_ACCEPT_MISSING_DEVICE
   echovar ARCH
   echovar BASEVERSION
   echovar DEPLOYMENT_TYPE

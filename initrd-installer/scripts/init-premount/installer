@@ -333,12 +333,20 @@ if [ -n "$INSTALLER_INSTALL_DISK" ]; then
 fi
 
 if [ -n "$RAID_NAME" ]; then
+  raid_add_missing_device=0
+  raid_devices_tmp=
   for d in $RAID_DEVICES;
   do
     if [ ! -b "$d" ]; then
+      if [ "$RAID_ACCEPT_MISSING_DEVICE" -eq 1 ]; then
+          raid_add_missing_device=1
+          continue
+      fi
       log_error "Error: disk $d not found, aborting installation."
     fi
+    raid_devices_tmp="$raid_devices_tmp $d"
   done
+  RAID_DEVICES="$raid_devices_tmp"
   found=1
 fi
 

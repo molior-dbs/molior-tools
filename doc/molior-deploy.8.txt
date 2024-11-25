@@ -135,9 +135,10 @@ RAID PARAMETERS
  RAID_MD#_DISKS     Set RAID disks (space separated) for raid name md# (e.g. /dev/sdb or "remaining" for all disks except install disk)
  RAID_MD#_METADATA  Optionally, set metadata version to use (e.g. 1.0)
 
- RAID_NAME          Obsolete. Set the raid device name (e.g. "/dev/md0")
- RAID_DEVICES       Obsolete. List all physical drives/partitions for raid setup (e.g. "/dev/sda /dev/sdb")
- RAID_OPTS          Obsolete. Specify all required options for the 'mdadm --create' command (e.g. "--level=1 --raid-devices=2 --metadata=1.0")
+ RAID_NAME                   Set the raid device name (e.g. "/dev/md0") used for system disk
+ RAID_DEVICES                List all physical drives/partitions for raid setup (e.g. "/dev/sda /dev/sdb")
+ RAID_OPTS                   Specify all required options for the 'mdadm --create' command (e.g. "--level=1 --raid-devices=2 --metadata=1.0")
+ RAID_ACCEPT_MISSING_DEVICE  Create raid array even if a device is missing. Optional (1 to activate)
 
 BOOT PARAMETERS
  LINUX_CMDLINE      Set Linux command line options (i.e. "biosdevname=0 net.ifnames=0 init=/lib/systemd/systemd)
