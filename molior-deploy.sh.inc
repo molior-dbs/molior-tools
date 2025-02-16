@@ -1129,6 +1129,8 @@ get_deploy_config()
 
     eval s=\$BTRFS_SUBVOL${p}_PATH
     test -n "$s" && echovar BTRFS_SUBVOL${p}_PATH "$s"
+    eval s=\$BTRFS_SUBVOL${p}_OPTS
+    test -n "$s" && echovar BTRFS_SUBVOL${p}_OPTS "$s"
     eval s=\$BTRFS_SUBVOL${p}_LIMIT
     test -n "$s" && echovar BTRFS_SUBVOL${p}_LIMIT "$s"
   done
