@@ -5,6 +5,7 @@ import yaml
 import platform
 import requests
 import click
+import sys
 
 from subprocess import Popen
 from shlex import split
@@ -28,8 +29,9 @@ def read_moliorrc():
 
 def read_molioryml():
     data = {}
-    with open('debian/molior.yml', 'r') as file:
-        data = yaml.safe_load(file)
+    if os.path.exists('debian/molior.yml'):
+        with open('debian/molior.yml', 'r') as file:
+            data = yaml.safe_load(file)
     return data
 
 
@@ -63,28 +65,50 @@ def get_basemirror(server, project, version):
 
 
 @click.command()
+@click.option('-h', '--help', is_flag=True, help="Show help")
 @click.option('-d', '--debug', is_flag=True, help="Enable debug mode")
 @click.option('-nc', '--no-clean', is_flag=True, help="Do not clean sourcecode before building")
-def main(debug, no_clean):
+@click.argument('project', required=False, default=None)
+@click.argument('version', required=False, default=None)
+def main(help, debug, no_clean, project, version):
+    """Debian build in a molior docker container.
+
+    PROJECT, VERSION    optional (both together), override the target project \
+                        and version from debian/molior.yml
+    """
+
+    if help:
+        ctx = click.get_current_context()
+        click.echo(ctx.get_help())
+        ctx.exit()
 
     arch = get_cpu_architecture()
 
-    project = None
-    version = None
-    m = read_molioryml()
-    for target in m["targets"]:
-        project = target
-        for v in m["targets"][project]:
-            version = v
-            break
-        break
-    # FIXME: check project/version ok
+    if not project or not version:
+        m = read_molioryml()
+        if "targets" in m:
+            for target in m["targets"]:
+                project = target
+                for v in m["targets"][project]:
+                    version = v
+                    break
+                break
+
+    if not project or not version:
+        print("Error: no project/version found in debian/molior.yml or arguments")
+        sys.exit(1)
 
     c = read_moliorrc()
-    # FIXME: check config ok
+    if 'MOLIOR_URL' not in c:
+        print("Error: MOLIOR_URL not found in ~/.moliorrc")
+        sys.exit(1)
 
     suite, release = get_basemirror(c['MOLIOR_URL'], project, version)
+    if not suite or not release:
+        print(f"Error: project/version {project}/{version} not found on {c['MOLIOR_URL']}")
+        sys.exit(1)
 
+    print(f"building for {project}/{version} on {suite}/{release}")
     pwd = os.getcwd()
     cmd = f"docker run -it --rm -v {pwd}:/app/src " \
           "-v /usr/lib/molior-tools/docker-build-local:/usr/local/sbin/docker-build-local " \
