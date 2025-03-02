@@ -1,3 +1,30 @@
+molior-tools (1.5.0~alpha9) stretch; urgency=medium
+
+  * molior-build: allow overriding project/version
+  * fix compat
+  * support --no-clean
+  * add molior-build
+  * molior-tools: release 1.5.0~alpha8
+  * molior-tools: release 1.5.0~alpha7
+  * molior-tools: release 1.5.0~alpha6
+  * molior-tools: release 1.5.0~alpha5
+  * molior-tools: release 1.5.0~alpha4
+  * molior-tools: release 1.5.0~alpha3
+  * btrfs: add missing mount opts
+  * raid: accept missing disk optionally
+  * installer: Use /boot/vmlinuz as fallback when parsing kernel version
+  * btrfs: add support with luks encrypted partition
+  * initrd installer: Provide real path to hook function instead of
+    symlink
+  * raid: create if disk list in not empty
+  * raid: exclude virtual media with 0 size while creating raid volume
+    using remaining drives
+  * disk encryption: silent wipefs
+  * molior-deploy: do not set default INSTALL_PACKAGE
+  * ...
+
+ -- André Roth <neolynx@gmail.com>  Sun, 02 Mar 2025 23:18:07 +0100
+
 molior-tools (1.5.0~alpha8) stretch; urgency=medium
 
   * molior-tools: release 1.5.0~alpha7
