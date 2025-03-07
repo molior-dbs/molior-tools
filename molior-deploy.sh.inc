@@ -400,7 +400,7 @@ create_partitions()
         if [ "$t_raid_disks" = "remaining" ]; then
             t_raid_disks=`lsblk -bdn -o PATH,TYPE,SIZE | grep -v ^$disk | grep -w disk | grep -v -w 0 | awk {'print $1'}`
             if [ -n "$SOURCEDISK" ]; then
-                t_raid_disks=`echo "$t_raid_disks" | grep -v $SOURCEDISK`
+                t_raid_disks=`echo "$t_raid_disks" | grep -v $SOURCEDISK || true`
             fi
         fi
 
