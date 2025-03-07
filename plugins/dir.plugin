@@ -11,6 +11,6 @@ finalize_deployment_dir()
   umount_fs
 
   cd $target
-  tar -cf ../$deployment .
+  tar --xattrs --xattrs-include='*.*' -cf ../$deployment .
   cd - >/dev/null
 }
