@@ -201,6 +201,9 @@ create_fstab()
 
         if [ "$t_type" = "raw" ]; then
           part=$t_disk
+          if [ ! -b "$part" ]; then
+            break  # stop looping over partitions if device does not exist (eg optional RAID /dev/md0)
+          fi
         else
           t_partsep=""
           if echo "$t_disk" | grep -q "[0-9]$"; then
