@@ -1031,7 +1031,7 @@ path-exclude=/usr/share/doc/*
 path-exclude=/usr/share/info/*
 path-exclude=/usr/share/common-licenses/*
 EOF
-      # Clenup already existing locales and docs
+      # Clean up already existing locales and docs
       if [ -e $target/usr/share/locale/locale.alias ]; then
         mv $target/usr/share/locale/locale.alias $WORK_DIR
       fi
@@ -1041,6 +1041,14 @@ EOF
              $target/usr/share/doc/* \
              $target/usr/share/info/* \
              $target/usr/share/common-licenses/*
+
+      # Recreate the empty man directories at least jre-headless depends on
+      # man1 being available
+      man_index=0
+      while [ $man_index -le 9 ]; do
+        mkdir -p $target/usr/share/man/man$man_index
+        man_index=$(( man_index + 1 ))
+      done
 
       if [ -e $WORK_DIR/locale.alias ]; then
         mv $WORK_DIR/locale.alias $target/usr/share/locale/
