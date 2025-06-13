@@ -76,6 +76,9 @@ INCLUDE FILES
 
  include_deploy_conf DEPLOYCONF      List of source packages separated by space to download and source deploy/common.inc or file specified after column (:)
                                      (e.g. include_deploy_conf "my-package my-other-package:conf/script.inc)
+ include_file FILEPACKAGE			 Copy a file from a source package to the current project. FILEPACKAGE must be in the form "package:sourcefile" where
+									 sourcefile will be copied to PROJECT/sourcefile
+									 (e.g. include_file my-package:etc/config.conf)
 
 DISK PARAMETERS
  Multiple disks can be used during the installation by defining the following parameters.

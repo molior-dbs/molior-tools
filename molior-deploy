@@ -23,6 +23,7 @@ omit_local_suffix=0
 debug_mode=0
 docker_login_registries=""
 deploy_conf_level=0
+include_file_level=0
 
 MOLIOR_TOOLS_VERSION=`cat /usr/lib/molior-tools/version`
 
@@ -615,21 +616,30 @@ umount_bootstrap()
   fi
 }
 
-include_deploy_conf()
+include_package()
 {
-  deploy_conf=$1
+  local package=$1
+  local mode=$2  # "deploy_conf" or "file"
 
-  # allow recursive calls
-  deploy_conf_level=$((deploy_conf_level + 1))
-
-  if echo $deploy_conf | grep -q ":"; then
-    source_file=`echo $deploy_conf | cut -d: -f2`
-    deploy_conf=`echo $deploy_conf | cut -d: -f1`
+  # Update the corresponding global level variable
+  if [ "$mode" = "deploy_conf" ]; then
+    deploy_conf_level=$((deploy_conf_level + 1))
   else
+    include_file_level=$((include_file_level + 1))
+  fi
+
+  if echo $package | grep -q ":"; then
+    source_file=`echo $package | cut -d: -f2`
+    package=`echo $package | cut -d: -f1`
+  else
+    if [ "$mode" = "file" ]; then
+      log_error "include file '$package' must be in the form 'package:sourcefile'"
+      exit 1
+    fi
     source_file=deploy/common.inc
   fi
 
-  log "downloading deploy conf package: $deploy_conf"
+  log "downloading ${mode} package: $package"
 
   baseurls=`echo "$APT_SOURCES" | grep $SOURCEMIRROR/repos/ | awk '{print $2}'`
   for baseurl in $baseurls
@@ -638,49 +648,70 @@ include_deploy_conf()
     curl -n -f -s --retry 10 -o $WORK_DIR/Sources.func $baseurl/dists/$dist/main/source/Sources
     lines=`wc -l $WORK_DIR/Sources 2>/dev/null | cut -d' ' -f1`
     if [ -n "$lines" ] && [ "$lines" -eq 0 ]; then
-      # try next baseurl
       continue
     fi
-    srcinfo=`/usr/lib/molior-tools/find-latest-version.pl $deploy_conf < $WORK_DIR/Sources.func`
+    srcinfo=`/usr/lib/molior-tools/find-latest-version.pl $package < $WORK_DIR/Sources.func`
     if [ $? -ne 0 ]; then
-      # try next baseurl
       continue
     fi
-    CONFPKG_NAME=`echo $srcinfo | cut -d ' ' -f 1`/`echo $srcinfo | cut -d ' ' -f 2`
-    CONFPKG_REV=`echo $srcinfo | cut -d ' ' -f 3`
-    if [ -n "$CONFPKG_NAME" ]; then
-        FUNC_SOURCEMIRROR=$baseurl
-      # found package
+    PKG_NAME=`echo $srcinfo | cut -d ' ' -f 1`/`echo $srcinfo | cut -d ' ' -f 2`
+    PKG_REV=`echo $srcinfo | cut -d ' ' -f 3`
+    if [ -n "$PKG_NAME" ]; then
+      FUNC_SOURCEMIRROR=$baseurl
       break
     fi
   done
   rm -f $WORK_DIR/Sources.func
-  if [ -z "$CONFPKG_NAME" ]; then
-    log_error "Error finding '$deploy_conf' source package in apt sources"
+  if [ -z "$PKG_NAME" ]; then
+    log_error "Error finding '$package' source package in apt sources"
   fi
-  confdir=`mktemp -d $WORK_DIR/conf-XXXXX`
+
+  pkgdir=`mktemp -d $WORK_DIR/conf-XXXXX`
   old_dir=$PWD
-  cd $confdir
-  curl -n -f -s --retry 10 -O -J $FUNC_SOURCEMIRROR/$CONFPKG_NAME
-  exit_on_error "Error downloading $FUNC_SOURCEMIRROR/$CONFPKG_NAME"
+  cd $pkgdir
+  curl -n -f -s --retry 10 -O -J $FUNC_SOURCEMIRROR/$PKG_NAME
+  exit_on_error "Error downloading $FUNC_SOURCEMIRROR/$PKG_NAME"
 
-  tar xf `basename $CONFPKG_NAME`
-  exit_on_error "Error extracting `basename $CONFPKG_NAME`"
+  tar xf `basename $PKG_NAME`
+  exit_on_error "Error extracting `basename $PKG_NAME`"
+  rm -f `basename $PKG_NAME`
 
-  rm -f `basename $CONFPKG_NAME`
+  log "sourcing from $package ($PKG_REV): $source_file"
+  
+  # provide new SOURCE_DIR for pkg includes to work (recursively)
+  if [ "$mode" = "deploy_conf" ]; then
+    eval orig_SOURCE_DIR_deploy_conf_$deploy_conf_level=$SOURCE_DIR
+  else
+    eval orig_SOURCE_DIR_file_$include_file_level=$SOURCE_DIR
+  fi
 
-  log "sourcing from $deploy_conf ($CONFPKG_REV): $source_file"
-  # provide new SOURCE_DIR for conf pkg includes to work (recursively)
-  eval orig_SOURCE_DIR_$deploy_conf_level=$SOURCE_DIR
-  SOURCE_DIR=$confdir/$deploy_conf
-  cd `dirname $deploy_conf/$source_file`
-  . $SOURCE_DIR/$source_file
-  cd - >/dev/null
-  eval SOURCE_DIR=\$orig_SOURCE_DIR_$deploy_conf_level
+  SOURCE_DIR=$pkgdir/$package
+
+  if [ "$mode" = "source" ]; then
+    # Source the file (for deploy_conf)
+    cd `dirname $package/$source_file`
+    . $SOURCE_DIR/$source_file
+    cd - >/dev/null
+    eval SOURCE_DIR=\$orig_SOURCE_DIR_$deploy_conf_level
+    deploy_conf_level=$((deploy_conf_level - 1))
+  else
+    # Copy the file (for include_file)
+    cp $SOURCE_DIR/$source_file $WORK_DIR/$PROJECT/$source_file
+    include_file_level=$((include_file_level - 1))
+  fi
 
   cd $old_dir
-  rm -rf $confdir
-  deploy_conf_level=$((deploy_conf_level - 1))
+  rm -rf $pkgdir
+}
+
+include_deploy_conf()
+{
+  include_package "$1" "deploy_conf"
+}
+
+include_file()
+{
+  include_package "$1" "file" 
 }
 
 setup_deployment()
