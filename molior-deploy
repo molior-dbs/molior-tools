@@ -621,7 +621,6 @@ include_package()
   local package=$1
   local mode=$2  # "deploy_conf" or "file"
 
-  # Update the corresponding global level variable
   if [ "$mode" = "deploy_conf" ]; then
     deploy_conf_level=$((deploy_conf_level + 1))
   else
