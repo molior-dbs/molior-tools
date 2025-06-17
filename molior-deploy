@@ -1655,7 +1655,7 @@ workflow_deployment()
         none)
         ;;
         xz)
-           $PXZ_CMD -T `nproc --ignore 1` $WORK_DIR/$deployment >&2
+           $PXZ_CMD $PXZ_EXTRA_OPTS -T `nproc --ignore 1` $WORK_DIR/$deployment >&2
            exit_on_error "Error compressing $deployment"
            deployment=$deployment.xz
         ;;

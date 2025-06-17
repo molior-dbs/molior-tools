@@ -49,9 +49,11 @@ if dpkg --compare-versions "$xzversion" lt 5.2.4-1; then
   TAR_PXZ="-Ipxz"
   TAR_EXTRA_OPTS=""
   PXZ_CMD=pxz
+  PXZ_EXTRA_OPTS=""
 else
   TAR_PXZ=""
   TAR_EXTRA_OPTS="J"
   PXZ_CMD=xz
+  PXZ_EXTRA_OPTS=""
 fi
 
