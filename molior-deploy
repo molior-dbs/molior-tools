@@ -693,8 +693,9 @@ include_package()
     eval SOURCE_DIR=\$orig_SOURCE_DIR_$deploy_conf_level
     deploy_conf_level=$((deploy_conf_level - 1))
   else
-    # Copy the file (for include_file)
-    cp $SOURCE_DIR/$source_file $WORK_DIR/$PROJECT/$source_file
+    # Copy the file (for include_file) to the initial source directory
+    cp $SOURCE_DIR/$source_file $orig_SOURCE_DIR_file_1/$source_file
+    eval SOURCE_DIR=\$orig_SOURCE_DIR_file_$include_file_level
     include_file_level=$((include_file_level - 1))
   fi
 
