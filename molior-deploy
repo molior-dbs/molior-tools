@@ -686,8 +686,7 @@ include_package()
 
   SOURCE_DIR=$pkgdir/$package
 
-  if [ "$mode" = "source" ]; then
-    # Source the file (for deploy_conf)
+  if [ "$mode" = "deploy_conf" ]; then
     cd `dirname $package/$source_file`
     . $SOURCE_DIR/$source_file
     cd - >/dev/null
