@@ -248,6 +248,9 @@ create_fstab()
       fi
       t_opts="subvol=$subvol_path$t_opts"
       entries="$entries\nUUID=$btrfs_uuid $subvol_path btrfs $t_opts 0 0"
+      if [ "$subvol_path" = "/swap" ]; then
+        entries="$entries\n/swap/swapfile none swap defaults 0 0"
+      fi
     done
   done
   set -x
@@ -829,6 +832,10 @@ mount_fs()
     if [ -n "$subvol_limit" ]; then
       btrfs quota enable $WORK_DIR/btrfs-root/$subvol_internal_path
       exit_on_error "Error enabling btrfs subvolume quota"
+      if [ "$subvol_internal_path" = "/swap" ]; then
+        btrfs filesystem mkswapfile --size $subvol_limit --uuid clear $WORK_DIR/btrfs-root/swap/swapfile >&2
+        exit_on_error "Error creating swapfile"
+      fi
       btrfs qgroup limit $subvol_limit $WORK_DIR/btrfs-root/$subvol_internal_path
       exit_on_error "Error enabling btrfs subvolume limit"
     fi
