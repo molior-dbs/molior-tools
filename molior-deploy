@@ -676,7 +676,7 @@ include_package()
   rm -f `basename $PKG_NAME`
 
   log "sourcing from $package ($PKG_REV): $source_file"
-  
+
   # provide new SOURCE_DIR for pkg includes to work (recursively)
   if [ "$mode" = "deploy_conf" ]; then
     eval orig_SOURCE_DIR_deploy_conf_$deploy_conf_level=$SOURCE_DIR
@@ -690,7 +690,7 @@ include_package()
     cd `dirname $package/$source_file`
     . $SOURCE_DIR/$source_file
     cd - >/dev/null
-    eval SOURCE_DIR=\$orig_SOURCE_DIR_$deploy_conf_level
+    eval SOURCE_DIR=\$orig_SOURCE_DIR_deploy_conf_$deploy_conf_level
     deploy_conf_level=$((deploy_conf_level - 1))
   else
     # Copy the file (for include_file) to the initial source directory
@@ -711,7 +711,7 @@ include_deploy_conf()
 
 include_file()
 {
-  include_package "$1" "file" 
+  include_package "$1" "file"
 }
 
 setup_deployment()
