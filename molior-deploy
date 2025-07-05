@@ -618,8 +618,8 @@ umount_bootstrap()
 
 include_package()
 {
-  local package=$1
-  local mode=$2  # "deploy_conf" or "file"
+  package=$1
+  mode=$2  # "deploy_conf" or "file"
 
   if [ "$mode" = "deploy_conf" ]; then
     deploy_conf_level=$((deploy_conf_level + 1))
