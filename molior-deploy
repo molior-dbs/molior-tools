@@ -150,7 +150,7 @@ while getopts "n:s:v:p:m:a:V:o:F:b:i:rtAlcfdOLUuSDCT:" opt; do
       KEEP_ROOTFS=1
       shift 1
       ;;
-    i)
+    b|i) # b for backward compatibility here
       BASE_ROOTFS=$OPTARG
       shift 2
       ;;
