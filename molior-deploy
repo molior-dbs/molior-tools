@@ -1186,8 +1186,7 @@ install_deployment()
 
   DEBIAN_VERSION=1
   if [ -f $target/etc/os-release ]; then
-    . $target/etc/os-release
-    DEBIAN_VERSION=$VERSION_ID
+    DEBIAN_VERSION=`grep '^VERSION_ID=' $target/etc/os-release | cut -d'=' -f2 | tr -d '"'`
   fi
 }
 
