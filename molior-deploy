@@ -1183,6 +1183,12 @@ install_deployment()
 
   chroot $target apt-get clean >&2
   chroot $target dpkg -l | tail -n +6 | awk '{ printf "%-42s %s\n", $2, $3 }' >$WORK_DIR/packages.txt
+
+  DEBIAN_VERSION=1
+  if [ -f $target/etc/os-release ]; then
+    . $target/etc/os-release
+    DEBIAN_VERSION=$VERSION_ID
+  fi
 }
 
 install_progress()
@@ -1320,8 +1326,13 @@ install_docker_start()
   mkdir -p $target/run/systemd/journal
   mount --bind /run/systemd/journal $target/run/systemd/journal
   exit_on_error "Error mounting /run/systemd/journal"
-  chroot $target cgroupfs-mount >&2
-  exit_on_error "Error mounting cgroup"
+  if [ "$DEBIAN_VERSION" -lt 13 ]; then
+    chroot $target cgroupfs-mount >&2
+    exit_on_error "Error mounting cgroup"
+  else
+    chroot $target mount -t cgroup -o devices devices /sys/fs/cgroup
+    exit_on_error "Error mounting cgroup"
+  fi
 
   # prepare docker compose env dir
   mkdir $target/tmp/docker-compose
@@ -1467,8 +1478,11 @@ install_docker_stop()
   # cleaup filesystems
   umount $target/run/systemd/journal
   exit_on_error "Error unmounting $target/run/systemd/journal"
-  chroot $target cgroupfs-umount >&2
-  exit_on_error "Error unmounting cgroupfs"
+
+  if [ "$DEBIAN_VERSION" -lt 13 ]; then
+    chroot $target cgroupfs-umount >&2
+    exit_on_error "Error unmounting cgroupfs"
+  fi
   umount $target/sys/fs/cgroup
   exit_on_error "Error unmounting $target/sys/fs/cgroup"
   umount $target/sys
