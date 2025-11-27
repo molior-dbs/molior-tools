@@ -5,7 +5,7 @@ INITRDINST=/usr/lib/molior-deploy/initrd-installer
 
 create_efi_image()
 {
-  mkfs.msdos -v -C "$WORK_DIR/efi.img" 4096 >/dev/null
+  mkfs.msdos -v -C "$WORK_DIR/efi.img" 8192 >/dev/null
   mmd -i "$WORK_DIR/efi.img" ::efi
   mmd -i "$WORK_DIR/efi.img" ::efi/boot
   mmd -i "$WORK_DIR/efi.img" ::boot
