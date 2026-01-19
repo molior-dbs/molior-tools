@@ -1,32 +1,47 @@
 #!/bin/sh
+#
+# molior-deploy: Create deployments of molior projects
+#
+# This script automates the creation of various deployment types (Docker images,
+# VirtualBox VMs, installers, etc.) from molior project sources. It handles:
+# - Downloading source packages from molior servers
+# - Setting up chroot environments with debootstrap
+# - Installing packages and configuring systems
+# - Creating final deployment artifacts (compressed images, containers, etc.)
+#
+# Dependencies: Requires molior.sh.inc for shared functions and configuration
 
 . /usr/lib/molior-tools/molior.sh.inc
 
-APTLY_OVERRIDE=0
-LIST_ONLY=0
-ask_cleanup=1
-user_abort=0
-deploy_all=0
-keep_log=0
-no_color=0
-unstable_sources=0
-dist=stable
-lvm_rename_existing=0
-DEPLOYMENT_SHA256=0
-OVERLAY_VERSION=""
-OVERLAY_AUTO=0
-VARIANT=""
-MOLIOR_PROJECTINFO_FILE=""
-src_pkg_only=0
-output_build_vars=0
-omit_local_suffix=0
-debug_mode=0
-docker_login_registries=""
-deploy_conf_level=0
-include_file_level=0
+# Global configuration flags
+APTLY_OVERRIDE=0           # Override project apt sources with APTLY_SERVER
+LIST_ONLY=0                # Only list available deployment variants, don't build
+ask_cleanup=1              # Prompt user before cleaning up on error
+user_abort=0               # Flag indicating user aborted the operation
+deploy_all=0               # Build all variants without prompting
+keep_log=0                 # Keep log file even on success (set by -L option)
+no_color=0                 # Disable colored terminal output
+unstable_sources=0         # Use unstable/CI APT sources
+dist=stable                # Distribution type: stable or unstable
+lvm_rename_existing=0      # Rename conflicting LVM volume groups on host
+DEPLOYMENT_SHA256=0        # Generate SHA256 checksum for deployment
+OVERLAY_VERSION=""         # Override version for source package lookup
+OVERLAY_AUTO=0             # Automatically find top level package version
+VARIANT=""                 # Deployment variant to build (from deploy/*.conf)
+MOLIOR_PROJECTINFO_FILE="" # Path to write project/version info in target
+src_pkg_only=0             # Only download source package, don't build
+output_build_vars=0        # Output build variables to deployment.vars file
+omit_local_suffix=0        # Don't add +local suffix for local builds
+debug_mode=0               # Enable APT debug output
+docker_login_registries="" # Track which docker registries we've logged into
+deploy_conf_level=0        # Track recursion depth for deploy config includes
+include_file_level=0       # Track recursion depth for file includes
 
 MOLIOR_TOOLS_VERSION=`cat /usr/lib/molior-tools/version`
 
+# Print usage information and exit
+# Arguments:
+#   $1 - Optional error message to display
 usage()
 {
   echo "molior-tools $MOLIOR_TOOLS_VERSION"
@@ -66,7 +81,10 @@ usage()
   exit 1
 }
 
+# Save original options for recursive calls (used by -f flag)
 origopts=$@
+
+# Parse command line options
 while getopts "n:s:v:p:m:a:V:o:F:b:i:rtAlcfdOLUuSDCT:" opt; do
   case $opt in
     n)
@@ -179,6 +197,8 @@ while getopts "n:s:v:p:m:a:V:o:F:b:i:rtAlcfdOLUuSDCT:" opt; do
   esac
 done
 
+# Most operations require root privileges (mounting, chroot, etc.)
+# Exception: -l (list only) mode doesn't need root
 if [ $LIST_ONLY -eq 0 -a `id -u` -ne 0 ]; then
   usage "Please run $0 as root" >&2
 fi
@@ -194,6 +214,8 @@ if [ -z "$VERSION" ]; then
   usage
 fi
 
+# Handle -f (build all variants) by recursively calling this script
+# for each variant. This allows batch building without user interaction.
 if [ $LIST_ONLY -eq 0 -a "$deploy_all" -eq 1 ]; then
   opts=`echo $origopts | sed -e "s/$PROJECT//" -e "s/$VERSION//" -e 's/-f//'`
   for variant in `eval molior-deploy $opts -l $PROJECT $VERSION`
@@ -222,7 +244,8 @@ if [ -z "$MOLIOR_TMPDIR" ]; then
   MOLIOR_TMPDIR=/tmp
 fi
 
-# clean env
+# Sanitize environment to ensure consistent behavior in chroot
+# Remove locale settings that could interfere with package operations
 unset LANGUAGE
 unset LC_ALL
 unset LC_PAPER
@@ -237,7 +260,7 @@ unset LC_TIME
 unset LANG
 export HOME=/root
 
-# default settings
+# Default deployment settings (can be overridden by deploy/*.conf files)
 DEPLOYMENT_TYPE=image
 INSTALL_PACKAGE=""
 PRESEED_FILE=""
@@ -246,7 +269,8 @@ if [ "$KEEP_ROOTFS" != "1" ]; then
     KEEP_ROOTFS=0
 fi
 
-# logging
+# Configure colored output for terminal feedback
+# Colors are disabled in -t (text-only) mode
 if [ $no_color -ne 1 ]; then
   color_info="\e[36m\e[1m"
   color_notice="\e[34m\e[1m"
@@ -263,6 +287,8 @@ else
   color_reset=""
 fi
 
+# Log informational message (with * prefix)
+# Suppressed in list-only mode
 log()
 {
   if [ "$LIST_ONLY" -eq 0 ]; then
@@ -270,6 +296,7 @@ log()
   fi
 }
 
+# Log informational message with cyan color (I: prefix)
 log_info()
 {
   if [ "$LIST_ONLY" -eq 0 ]; then
@@ -277,6 +304,8 @@ log_info()
   fi
 }
 
+# Log notice message with blue color (N: prefix)
+# Used for important successful operations
 log_notice()
 {
   if [ "$LIST_ONLY" -eq 0 ]; then
@@ -284,6 +313,7 @@ log_notice()
   fi
 }
 
+# Log warning message with magenta color (W: prefix)
 log_warn()
 {
   if [ "$LIST_ONLY" -eq 0 ]; then
@@ -291,6 +321,12 @@ log_warn()
   fi
 }
 
+# Log error message and exit
+# Arguments:
+#   $@ - Error message to display
+# Side effects:
+#   - Exits the script with return code from $RET or 1
+#   - Offers to chroot into target for debugging (if ask_cleanup=1)
 log_error()
 {
   /bin/echo -e "${color_error}E: $@ $color_reset"
@@ -310,13 +346,14 @@ log_error()
   exit $RET
 }
 
-# include helper functions
+# Load shared helper functions from molior-deploy.sh.inc
+# and any additional extensions from molior-deploy.d/ directory
 . /usr/lib/molior-deploy/molior-deploy.sh.inc
 if ls /usr/lib/molior-deploy/molior-deploy.d/*.inc > /dev/null 2>&1; then
     . /usr/lib/molior-deploy/molior-deploy.d/*.inc
 fi
 
-# init
+# Initialize working environment and state tracking variables
 success=0
 CUR_DIR=`pwd`
 
@@ -331,16 +368,20 @@ do_installation=1
 do_software_installation=1
 starttime="0"
 endtime="0"
-target=""
+target=""                  # Path to deployment chroot root
 
-# binftms to be disabled
+# Binary format handlers that can interfere with cross-architecture builds
+# These are temporarily disabled and re-enabled in finish()
 BADFMTS="cli jar jarwrapper python2.7 python3.5"
 
+# Redirect stderr to log file for normal operations
+# Keep stderr on terminal in debug mode or list-only mode
 if [ "$debug_mode" -ne 1 -a "$LIST_ONLY" -ne 1 ]; then
   exec 3>&2
   exec 2>$errlog
 fi
 
+# Print molior-deploy ASCII banner to stderr (appears in log)
 echo >&2
 echo "                 _ _                     _            _             " >&2
 echo " _ __ ___   ___ | (_) ___  _ __       __| | ___ _ __ | | ___  _   _ " >&2
@@ -360,7 +401,15 @@ else
   set -x
 fi
 
-# functions
+# ============================================================================
+# UTILITY FUNCTIONS
+# ============================================================================
+
+# Execute apt-get in chroot with retry logic for download failures
+# Arguments:
+#   $@ - Arguments to pass to apt-get
+# Returns:
+#   Exit code from final apt-get execution
 apt_get_chroot_with_retry ()
 {
     for i in seq 1 3; do
@@ -371,6 +420,15 @@ apt_get_chroot_with_retry ()
     DEBIAN_FRONTEND=noninteractive chroot $target apt-get "$@"
 }
 
+# Cleanup function called on exit (via trap)
+# Handles:
+#   - Unmounting filesystems
+#   - Removing temporary directories
+#   - Restoring renamed LVM volume groups
+#   - Copying log files
+#   - Re-enabling disabled binfmts
+# Returns:
+#   0 on success, 1 on failure
 finish ()
 {
   set +x
@@ -439,6 +497,9 @@ finish ()
       fi
       logfile=`date "+${PROJECT}_${VERSION}_${VARIANT}_%Y%m%d%H%M%S.log"`
       cp $errlog $CUR_DIR/$logfile
+      if [ -n "$SUDO_UID" -a -n "$SUDO_GID" ]; then
+        chown $SUDO_UID:$SUDO_GID $CUR_DIR/$logfile
+      fi
       test "$success" -ne 1 && log_info "full log: $logfile"
     fi
   fi
@@ -476,6 +537,8 @@ finish ()
   fi
 }
 
+# Handle user interrupt (Ctrl+C)
+# Sets flags to skip cleanup prompts and call finish()
 abort()
 {
   ask_cleanup=0
@@ -484,9 +547,16 @@ abort()
   finish
 }
 
+# Register cleanup handlers for normal exit and interrupt
 trap finish EXIT
 trap abort INT
 
+# Interactive yes/no prompt
+# Arguments:
+#   $1 - Question to ask
+#   $2 - Default answer: "Y" (yes), "N" (no), or empty (no default)
+# Returns:
+#   0 for yes, 1 for no
 ask()
 {
   y="y"
@@ -514,6 +584,11 @@ ask()
   esac
 }
 
+# Create a bind mount with optional mount options
+# Arguments:
+#   $1 - Source path
+#   $2 - Target path
+#   $3 - Optional mount options (e.g., "ro")
 mountbind()
 {
   mount -o bind "$1" "$2"
@@ -522,6 +597,14 @@ mountbind()
   fi
 }
 
+# Mount essential filesystems for chroot environment
+# Sets up:
+#   - /dev, /dev/pts, /proc, /sys (kernel filesystems)
+#   - /tmp (isolated temporary directory)
+#   - Policy daemon override to prevent services from starting
+#   - Chroot ignore scripts (placeholders for system commands)
+# Requires:
+#   $target must be set to chroot root directory
 mount_bootstrap()
 {
   if [ -z "$target" ]; then
@@ -577,6 +660,12 @@ EOM
   fi
 }
 
+# Unmount filesystems mounted by mount_bootstrap()
+# Cleans up:
+#   - All chroot bind mounts
+#   - Kernel filesystems (/dev, /proc, /sys)
+#   - Temporary directories
+#   - Chroot ignore scripts
 umount_bootstrap()
 {
   if [ -z "$target" ]; then
@@ -616,6 +705,17 @@ umount_bootstrap()
   fi
 }
 
+# Download and source a file from another molior package
+# Used to share deploy configuration and files between projects
+# Arguments:
+#   $1 - Package specification:
+#        "package" - uses deploy/common.inc (for deploy_conf mode)
+#        "package:sourcefile" - uses specified file
+#   $2 - Mode: "deploy_conf" (source file) or "file" (copy file)
+# Side effects:
+#   - Downloads package from apt sources
+#   - Modifies SOURCE_DIR temporarily for recursion
+#   - Sources or copies the specified file
 include_package()
 {
   package=$1
@@ -704,16 +804,38 @@ include_package()
   rm -rf $pkgdir
 }
 
+# Download and source a deploy configuration from another package
+# Arguments:
+#   $1 - Package name or "package:file" specification
 include_deploy_conf()
 {
   include_package "$1" "deploy_conf"
 }
 
+# Download and copy a file from another package to current SOURCE_DIR
+# Arguments:
+#   $1 - Must be "package:sourcefile" format
 include_file()
 {
   include_package "$1" "file"
 }
 
+# ============================================================================
+# DEPLOYMENT SETUP AND CONFIGURATION
+# ============================================================================
+
+# Setup deployment environment and download source package
+# This function:
+#   1. Queries molior server for project apt sources
+#   2. Downloads or uses local source package
+#   3. Lists available deployment variants
+#   4. Prompts for variant selection (if not specified)
+#   5. Sources the variant configuration file
+#   6. Loads the deployment type plugin
+# Side effects:
+#   - Creates $target directory
+#   - Downloads files to $WORK_DIR
+#   - Sets numerous global variables from deploy/*.conf
 setup_deployment()
 {
   DEPLOYMENT_TIMESTAMP=`date -R`
@@ -982,6 +1104,21 @@ setup_deployment()
   mkdir $target
 }
 
+# ============================================================================
+# SYSTEM INSTALLATION
+# ============================================================================
+
+# Bootstrap a minimal Debian system in $target
+# This function:
+#   1. Downloads GPG keys for apt repositories
+#   2. Tries to download pre-built debootstrap tarball from molior
+#   3. Falls back to running debootstrap if download fails
+#   4. Configures hostname, apt sources, and fstab
+#   5. Handles cross-architecture setup (ARM with qemu)
+# Side effects:
+#   - Populates $target with base system
+#   - Imports GPG keys to $target
+#   - Configures APT in $target
 bootstrap_deployment()
 {
   KEY_URL=$REPOURL/$PUBKEY_FILE
@@ -1149,6 +1286,14 @@ EOF
   fi
 }
 
+# Install packages specified in $INSTALL_PACKAGE
+# Arguments: None (uses global variables)
+# Side effects:
+#   - Mounts bootstrap filesystems
+#   - Applies preseed file if specified
+#   - Installs packages via apt-get
+#   - Saves package list to packages.txt
+#   - Detects Debian version
 install_deployment()
 {
   if [ -z "$target" ]; then
@@ -1190,6 +1335,9 @@ install_deployment()
   fi
 }
 
+# Display installation progress indicator
+# Runs in background during package installation
+# Parses apt output from $errlog to show progress bar
 install_progress()
 {
     set +x
@@ -1213,6 +1361,12 @@ install_progress()
     /bin/echo -ne "                                        \r"
 }
 
+# Clean up deployment artifacts
+# Removes:
+#   - QEMU static binaries (for ARM cross-builds)
+#   - SSH host keys (for security)
+#   - Machine IDs (will be regenerated on first boot)
+#   - APT cache and logs
 cleanup_deployment()
 {
   if [ -z "$target" ]; then
@@ -1235,6 +1389,11 @@ cleanup_deployment()
         $target/var/log/apt/*
 }
 
+# Generate deployment output filename
+# Arguments:
+#   $1 - File extension (without dot)
+# Returns:
+#   Filename string via stdout
 get_deployment_filename()
 {
   EXTENSION="$1"
@@ -1246,7 +1405,8 @@ get_deployment_filename()
   echo "$deployment"
 }
 
-# directory deployments are used from multiple plugins
+# Initialize directory-based deployment (used by multiple plugins)
+# Creates $target directory without fstab generation
 init_deployment_dir()
 {
   do_fstab=0
@@ -1255,7 +1415,16 @@ init_deployment_dir()
   log "rootfs: $target"
 }
 
-# Try to kill pid=$1 nretries=$2 times
+# ============================================================================
+# DOCKER CONTAINER SUPPORT
+# ============================================================================
+
+# Terminate a process with retry logic
+# Arguments:
+#   $1 - Process ID to kill
+#   $2 - Number of retry attempts
+# Returns:
+#   0 on success, exit code from kill on failure
 kill_with_retry()
 {
     pid=$1
@@ -1283,6 +1452,16 @@ kill_with_retry()
     return $retval
 }
 
+# Orchestrate docker container installation
+# High-level function that:
+#   1. Starts dockerd in the chroot
+#   2. Pulls specified containers
+#   3. Runs post-install hooks
+#   4. Stops dockerd and cleans up
+# Side effects:
+#   - Temporarily unmounts/remounts filesystems
+#   - Starts/stops docker daemon in chroot
+#   - Downloads container images
 install_docker()
 {
     if [ -z "$DOCKER_COMPOSE_FILE" ] && [ -z "$DOCKER_CONTAINERS" ]; then
@@ -1306,6 +1485,11 @@ install_docker()
     mount_bootstrap
 }
 
+# Prepare chroot and start dockerd
+# Mounts required filesystems (dev, proc, sys, cgroup)
+# Starts docker daemon in background
+# WARNING: After calling this, must call install_docker_stop()
+#          No exit/log_error allowed in between
 install_docker_start()
 {
   # prepare filesystem
@@ -1352,6 +1536,13 @@ install_docker_start()
   fi
 }
 
+# Pull docker containers from registries
+# Parses $DOCKER_COMPOSE_FILE or uses $DOCKER_CONTAINERS
+# Handles authentication for private registries
+# Arguments: None (uses global variables)
+# Returns:
+#   0 on success, non-zero on failure (returned, not exited)
+# WARNING: Do not call log_error in this function
 install_docker_pull()
 {
   # in this function exit / log_error is not allowed, need to tear down chroot docker daemon first
@@ -1452,6 +1643,8 @@ install_docker_pull()
   return $ret
 }
 
+# Run deployment-specific post-install hooks for docker
+# Calls postinst_docker() or postinst_docker_$DEPLOYMENT_TYPE() if defined
 install_docker_postinst_hooks()
 {
   if type postinst_docker >/dev/null; then
@@ -1461,6 +1654,9 @@ install_docker_postinst_hooks()
   fi
 }
 
+# Stop dockerd and clean up docker-related mounts
+# Reverses operations done by install_docker_start()
+# Must be called even if docker operations fail
 install_docker_stop()
 {
   rm -rf $target/tmp/docker-compose
@@ -1502,6 +1698,9 @@ install_docker_stop()
   rm -f $target/root/.docker/config.json
 }
 
+# Verify molior-tools version compatibility
+# Checks $REQUIRED_MOLIORTOOLS_VERSION from deploy config
+# Exits if current version is incompatible
 check_required_version()
 {
     if [ "$REQUIRED_MOLIORTOOLS_VERSION" != "" ]; then
@@ -1511,6 +1710,21 @@ check_required_version()
     fi
 }
 
+# ============================================================================
+# POST-INSTALLATION CUSTOMIZATION
+# ============================================================================
+
+# Execute post-installation hooks and docker setup
+# This function:
+#   1. Enables DNS in chroot for network operations
+#   2. Calls user-defined postinst_deployment hooks
+#   3. Installs docker containers if specified
+#   4. Calls internal deployment-specific hooks
+#   5. Restores original DNS configuration
+# Side effects:
+#   - Temporarily modifies /etc/resolv.conf in target
+#   - May install and configure software
+#   - Downloads docker containers
 run_postinst()
 {
     # enable DNS in chroot for postinst
@@ -1548,7 +1762,23 @@ run_postinst()
     fi
 }
 
-# 1st stage: create the base rootfs
+# ============================================================================
+# DEPLOYMENT WORKFLOWS
+# ============================================================================
+
+# Stage 1: Create the base root filesystem
+# This workflow:
+#   1. Sets up deployment configuration
+#   2. Checks preconditions
+#   3. Initializes deployment type (calls plugin's init_deployment)
+#   4. Bootstraps base system or extracts existing rootfs
+#   5. Installs software packages
+#   6. Runs post-installation hooks
+#   7. Installs grub if requested
+# Side effects:
+#   - Creates and populates $target directory
+#   - May rename LVM volume groups on host
+#   - Disables conflicting binfmt handlers
 workflow_base()
 {
   # disable conflicting binfmts
@@ -1669,6 +1899,17 @@ workflow_base()
   cleanup_deployment
 }
 
+# Stage 2: Finalize and package the deployment
+# This workflow:
+#   1. Optionally saves rootfs tarball (if -r specified)
+#   2. Calls plugin's finalize_deployment to create artifact
+#   3. Compresses deployment if requested
+#   4. Generates SHA256 checksum if requested
+#   5. Moves artifacts to current directory
+#   6. Fixes file ownership for sudo users
+# Side effects:
+#   - Creates deployment artifact files in $CUR_DIR
+#   - Removes $target and $WORK_DIR
 workflow_deployment()
 {
   log_info "Creating deployment ..."
@@ -1750,8 +1991,14 @@ workflow_deployment()
   success=1
 }
 
+# ============================================================================
+# MAIN EXECUTION
+# ============================================================================
+
+# Execute stage 1: Create base rootfs
 workflow_base
 
+# Handle bind mounts specified in deployment config
 if [ -n "$BIND_MOUNTS" ]; then
   for m in $BIND_MOUNTS
   do
@@ -1766,4 +2013,5 @@ if [ -n "$BIND_MOUNTS" ]; then
   done
 fi
 
+# Execute stage 2: Finalize and package deployment
 workflow_deployment
