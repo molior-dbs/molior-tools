@@ -439,6 +439,9 @@ finish ()
       fi
       logfile=`date "+${PROJECT}_${VERSION}_${VARIANT}_%Y%m%d%H%M%S.log"`
       cp $errlog $CUR_DIR/$logfile
+      if [ -n "$SUDO_UID" -a -n "$SUDO_GID" ]; then
+        chown $SUDO_UID:$SUDO_GID $CUR_DIR/$logfile
+      fi
       test "$success" -ne 1 && log_info "full log: $logfile"
     fi
   fi
