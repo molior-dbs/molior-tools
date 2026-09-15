@@ -1328,13 +1328,6 @@ install_docker_start()
   mkdir -p $target/run/systemd/journal
   mount --bind /run/systemd/journal $target/run/systemd/journal
   exit_on_error "Error mounting /run/systemd/journal"
-  if [ "$DEBIAN_VERSION" -lt 13 ]; then
-    chroot $target cgroupfs-mount >&2
-    exit_on_error "Error mounting cgroup"
-  else
-    chroot $target mount -t cgroup -o devices devices /sys/fs/cgroup
-    exit_on_error "Error mounting cgroup"
-  fi
 
   # prepare docker compose env dir
   mkdir $target/tmp/docker-compose
@@ -1342,9 +1335,19 @@ install_docker_start()
     cp $target/$DOCKER_COMPOSE_ENV_FILE $target/tmp/docker-compose/.env
   fi
 
+  docker_cgroup_mounted=0
   if chroot $target dpkg -s podman-docker >/dev/null 2>&1; then
     log "using podman-docker wrapper"
   else
+    # only dockerd needs the cgroup hierarchy inside the chroot
+    if [ "$DEBIAN_VERSION" -lt 13 ]; then
+      chroot $target cgroupfs-mount >&2
+    else
+      chroot $target mount -t cgroup2 none /sys/fs/cgroup
+    fi
+    exit_on_error "Error mounting cgroup"
+    docker_cgroup_mounted=1
+
     # start docker
     chroot $target sh -c '. /etc/default/docker; TZ=UTC exec dockerd --iptables=false -H unix:// $DOCKER_OPTS' >&2 &
     dockerpid=$!
@@ -1481,12 +1484,15 @@ install_docker_stop()
   umount $target/run/systemd/journal
   exit_on_error "Error unmounting $target/run/systemd/journal"
 
-  if [ "$DEBIAN_VERSION" -lt 13 ]; then
-    chroot $target cgroupfs-umount >&2
-    exit_on_error "Error unmounting cgroupfs"
+  if [ "$docker_cgroup_mounted" -eq 1 ]; then
+    docker_cgroup_mounted=0
+    if [ "$DEBIAN_VERSION" -lt 13 ]; then
+      chroot $target cgroupfs-umount >&2
+      exit_on_error "Error unmounting cgroupfs"
+    fi
+    umount $target/sys/fs/cgroup
+    exit_on_error "Error unmounting $target/sys/fs/cgroup"
   fi
-  umount $target/sys/fs/cgroup
-  exit_on_error "Error unmounting $target/sys/fs/cgroup"
   umount $target/sys
   exit_on_error "Error unmounting $target/sys"
   umount $target/proc
